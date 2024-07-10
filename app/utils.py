@@ -217,12 +217,12 @@ def get_collection_stats():
         logger.error(f"Error getting collection stats: {str(e)}")
         return None
     
-def store_message(user_id, message, sender):
-    conversation_id = get_current_conversation(user_id)
+def store_message(user_id, message, sender, conversation_id=None):
+    if not conversation_id:
+        conversation_id = get_current_conversation(user_id)
     
     # If there's an active conversation, end it before starting a new one
-    if sender == 'User' and conversation_id:
-        end_conversation(conversation_id)
+    if sender == 'User' and not conversation_id:
         conversation_id = start_new_conversation(user_id, generate_title(message))
     
     message_entry = {
@@ -232,6 +232,7 @@ def store_message(user_id, message, sender):
         'timestamp': datetime.utcnow()
     }
     conversation_collection.insert_one(message_entry)
+
 
 def get_current_conversation(user_id):
     conversation = conversation_collection.find_one(

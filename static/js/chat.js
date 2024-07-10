@@ -8,7 +8,7 @@ console.log('conversationList:', conversationList);
 console.log('chatContainer:', chatContainer);
 console.log('userInput:', userInput);
 console.log('adminForm:', adminForm);
-
+console.log('Markdown test in chat.js:', marked.parse('# Hello\n\nThis is a **test**.'));
 async function sendMessage() {
     const question = userInput.value;
     if (!question) return;
@@ -45,6 +45,7 @@ async function sendMessage() {
         if (data.error) {
             appendMessage('assistant', `Error: ${data.error}`);
         } else {
+            console.log('Raw assistant message:', data.answer);  // Debug log
             appendMessage('assistant', data.answer);
         }
     } catch (error) {
@@ -61,13 +62,61 @@ function handleSampleQuestion(question) {
 }
 
 function appendMessage(sender, message) {
+    console.log(`Appending message from ${sender}:`, message);
+    
     const messageElement = document.createElement('div');
-    messageElement.classList.add('chat-bubble', sender);
-    messageElement.innerHTML = `<span>${message}</span>`;
+    messageElement.classList.add('chat-bubble', sender.toLowerCase());
+
+    if (sender.toLowerCase() === 'assistant') {
+        console.log('Before processing:', message);
+        
+        // Remove <p> tags but keep line breaks
+        let processedMessage = message.replace(/<p>/g, '').replace(/<\/p>/g, '\n\n').trim();
+        
+        // Replace <br> tags with newlines
+        processedMessage = processedMessage.replace(/<br>/g, '\n');
+        
+        // Strip any remaining HTML tags
+        processedMessage = stripHtml(processedMessage);
+        
+        console.log('After processing, before Markdown parsing:', processedMessage);
+        
+        // Configure marked
+        marked.setOptions({
+            breaks: true,
+            gfm: true,
+            headerIds: false,
+            mangle: false
+        });
+        
+        // Parse the processed message
+        let parsedMessage = marked.parse(processedMessage);
+        
+        console.log('After Markdown parsing:', parsedMessage);
+        
+        // Use DOMPurify to sanitize the HTML produced by marked, if available
+        if (typeof DOMPurify !== 'undefined') {
+            parsedMessage = DOMPurify.sanitize(parsedMessage);
+        } else {
+            console.warn('DOMPurify is not available. Skipping sanitization.');
+        }
+        
+        messageElement.innerHTML = parsedMessage;
+    } else {
+        const span = document.createElement('span');
+        span.textContent = message;
+        messageElement.appendChild(span);
+    }
+
     chatContainer.appendChild(messageElement);
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
+function stripHtml(html) {
+    let tmp = document.createElement("DIV");
+    tmp.innerHTML = html;
+    return tmp.textContent || tmp.innerText || "";
+}
 function appendLoader() {
     const loaderElement = document.createElement('div');
     loaderElement.classList.add('loader');
@@ -213,6 +262,19 @@ function startNewChat() {
     chatContainer.innerHTML = '';
     userInput.value = '';
     // Add any additional logic to start a new chat
+}
+
+function sanitizeAndRenderMarkdown(message) {
+    // Basic sanitization
+    const sanitized = message
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    
+    // Render Markdown
+    return marked.parse(sanitized);
 }
 
 // Fetch conversations on page load

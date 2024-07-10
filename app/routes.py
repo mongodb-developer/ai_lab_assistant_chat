@@ -16,7 +16,9 @@ from app.utils import (
     json_serialize,
     store_message,
     get_user_conversations,
-    get_conversation_messages
+    get_conversation_messages,
+    start_new_conversation  # Ensure this is imported
+
 )
 
 main = Blueprint('main', __name__)
@@ -99,7 +101,14 @@ def chat_api():
         user_question = request.json['question']
 
         user_id = current_user.get_id()
-        store_message(user_id, user_question, 'User')
+
+        # Generate a title for the conversation
+        title = user_question[:50]  # Use the first 50 characters of the question as the title
+        
+        # Start a new conversation if no active conversation exists
+        conversation_id = start_new_conversation(user_id, title)
+        
+        store_message(user_id, user_question, 'User', conversation_id)
 
         question_embedding, embed_debug = generate_embedding(user_question)
         debug_info['embedding'] = embed_debug
@@ -119,7 +128,7 @@ def chat_api():
             response_message = 'No similar questions found'
             response = {'error': response_message, 'debug_info': debug_info}
 
-        store_message(user_id, response_message, 'Assistant')
+        store_message(user_id, response_message, 'Assistant', conversation_id)
         return json.dumps(response, default=json_serialize), 200, {'Content-Type': 'application/json'}
     except ValueError as e:
         logger.error(f"Value error in chat route: {str(e)}")
@@ -130,6 +139,7 @@ def chat_api():
         debug_info['error'] = str(e)
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
+
 
 @main.route('/api/add_question', methods=['POST'])
 @login_required
