@@ -110,9 +110,11 @@ def chat_api():
         
         store_message(user_id, user_question, 'User', conversation_id)
 
+        # Generate the question embedding
         question_embedding, embed_debug = generate_embedding(user_question)
         debug_info['embedding'] = embed_debug
 
+        # Search for similar questions
         similar_questions, search_debug = search_similar_questions(question_embedding)
         debug_info['search'] = search_debug
 

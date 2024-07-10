@@ -163,3 +163,4 @@ cython_debug/
 stash
 .env
 .DS_Store
+env.sh

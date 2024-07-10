@@ -5,6 +5,7 @@ import json
 import logging
 from datetime import datetime
 from bson import ObjectId, json_util
+import traceback
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,6 +39,7 @@ def get_db_connection():
             client = MongoClient(Config.MONGODB_URI)
             db = client[Config.MONGODB_DB]
             logger.info(f"Successfully connected to MongoDB. Database: {Config.MONGODB_DB}")
+            return db
         except Exception as e:
             logger.error(f"Failed to connect to MongoDB: {str(e)}")
             raise
