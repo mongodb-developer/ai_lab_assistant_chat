@@ -1,0 +1,284 @@
+/* styles.css */
+
+/* Base styles */
+body {
+    background-color: #f0f0f0; /* Light gray background for the body */
+    color: #333; /* Dark gray text color */
+    font-family: Arial, sans-serif; /* Font style */
+}
+
+/* Navbar styles */
+.navbar {
+    background-color: #ffffff; /* White background for the navbar */
+    border-bottom: 1px solid #e0e0e0; /* Light gray border at the bottom */
+    padding: 10px 20px; /* Padding for the navbar */
+}
+
+.navbar-brand, .navbar-nav .nav-link {
+    color: #333; /* Dark gray color for navbar text */
+}
+
+.navbar-brand:hover, .navbar-nav .nav-link:hover {
+    color: #00a35c; /* MongoDB green for hover state */
+}
+
+.navbar-text {
+    margin-right: 15px; /* Add margin to the right of the welcome message */
+}
+
+/* Sidebar styles */
+.sidebar {
+    background-color: #f8f8f8; /* Light gray background for the sidebar */
+    border-right: 1px solid #e0e0e0; /* Light gray border on the right */
+    padding: 20px; /* Padding for the sidebar */
+    height: 100vh; /* Adjusted full height to 10vh */
+    overflow-y: auto; /* Scrollable */
+}
+
+.sidebar h4 {
+    color: #333;
+}
+
+.sidebar a {
+    color: #333; /* Dark gray color for sidebar links */
+    text-decoration: none; /* No underline for links */
+    display: block; /* Block display for links */
+    padding: 10px 0; /* Padding for links */
+}
+
+.sidebar a:hover {
+    background-color: #e0e0e0; /* Light gray background for hover state */
+    color: #00a35c; /* MongoDB green for hover state */
+}
+
+/* Main content styles */
+.main-content {
+    padding: 20px; /* Padding for the main content */
+}
+
+/* Header styles */
+.header {
+    background-color: #ffffff; /* White background for the header */
+    border-bottom: 1px solid #e0e0e0; /* Light gray border at the bottom */
+    padding: 10px 20px; /* Padding for the header */
+}
+
+/* Footer styles */
+.footer {
+    background-color: #f8f8f8; /* Light gray background for the footer */
+    border-top: 1px solid #e0e0e0; /* Light gray border at the top */
+    padding: 10px 20px; /* Padding for the footer */
+    text-align: center; /* Centered text */
+}
+
+.conversation-item {
+    background-color: #ffffff; /* White background for each conversation item */
+    border: 1px solid #e0e0e0; /* Light gray border */
+    padding: 10px; /* Padding */
+    margin-bottom: 10px; /* Spacing between items */
+    border-radius: 5px; /* Rounded corners */
+    cursor: pointer; /* Pointer cursor on hover */
+}
+
+.conversation-item:hover {
+    background-color: #f0f0f0; /* Light gray background on hover */
+}
+
+.timestamp {
+    color: #999; /* Light gray color for timestamp */
+    font-size: 0.9em; /* Smaller font size */
+}
+
+/* Container layout */
+.container-fluid {
+    height: 10vh; /* Updated to 10vh */
+}
+
+.chat-container-wrapper {
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+    padding: 20px;
+}
+
+.chat-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    margin-bottom: 10px;
+    border: 1px solid #e0e0e0; /* Add border to chat container */
+}
+
+.input-group {
+    width: 100%;
+}
+
+#user-input {
+    flex-grow: 1;
+}
+
+/* Sample questions */
+.sample-questions {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.sample-questions button {
+    width: 100%;
+    max-width: 600px;
+    font-size: 0.875rem; /* Smaller font size */
+    padding: 5px 10px; /* Adjust padding */
+    margin: 5px 0; /* Adjust margin */
+    border: none;
+    background-color: #e0e0e0;
+    color: #333;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s; /* Smooth transition */
+}
+
+.sample-questions button:hover {
+    background-color: #00a35c; /* Hover background color */
+    color: #fff; /* Hover text color */
+}
+
+/* Buttons and links */
+.btn-primary {
+    background-color: #00a35c; /* MongoDB green */
+    border-color: #00a35c; /* MongoDB green */
+}
+
+.btn-primary:hover, .btn-primary:focus, .btn-primary:active {
+    background-color: #008c4a; /* Darker MongoDB green for hover state */
+    border-color: #008c4a; /* Darker MongoDB green for hover state */
+}
+
+a {
+    color: #00a35c; /* MongoDB green for links */
+}
+
+a:hover, a:focus {
+    color: #008c4a; /* Darker MongoDB green for hover state */
+}
+.nav-link.active-page {
+    color: #00a35c;
+    font-weight: bold;
+}
+
+.sidebar {
+    min-height: 100vh;
+    background-color: #f8f8f8;
+    border-right: 1px solid #e0e0e0;
+    padding: 20px;
+}
+
+.main-content {
+    padding: 20px;
+}
+
+.subheader {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.nav-link.active-page {
+    color: #00a35c;
+    font-weight: bold;
+}
+
+.sidebar {
+    min-height: 100vh;
+    background-color: #f8f8f8;
+    border-right: 1px solid #e0e0e0;
+    padding: 20px;
+}
+
+.subheader {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.chat-bubble {
+    max-width: 60%;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 5px 0;
+    word-wrap: break-word;
+}
+
+.chat-bubble.user {
+    background-color: #dcf8c6;
+    align-self: flex-end;
+    text-align: right;
+}
+
+.chat-bubble.assistant {
+    background-color: #f1f0f0;
+    align-self: flex-start;
+    text-align: left;
+}
+
+.chat-container {
+    display: flex;
+    flex-direction: column;
+}
+.nav-link.active-page {
+    color: #00a35c;
+    font-weight: bold;
+}
+
+.sidebar {
+    min-height: 100vh;
+    background-color: #f8f8f8;
+    border-right: 1px solid #e0e0e0;
+    padding: 20px;
+}
+
+.main-content {
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    height: 80vh;
+}
+
+.subheader {
+    font-size: 0.9em;
+    color: #555;
+}
+
+.chat-container {
+    flex-grow: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+
+.chat-bubble {
+    max-width: 60%;
+    padding: 10px;
+    border-radius: 10px;
+    margin: 5px 0;
+    word-wrap: break-word;
+}
+
+.chat-bubble.user {
+    background-color: #dcf8c6;
+    align-self: flex-end;
+    text-align: right;
+}
+
+.chat-bubble.assistant {
+    background-color: #f1f0f0;
+    align-self: flex-start;
+    text-align: left;
+}
+
+.input-container {
+    border-top: 1px solid #e0e0e0;
+    padding: 10px;
+    background-color: #fff;
+}

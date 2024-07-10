@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Lab Assistant Chat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet"> <!-- Font Awesome -->
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">AI Lab Assistant</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link active" aria-current="page" href="{{ url_for('main.index') }}">Home</a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="{{ url_for('main.chat') }}">Chat</a>
+                        </li>
+                        {% if current_user.is_admin %}
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" id="admin-link">Admin</a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <span class="navbar-text">Welcome, {{ current_user.email }}!</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container mt-4">
+        <div class="row">
+            {% if is_chat %}
+                <div class="col-md-3 sidebar">
+                    <h4>Previous Chats</h4>
+                    <ul id="conversation-list" class="list-unstyled"></ul>
+                </div>
+                <div class="col-md-9 chat-container-wrapper">
+                    <div class="d-flex flex-column align-items-center mb-3">
+                        <h5>Sample Questions</h5>
+                        <div class="sample-questions">
+                            <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why can\'t my application connect to the MongoDB Cluster?')">Why can't my application connect to the MongoDB Cluster?</button>
+                            <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why is my library application displaying no data or books?')">Why is my library application displaying no data or books?</button>
+                            <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why is my github codespace not responding or launching the application properly?')">Why is my github codespace not responding or launching the application properly?</button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mb-2">
+                        <button class="btn btn-primary" onclick="startNewChat()">New Chat</button>
+                    </div>
+                    <ul class="nav nav-tabs" id="myTab" role="tablist">
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link active" id="user-tab" data-bs-toggle="tab" href="#user" role="tab" aria-controls="user" aria-selected="true">User</a>
+                        </li>
+                        {% if current_user.is_authenticated and current_user.is_admin %}
+                        <li class="nav-item" role="presentation">
+                            <a class="nav-link" id="admin-tab" data-bs-toggle="tab" href="#admin" role="tab" aria-controls="admin" aria-selected="false">Admin</a>
+                        </li>
+                        {% endif %}
+                    </ul>
+                    <div class="tab-content" id="myTabContent">
+                        <div class="tab-pane fade show active" id="user" role="tabpanel">
+                            <div class="d-flex flex-column chat-container border p-3 mb-3" id="chat-container"></div>
+                            <div class="input-group mb-3">
+                                <input type="text" class="form-control" id="user-input" placeholder="Ask a question...">
+                                <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+                            </div>
+                        </div>
+                        {% if current_user.is_authenticated and current_user.is_admin %}
+                        <div class="tab-pane fade" id="admin" role="tabpanel">
+                            <form id="admin-form" class="mt-3">
+                                <div class="mb-3">
+                                    <label for="question" class="form-label">Question</label>
+                                    <input type="text" class="form-control" id="question" required>
+                                </div>
+                                <div class="mb-3">
+                                    <label for="answer" class="form-label">Answer</label>
+                                    <textarea class="form-control" id="answer" rows="3" required></textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Add Question</button>
+                            </form>
+                        </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="col-md-12">
+                    <div class="home-page">
+                        <h1>Welcome to the AI Lab Assistant</h1>
+                        <p>
+                            The AI Lab Assistant is designed to help you with commonly encountered issues while working on MongoDB projects. 
+                            Whether you're having trouble connecting to your MongoDB cluster, displaying data in your application, or launching your GitHub codespace, 
+                            the AI Lab Assistant is here to provide guidance and solutions.
+                        </p>
+                        <p>
+                            <a href="{{ url_for('main.chat') }}" class="btn btn-primary">Start a Conversation</a>
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+    <script>
+        document.getElementById('admin-link').addEventListener('click', function () {
+            var adminTab = new bootstrap.Tab(document.getElementById('admin-tab'));
+            adminTab.show();
+        });
+    </script>
+</body>
+</html>

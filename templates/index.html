@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Lab Assistant Chat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet"> <!-- Font Awesome -->
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light bg-light">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="{{ url_for('main.index') }}">AI Lab Assistant</a>
+            <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
+            <div class="collapse navbar-collapse" id="navbarNav">
+                <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                    <li class="nav-item">
+                        <a class="nav-link {% if request.endpoint == 'main.index' %}active-page{% endif %}" aria-current="page" href="{{ url_for('main.index') }}">Home</a>
+                    </li>
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'main.chat' %}active-page{% endif %}" href="{{ url_for('main.chat') }}">Chat</a>
+                        </li>
+                        {% if current_user.is_admin %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'main.admin' %}active-page{% endif %}" href="{{ url_for('main.admin') }}" id="admin-link">Admin</a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+                <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
+                    <li class="nav-item">
+                        <span class="navbar-text">Welcome, {{ current_user.email }}!</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+                    </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            {% if is_chat %}
+                {% if current_user.is_authenticated %}
+                <div class="col-md-3 sidebar">
+                    <h4>Previous Chats</h4>
+                    <ul id="conversation-list" class="list-unstyled"></ul>
+                </div>
+                <div class="col-md-9 main-content">
+                {% else %}
+                <div class="col-md-12 main-content">
+                {% endif %}
+                    <div class="d-flex flex-column align-items-center mb-3">
+                        <h5>Are you having trouble?</h5>
+                        <div class="subheader">Consider some of these frequently asked questions</div>
+                        <div class="sample-questions">
+                            <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why can\'t my application connect to the MongoDB Cluster?')">Why can't my application connect to the MongoDB Cluster?</button>
+                            <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why is my library application displaying no data or books?')">Why is my library application displaying no data or books?</button>
+                            <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why is my github codespace not responding or launching the application properly?')">Why is my github codespace not responding or launching the application properly?</button>
+                        </div>
+                    </div>
+                    <div class="d-flex justify-content-end mb-2">
+                        <button class="btn btn-primary" onclick="startNewChat()">New Chat</button>
+                    </div>
+                    <div class="chat-container" id="chat-container"></div>
+                    <div class="input-container">
+                        <div class="input-group">
+                            <input type="text" class="form-control" id="user-input" placeholder="Ask a question...">
+                            <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+                        </div>
+                    </div>
+                </div>
+            {% else %}
+                <div class="col-md-12 main-content">
+                    <div class="home-page">
+                        <h1>Welcome to the AI Lab Assistant</h1>
+                        <p>
+                            The AI Lab Assistant is designed to help you with commonly encountered issues while working on MongoDB projects. 
+                            Whether you're having trouble connecting to your MongoDB cluster, displaying data in your application, or launching your GitHub codespace, 
+                            the AI Lab Assistant is here to provide guidance and solutions.
+                        </p>
+                        <p>
+                            <a href="{{ url_for('main.chat') }}" class="btn btn-primary">Start a Conversation</a>
+                        </p>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+</body>
+</html>
