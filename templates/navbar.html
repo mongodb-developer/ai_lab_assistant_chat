@@ -10,6 +10,9 @@
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'main.index' %}active-page{% endif %}" aria-current="page" href="{{ url_for('main.index') }}">Home</a>
                 </li>
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.about') }}">About</a>
+                </li>
                 {% if current_user.is_authenticated %}
                 <!-- Chat link -->
                     <li class="nav-item">
@@ -25,7 +28,7 @@
                 <!-- Developer Day Labs dropdown -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="labsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        MongoDB Developer Day Labs
+                        Labs
                     </a>
                     <ul class="dropdown-menu" aria-labelledby="labsDropdown">
                         <li><a class="dropdown-item" href="https://mongodb-developer.github.io/intro-lab/" target="_blank">Intro Lab</a></li>

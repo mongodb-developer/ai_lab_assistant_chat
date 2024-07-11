@@ -83,6 +83,10 @@ def chat():
         current_app.logger.error(f"Error in chat route: {str(e)}")
         return jsonify({"error": "An internal error occurred"}), 500
 
+@main.route('/about')
+def about():
+    return render_template('about.html')
+
 @main.route('/api/chat', methods=['POST'])
 @login_required
 def chat_api():
