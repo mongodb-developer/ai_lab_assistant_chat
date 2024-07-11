@@ -7,6 +7,7 @@ from flask_login import login_required, current_user
 from bson import ObjectId
 from pymongo import MongoClient
 from config import Config
+from datetime import datetime
 from app.utils import (
     generate_embedding,
     search_similar_questions,
@@ -17,7 +18,8 @@ from app.utils import (
     store_message,
     get_user_conversations,
     get_conversation_messages,
-    start_new_conversation  # Ensure this is imported
+    start_new_conversation,  # Ensure this is imported
+    add_unanswered_question  # Ensure this is imported
 
 )
 
@@ -31,6 +33,9 @@ logger = logging.getLogger(__name__)
 client = MongoClient(Config.MONGODB_URI)
 db = client[Config.MONGODB_DB]
 conversation_collection = db['conversations']
+documents_collection = db['documents']
+unanswered_collection = db['unanswered_questions']
+SIMILARITY_THRESHOLD = Config.SIMILARITY_THRESHOLD  # Adjust this value as needed
 
 @main.route('/')
 def index():
@@ -78,13 +83,6 @@ def chat():
         current_app.logger.error(f"Error in chat route: {str(e)}")
         return jsonify({"error": "An internal error occurred"}), 500
 
-@main.route('/admin')
-@login_required
-def admin():
-    if not current_user.is_admin:
-        return jsonify({"error": "Unauthorized access"}), 403
-    return render_template('admin.html')
-
 @main.route('/api/chat', methods=['POST'])
 @login_required
 def chat_api():
@@ -99,8 +97,8 @@ def chat_api():
             raise ValueError("Missing 'question' in request payload")
 
         user_question = request.json['question']
-
         user_id = current_user.get_id()
+        user_name = current_user.name
 
         # Generate a title for the conversation
         title = user_question[:50]  # Use the first 50 characters of the question as the title
@@ -118,7 +116,7 @@ def chat_api():
         similar_questions, search_debug = search_similar_questions(question_embedding)
         debug_info['search'] = search_debug
 
-        if similar_questions:
+        if similar_questions and similar_questions[0]['score'] > float(SIMILARITY_THRESHOLD):
             response_message = similar_questions[0]['answer']
             response = {
                 'question': similar_questions[0]['question'],
@@ -127,7 +125,9 @@ def chat_api():
                 'debug_info': debug_info
             }
         else:
-            response_message = 'No similar questions found'
+            # Add the unanswered question to the unanswered_questions collection
+            add_unanswered_question(user_id, user_name, user_question)
+            response_message = 'No similar questions found. Your question has been logged for review.'
             response = {'error': response_message, 'debug_info': debug_info}
 
         store_message(user_id, response_message, 'Assistant', conversation_id)
@@ -141,6 +141,7 @@ def chat_api():
         debug_info['error'] = str(e)
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
+
 
 
 @main.route('/api/add_question', methods=['POST'])
@@ -174,12 +175,12 @@ def add_question():
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
 
-@main.route('/api/conversations', methods=['GET'])
-@login_required
-def get_conversations():
-    user_id = current_user.get_id()
-    conversations = get_user_conversations(user_id)  # Ensure this function fetches conversations correctly
-    return jsonify(list(conversations)), 200
+# @main.route('/api/conversations', methods=['GET'])
+# @login_required
+# def get_conversations():
+#     user_id = current_user.get_id()
+#     conversations = get_user_conversations(user_id)  # Ensure this function fetches conversations correctly
+#     return jsonify(list(conversations)), 200
 
 @main.route('/api/conversations/<string:conversation_id>', methods=['DELETE'])
 @login_required
@@ -203,3 +204,94 @@ def conversation_messages(conversation_id):
     except Exception as e:
         logger.error(f"Error in conversation_messages route: {str(e)}")
         return jsonify({'error': 'Invalid conversation ID'}), 400
+
+@main.route('/api/unanswered_questions', methods=['GET'])
+@login_required
+def get_unanswered_questions():
+    try:
+        # Find all unanswered questions
+        questions = list(unanswered_collection.find({"$or": [{"answered": {"$exists": False}}, {"answered": False}]}))
+        for question in questions:
+            question['_id'] = str(question['_id'])
+        return jsonify(questions), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching unanswered questions: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
+    
+@main.route('/api/questions', methods=['GET'])
+@login_required
+def get_questions():
+    try:
+        questions = list(documents_collection.find())
+        for question in questions:
+            question['_id'] = str(question['_id'])
+        return jsonify(questions), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching questions: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
+    
+@main.route('/api/questions/<string:question_id>', methods=['PUT'])
+@login_required
+def update_question(question_id):
+    data = request.get_json()
+    question = data.get('question')
+    answer = data.get('answer')
+
+    current_app.logger.info(f"Received request to update question with ID: {question_id}")
+    current_app.logger.info(f"New question: {question}")
+    current_app.logger.info(f"New answer: {answer}")
+
+    if not question or not answer:
+        current_app.logger.error("Question or answer missing")
+        return jsonify({'error': 'Question and answer are required.'}), 400
+
+    try:
+        # Debug: Print all question IDs in the unanswered_collection
+        all_unanswered_documents = unanswered_collection.find({}, {"_id": 1})
+        all_unanswered_ids = [str(doc['_id']) for doc in all_unanswered_documents]
+        current_app.logger.info(f"Unanswered document IDs: {all_unanswered_ids}")
+
+        # Check if the question_id exists in the unanswered_collection
+        if question_id in all_unanswered_ids:
+            # Update the unanswered question with the answered flag
+            result = unanswered_collection.update_one(
+                {'_id': ObjectId(question_id)},
+                {'$set': {'answered': True, 'answer': answer, 'answered_at': datetime.now()}}
+            )
+
+            if result.matched_count == 0:
+                current_app.logger.error("Unanswered question not found")
+                return jsonify({'error': 'Unanswered question not found'}), 404
+
+            # Add the answered question to the documents collection
+            unanswered_question = unanswered_collection.find_one({'_id': ObjectId(question_id)})
+            
+            # Generate embeddings for the question and the answer
+            question_embedding, question_debug = generate_embedding(question)
+            answer_embedding, answer_debug = generate_embedding(answer)
+
+            documents_collection.insert_one({
+                'question': unanswered_question['question'],
+                'question_embedding': question_embedding,
+                'answer': answer,
+                'answer_embedding': answer_embedding,
+                'created_at': unanswered_question.get('created_at', datetime.now()),  # Default to now if not present
+                'updated_at': datetime.now()
+            })
+            current_app.logger.info("Question updated in unanswered_questions and moved to documents collection with embeddings")
+
+            return jsonify({'message': 'Question updated successfully'}), 200
+
+        current_app.logger.error("Question not found in unanswered_collection")
+        return jsonify({'error': 'Question not found in unanswered_collection'}), 404
+
+    except Exception as e:
+        current_app.logger.error(f"Error updating question: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
+
+@main.route('/admin')
+@login_required
+def admin():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized access"}), 403
+    return render_template('admin.html')

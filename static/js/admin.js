@@ -1,97 +1,178 @@
+// admin.js
+
 document.addEventListener('DOMContentLoaded', fetchQuestions);
+document.addEventListener('DOMContentLoaded', fetchUnansweredQuestions);
 
 async function fetchQuestions() {
     try {
-        const response = await fetch('/api/questions', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
+        const response = await fetch('/api/questions');
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-
         const questions = await response.json();
-        displayQuestions(questions);
+        populateQuestionsTable(questions);
     } catch (error) {
         console.error('Error fetching questions:', error);
     }
 }
 
-function displayQuestions(questions) {
-    const questionsTableBody = document.getElementById('questions-table-body');
-    questionsTableBody.innerHTML = '';
+function populateQuestionsTable(questions) {
+    const tableBody = document.getElementById('questions-table-body');
+    tableBody.innerHTML = '';
     questions.forEach(question => {
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-            <td>${question.question}</td>
-            <td>${question.answer}</td>
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${escapeHTML(question.question)}</td>
+            <td>${escapeHTML(question.answer)}</td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="showEditQuestionForm('${question._id}', '${question.question}', '${question.answer}')">Edit</button>
+                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" data-answer="${escapeHTML(question.answer)}" onclick="showEditQuestionForm(this)">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteQuestion('${question._id}')">Delete</button>
             </td>
         `;
-        questionsTableBody.appendChild(tr);
+        tableBody.appendChild(row);
+    });
+}
+
+async function fetchUnansweredQuestions() {
+    try {
+        const response = await fetch('/api/unanswered_questions');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const unansweredQuestions = await response.json();
+        populateUnansweredQuestionsTable(unansweredQuestions);
+    } catch (error) {
+        console.error('Error fetching unanswered questions:', error);
+    }
+}
+
+function populateUnansweredQuestionsTable(unansweredQuestions) {
+    const tableBody = document.getElementById('unanswered-questions-table-body');
+    tableBody.innerHTML = '';
+    unansweredQuestions.forEach(question => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${escapeHTML(question.question)}</td>
+            <td>${escapeHTML(question.user_id)}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" onclick="showAnswerQuestionForm(this)">Answer</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
     });
 }
 
 function showAddQuestionForm() {
-    document.getElementById('questionModalLabel').textContent = 'Add Question';
-    document.getElementById('question-form').reset();
-    document.getElementById('question-id').value = '';
-    const questionModal = new bootstrap.Modal(document.getElementById('questionModal'));
-    questionModal.show();
+    document.getElementById('questionModalLabel').innerText = 'Add Question';
+    document.getElementById('question-input').value = '';
+    document.getElementById('answer-input').value = '';
+    const form = document.getElementById('question-form');
+    form.onsubmit = async (event) => {
+        event.preventDefault();
+        await addQuestion();
+    };
+    const modal = new bootstrap.Modal(document.getElementById('question-modal'));
+    modal.show();
 }
 
-function showEditQuestionForm(id, question, answer) {
-    document.getElementById('questionModalLabel').textContent = 'Edit Question';
-    document.getElementById('question-id').value = id;
+function showEditQuestionForm(button) {
+    const id = button.getAttribute('data-id');
+    const question = unescapeHTML(button.getAttribute('data-question'));
+    const answer = unescapeHTML(button.getAttribute('data-answer'));
+    document.getElementById('questionModalLabel').innerText = 'Edit Question';
     document.getElementById('question-input').value = question;
     document.getElementById('answer-input').value = answer;
-    const questionModal = new bootstrap.Modal(document.getElementById('questionModal'));
-    questionModal.show();
+    const form = document.getElementById('question-form');
+    form.onsubmit = async (event) => {
+        event.preventDefault();
+        await updateQuestion(id);
+    };
+    const modal = new bootstrap.Modal(document.getElementById('question-modal'));
+    modal.show();
 }
 
-document.getElementById('question-form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const id = document.getElementById('question-id').value;
+function showAnswerQuestionForm(button) {
+    const id = button.getAttribute('data-id');
+    const question = unescapeHTML(button.getAttribute('data-question'));
+    document.getElementById('questionModalLabel').innerText = 'Answer Question';
+    document.getElementById('question-input').value = question;
+    document.getElementById('answer-input').value = '';
+    const form = document.getElementById('question-form');
+    form.onsubmit = async (event) => {
+        event.preventDefault();
+        await answerQuestion(id);
+    };
+    const modal = new bootstrap.Modal(document.getElementById('question-modal'));
+    modal.show();
+}
+
+async function addQuestion() {
     const question = document.getElementById('question-input').value;
     const answer = document.getElementById('answer-input').value;
-
-    const endpoint = id ? `/api/questions/${id}` : '/api/questions';
-    const method = id ? 'PUT' : 'POST';
-
     try {
-        const response = await fetch(endpoint, {
-            method: method,
+        const response = await fetch('/api/questions', {
+            method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({ question, answer }),
         });
-
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        const result = await response.json();
-        alert(result.message);
         fetchQuestions();
-        const questionModal = bootstrap.Modal.getInstance(document.getElementById('questionModal'));
-        questionModal.hide();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('question-modal'));
+        modal.hide();
     } catch (error) {
-        console.error('Error:', error);
-        alert(`An error occurred: ${error.message}`);
+        console.error('Error adding question:', error);
     }
-});
+}
+
+async function updateQuestion(id) {
+    const question = document.getElementById('question-input').value;
+    const answer = document.getElementById('answer-input').value;
+    try {
+        const response = await fetch(`/api/questions/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ question, answer }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        fetchQuestions();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('question-modal'));
+        modal.hide();
+    } catch (error) {
+        console.error('Error updating question:', error);
+    }
+}
+
+async function answerQuestion(id) {
+    const question = document.getElementById('question-input').value;
+    const answer = document.getElementById('answer-input').value;
+    try {
+        const response = await fetch(`/api/questions/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ question, answer }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        fetchUnansweredQuestions();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('question-modal'));
+        modal.hide();
+    } catch (error) {
+        console.error('Error answering question:', error);
+    }
+}
 
 async function deleteQuestion(id) {
-    if (!confirm('Are you sure you want to delete this question?')) {
-        return;
-    }
-
     try {
         const response = await fetch(`/api/questions/${id}`, {
             method: 'DELETE',
@@ -99,16 +180,31 @@ async function deleteQuestion(id) {
                 'Content-Type': 'application/json',
             }
         });
-
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        const result = await response.json();
-        alert(result.message);
-        fetchQuestions(); // Refresh the questions list
+        fetchQuestions();
     } catch (error) {
         console.error('Error deleting question:', error);
-        alert(`An error occurred: ${error.message}`);
     }
+}
+
+function escapeHTML(str) {
+    return str.replace(/[&<>'"]/g, tag => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        "'": '&#39;',
+        '"': '&quot;'
+    }[tag] || tag));
+}
+
+function unescapeHTML(str) {
+    return str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, tag => ({
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&#39;': "'",
+        '&quot;': '"'
+    }[tag] || tag));
 }

@@ -175,26 +175,26 @@ userInput.addEventListener('keypress', function(event) {
     }
 });
 
-async function fetchConversations() {
-    try {
-        const response = await fetch('/api/conversations', {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
+// async function fetchConversations() {
+//     try {
+//         const response = await fetch('/api/conversations', {
+//             method: 'GET',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//             }
+//         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+//         if (!response.ok) {
+//             throw new Error(`HTTP error! status: ${response.status}`);
+//         }
 
-        const conversations = await response.json();
-        console.log('Conversations:', conversations);  // Debugging
-        displayConversations(conversations);
-    } catch (error) {
-        console.error('Error fetching conversations:', error);
-    }
-}
+//         const conversations = await response.json();
+//         console.log('Conversations:', conversations);  // Debugging
+//         displayConversations(conversations);
+//     } catch (error) {
+//         console.error('Error fetching conversations:', error);
+//     }
+// }
 
 function displayConversations(conversations) {
     conversationList.innerHTML = '';
@@ -235,28 +235,28 @@ async function loadConversation(conversationId) {
     }
 }
 
-async function deleteConversation(conversationId) {
-    if (!confirm('Are you sure you want to delete this conversation?')) {
-        return;
-    }
+// async function deleteConversation(conversationId) {
+//     if (!confirm('Are you sure you want to delete this conversation?')) {
+//         return;
+//     }
 
-    try {
-        const response = await fetch(`/api/conversations/${conversationId}`, {
-            method: 'DELETE',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
+//     try {
+//         const response = await fetch(`/api/conversations/${conversationId}`, {
+//             method: 'DELETE',
+//             headers: {
+//                 'Content-Type': 'application/json',
+//             }
+//         });
 
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
+//         if (!response.ok) {
+//             throw new Error(`HTTP error! status: ${response.status}`);
+//         }
 
-        fetchConversations(); // Refresh the conversation list
-    } catch (error) {
-        console.error('Error deleting conversation:', error);
-    }
-}
+//         fetchConversations(); // Refresh the conversation list
+//     } catch (error) {
+//         console.error('Error deleting conversation:', error);
+//     }
+// }
 
 function startNewChat() {
     chatContainer.innerHTML = '';
@@ -277,5 +277,5 @@ function sanitizeAndRenderMarkdown(message) {
     return marked.parse(sanitized);
 }
 
-// Fetch conversations on page load
-document.addEventListener('DOMContentLoaded', fetchConversations);
+// // Fetch conversations on page load
+// document.addEventListener('DOMContentLoaded', fetchConversations);

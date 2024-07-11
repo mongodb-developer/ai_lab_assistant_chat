@@ -22,3 +22,4 @@ class Config:
     OAUTHLIB_RELAX_TOKEN_SCOPE = True
     OAUTHLIB_INSECURE_TRANSPORT = os.environ.get('OAUTHLIB_INSECURE_TRANSPORT', '1') == '1'
     OAUTHLIB_REDIRECT_URI = os.environ.get('OAUTHLIB_REDIRECT_URI', 'https://lab-assistant.localhost.com/login/authorized')
+    SIMILARITY_THRESHOLD = os.environ.get('SIMILARITY_THRESHOLD')  # Adjust this value as needed

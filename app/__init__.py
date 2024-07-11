@@ -3,6 +3,7 @@ from flask import Flask
 from flask_cors import CORS
 from config import Config
 from .auth import auth, oauth, login_manager, init_oauth
+from .routes import main  # Ensure this import is here
 import logging
 
 def create_app(config_class=Config):

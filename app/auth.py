@@ -24,10 +24,11 @@ def init_oauth(app):
 login_manager = LoginManager()
 
 class User(UserMixin):
-    def __init__(self, id, email, is_admin=False):
+    def __init__(self, id, email, name, is_admin=False):
         self.id = id
         self.email = email
         self.is_admin = is_admin
+        self.name = name
 
     def get_id(self):
         return str(self.id)
@@ -37,7 +38,8 @@ def load_user(user_id):
     db = get_db_connection()
     user_data = db.users.find_one({'_id': ObjectId(user_id)})
     if user_data:
-        return User(str(user_data['_id']), user_data['email'], user_data.get('isAdmin', False))
+        name = user_data.get('name', 'Unknown User')  # Use 'Unknown User' as fallback if name is not present
+        return User(str(user_data['_id']), user_data['email'], name, user_data.get('isAdmin', False))
     return None
 
 @auth.route('/login')
@@ -65,18 +67,22 @@ def authorized():
         current_app.logger.debug(f"User info: {user_info}")
         
         email = user_info['email']
+        name = user_info['name']
 
         db = get_db_connection()
         user_data = db.users.find_one({'email': email})
         if user_data is None:
-            user_data = {'email': email, 'isAdmin': False}
+            user_data = {'email': email, 'name': name, 'isAdmin': False}
             result = db.users.insert_one(user_data)
             user_data['_id'] = result.inserted_id
             current_app.logger.debug(f"New user created: {user_data}")
         else:
             current_app.logger.debug(f"Existing user found: {user_data}")
+            # Update the user's name if it has changed
+            if user_data.get('name') != name:
+                db.users.update_one({'_id': user_data['_id']}, {'$set': {'name': name}})
 
-        user = User(str(user_data['_id']), email, user_data.get('isAdmin', False))
+        user = User(str(user_data['_id']), email, name, user_data.get('isAdmin', False))
         login_user(user)
         current_app.logger.info(f"User logged in: {email}")
         

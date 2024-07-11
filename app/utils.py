@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from config import Config
 import json
 import logging
-from datetime import datetime
+import datetime
 from bson import ObjectId, json_util
 import traceback
 
@@ -15,6 +15,9 @@ client = MongoClient(Config.MONGODB_URI)
 db = client[Config.MONGODB_DB]
 collection = db[Config.MONGODB_COLLECTION]
 conversation_collection = db['conversations']  # New collection for conversations
+unanswered_collection = db['unanswered_questions']
+
+SIMILARITY_THRESHOLD = 0.91  # Adjust this value as needed
 
 # Attempt to connect to MongoDB
 try:
@@ -121,11 +124,11 @@ def generate_title(question):
 
 
 def search_similar_questions(question_embedding):
-    debug_info = {}
+    debug_info = {'function': 'search_similar_questions'}
     try:
         if collection is None:
             raise Exception("MongoDB connection not established")
-
+        
         logger.info("Searching for similar questions...")
         debug_info['mongodb_query'] = {
             'vectorSearch': {
@@ -133,9 +136,10 @@ def search_similar_questions(question_embedding):
                 'path': 'question_embedding',
                 'queryVector': f"[{question_embedding[:5]}...{question_embedding[-5:]}]",  # Truncated for brevity
                 'numCandidates': 10,
-                'limit': 1
+                'limit': 10
             }
         }
+        
         results = collection.aggregate([
             {
                 '$vectorSearch': {
@@ -143,7 +147,7 @@ def search_similar_questions(question_embedding):
                     'path': 'question_embedding',
                     'queryVector': question_embedding,
                     'numCandidates': 10,
-                    'limit': 1
+                    'limit': 10
                 }
             },
             {
@@ -155,18 +159,40 @@ def search_similar_questions(question_embedding):
                         '$meta': 'vectorSearchScore'
                     }
                 }
+            },
+            {
+                '$match': {
+                    'score': {'$gte': SIMILARITY_THRESHOLD}
+                }
             }
         ])
+        
         results_list = list(results)
         debug_info['mongodb_results'] = json.loads(json.dumps(results_list, default=str))
         debug_info['results_count'] = len(results_list)
         logger.info(f"Search complete. Found {len(results_list)} results.")
+        
         return results_list, debug_info
     except Exception as e:
         logger.error(f"Error searching similar questions: {str(e)}")
         debug_info['error'] = str(e)
         debug_info['traceback'] = traceback.format_exc()
         raise
+
+def add_unanswered_question(user_id, user_name, question):
+    try:
+        unanswered_collection.insert_one({
+            'user_id': user_id,
+            'user_name': user_name,
+            'question': question,
+            'timestamp': datetime.now(),
+            'answered': False
+        })
+        logger.info(f"Unanswered question added for user {user_name} (ID: {user_id})")
+    except Exception as e:
+        logger.error(f"Error adding unanswered question: {str(e)}")
+        raise
+
 
 def check_database_connection():
     try:
@@ -279,5 +305,5 @@ def get_conversation_messages(conversation_id):
         {'conversation_id': conversation_id}
     ).sort('timestamp', 1)
 
-    __all__ = ['get_db_connection', 'generate_embedding', 'add_question_answer', 'search_similar_questions', 'json_serialize']
+    __all__ = ['get_db_connection', 'generate_embedding', 'add_question_answer', 'add_unanswered_question','search_similar_questions', 'json_serialize']
 
