@@ -1,7 +1,14 @@
-// admin.js
+var answerEditor;
 
-document.addEventListener('DOMContentLoaded', fetchQuestions);
-document.addEventListener('DOMContentLoaded', fetchUnansweredQuestions);
+document.addEventListener('DOMContentLoaded', () => {
+    answerEditor = new EasyMDE({
+        element: document.getElementById('answerEditor'),
+        spellChecker: false
+    });
+
+    fetchQuestions();
+    fetchUnansweredQuestions();
+});
 
 async function fetchQuestions() {
     try {
@@ -23,10 +30,35 @@ function populateQuestionsTable(questions) {
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${question.question}</td>
-            <td>${question.answer}</td>
+            <td>${truncateText(question.answer, 100)}</td>
             <td>
                 <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" data-answer="${escapeHTML(question.answer)}" onclick="showEditQuestionForm(this)">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteQuestion('${question._id}')">Delete</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+
+function truncateText(text, maxLength) {
+    if (text.length > maxLength) {
+        return text.substring(0, maxLength) + '...';
+    }
+    return text;
+}
+
+
+function populateUnansweredQuestionsTable(unansweredQuestions) {
+    const tableBody = document.getElementById('unanswered-questions-table-body');
+    tableBody.innerHTML = '';
+    unansweredQuestions.forEach(question => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${question.question}</td>
+            <td>${question.user_name}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" onclick="showAnswerQuestionForm(this)">Answer</button>
             </td>
         `;
         tableBody.appendChild(row);
@@ -65,7 +97,7 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
 function showAddQuestionForm() {
     document.getElementById('questionModalLabel').innerText = 'Add Question';
     document.getElementById('question-input').value = '';
-    document.getElementById('answer-input').value = '';
+    answerEditor.value('');
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
@@ -79,14 +111,17 @@ function showEditQuestionForm(button) {
     const id = button.getAttribute('data-id');
     const question = unescapeHTML(button.getAttribute('data-question'));
     const answer = unescapeHTML(button.getAttribute('data-answer'));
+
     document.getElementById('questionModalLabel').innerText = 'Edit Question';
     document.getElementById('question-input').value = question;
-    document.getElementById('answer-input').value = answer;
+    answerEditor.value(answer);  // Set the value of EasyMDE editor
+
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
         await updateQuestion(id);
     };
+
     const modal = new bootstrap.Modal(document.getElementById('question-modal'));
     modal.show();
 }
@@ -94,21 +129,24 @@ function showEditQuestionForm(button) {
 function showAnswerQuestionForm(button) {
     const id = button.getAttribute('data-id');
     const question = unescapeHTML(button.getAttribute('data-question'));
+
     document.getElementById('questionModalLabel').innerText = 'Answer Question';
     document.getElementById('question-input').value = question;
-    document.getElementById('answer-input').value = '';
+    answerEditor.value('');  // Clear the value of EasyMDE editor
+
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
         await answerQuestion(id);
     };
+
     const modal = new bootstrap.Modal(document.getElementById('question-modal'));
     modal.show();
 }
 
 async function addQuestion() {
     const question = document.getElementById('question-input').value;
-    const answer = document.getElementById('answer-input').value;
+    const answer = answerEditor.value();
     try {
         const response = await fetch('/api/questions', {
             method: 'POST',
@@ -130,7 +168,7 @@ async function addQuestion() {
 
 async function updateQuestion(id) {
     const question = document.getElementById('question-input').value;
-    const answer = document.getElementById('answer-input').value;
+    const answer = answerEditor.value();
     try {
         const response = await fetch(`/api/questions/${id}`, {
             method: 'PUT',
@@ -152,7 +190,7 @@ async function updateQuestion(id) {
 
 async function answerQuestion(id) {
     const question = document.getElementById('question-input').value;
-    const answer = document.getElementById('answer-input').value;
+    const answer = answerEditor.value();
     try {
         const response = await fetch(`/api/questions/${id}`, {
             method: 'PUT',
@@ -201,7 +239,7 @@ function escapeHTML(str) {
 
 function unescapeHTML(str) {
     return str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, tag => ({
-        '&amp;': '&',
+        '&': '&',
         '&lt;': '<',
         '&gt;': '>',
         '&#39;': "'",
