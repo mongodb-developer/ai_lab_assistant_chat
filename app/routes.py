@@ -20,7 +20,6 @@ from app.utils import (
     get_conversation_messages,
     start_new_conversation,  # Ensure this is imported
     add_unanswered_question  # Ensure this is imported
-
 )
 
 main = Blueprint('main', __name__)
@@ -35,7 +34,7 @@ db = client[Config.MONGODB_DB]
 conversation_collection = db['conversations']
 documents_collection = db['documents']
 unanswered_collection = db['unanswered_questions']
-SIMILARITY_THRESHOLD = Config.SIMILARITY_THRESHOLD  # Adjust this value as needed
+SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is float
 
 @main.route('/')
 def index():
@@ -116,7 +115,7 @@ def chat_api():
         similar_questions, search_debug = search_similar_questions(question_embedding)
         debug_info['search'] = search_debug
 
-        if similar_questions and similar_questions[0]['score'] > float(SIMILARITY_THRESHOLD):
+        if similar_questions and similar_questions[0]['score'] > SIMILARITY_THRESHOLD:
             response_message = similar_questions[0]['answer']
             response = {
                 'question': similar_questions[0]['question'],
@@ -141,8 +140,6 @@ def chat_api():
         debug_info['error'] = str(e)
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
-
-
 
 @main.route('/api/add_question', methods=['POST'])
 @login_required
@@ -175,49 +172,6 @@ def add_question():
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
 
-# @main.route('/api/conversations', methods=['GET'])
-# @login_required
-# def get_conversations():
-#     user_id = current_user.get_id()
-#     conversations = get_user_conversations(user_id)  # Ensure this function fetches conversations correctly
-#     return jsonify(list(conversations)), 200
-
-@main.route('/api/conversations/<string:conversation_id>', methods=['DELETE'])
-@login_required
-def delete_conversation(conversation_id):
-    try:
-        result = conversation_collection.delete_one({'_id': ObjectId(conversation_id)})
-        if result.deleted_count == 1:
-            return jsonify({'message': 'Conversation deleted successfully'}), 200
-        else:
-            return jsonify({'error': 'Conversation not found'}), 404
-    except Exception as e:
-        current_app.logger.error(f"Error deleting conversation: {str(e)}")
-        return jsonify({'error': 'An error occurred'}), 500
-
-@main.route('/api/conversations/<string:conversation_id>', methods=['GET'])
-@login_required
-def conversation_messages(conversation_id):
-    try:
-        messages = get_conversation_messages(ObjectId(conversation_id))
-        return json.dumps(list(messages), default=json_serialize), 200, {'Content-Type': 'application/json'}
-    except Exception as e:
-        logger.error(f"Error in conversation_messages route: {str(e)}")
-        return jsonify({'error': 'Invalid conversation ID'}), 400
-
-@main.route('/api/unanswered_questions', methods=['GET'])
-@login_required
-def get_unanswered_questions():
-    try:
-        # Find all unanswered questions
-        questions = list(unanswered_collection.find({"$or": [{"answered": {"$exists": False}}, {"answered": False}]}))
-        for question in questions:
-            question['_id'] = str(question['_id'])
-        return jsonify(questions), 200
-    except Exception as e:
-        current_app.logger.error(f"Error fetching unanswered questions: {str(e)}")
-        return jsonify({'error': 'An internal error occurred'}), 500
-    
 @main.route('/api/questions', methods=['GET'])
 @login_required
 def get_questions():
@@ -229,7 +183,7 @@ def get_questions():
     except Exception as e:
         current_app.logger.error(f"Error fetching questions: {str(e)}")
         return jsonify({'error': 'An internal error occurred'}), 500
-    
+
 @main.route('/api/questions/<string:question_id>', methods=['PUT'])
 @login_required
 def update_question(question_id):
@@ -287,6 +241,40 @@ def update_question(question_id):
 
     except Exception as e:
         current_app.logger.error(f"Error updating question: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
+
+@main.route('/api/questions/<string:question_id>', methods=['DELETE'])
+@login_required
+def delete_question(question_id):
+    try:
+        result = documents_collection.delete_one({'_id': ObjectId(question_id)})
+        if result.deleted_count == 1:
+            return jsonify({'message': 'Question deleted successfully'}), 200
+        else:
+            return jsonify({'error': 'Question not found'}), 404
+    except Exception as e:
+        current_app.logger.error(f"Error deleting question: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
+
+@main.route('/api/unanswered_questions', methods=['GET'])
+@login_required
+def get_unanswered_questions():
+    try:
+        # Find all unanswered questions
+        unanswered_questions = list(unanswered_collection.find({"$or": [{"answered": {"$exists": False}}, {"answered": False}]}))
+        user_ids = [question['user_id'] for question in unanswered_questions]
+        
+        # Fetch user names for the corresponding user IDs
+        users = db.users.find({"_id": {"$in": [ObjectId(user_id) for user_id in user_ids]}})
+        user_dict = {str(user['_id']): user['name'] for user in users}
+        
+        for question in unanswered_questions:
+            question['_id'] = str(question['_id'])
+            question['user_name'] = user_dict.get(question['user_id'], 'Unknown User')
+        
+        return jsonify(unanswered_questions), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching unanswered questions: {str(e)}")
         return jsonify({'error': 'An internal error occurred'}), 500
 
 @main.route('/admin')

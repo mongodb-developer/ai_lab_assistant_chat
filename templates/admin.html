@@ -1,11 +1,9 @@
-<!-- admin.html -->
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Admin Panel</title>
+    <title>Admin - AI Lab Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
 </head>
@@ -19,77 +17,100 @@
             <div class="collapse navbar-collapse" id="navbarNav">
                 <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                     <li class="nav-item">
-                        <a class="nav-link" aria-current="page" href="{{ url_for('main.index') }}">Home</a>
+                        <a class="nav-link {% if request.endpoint == 'main.index' %}active-page{% endif %}" aria-current="page" href="{{ url_for('main.index') }}">Home</a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{{ url_for('main.chat') }}">Chat</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="{{ url_for('main.admin') }}">Admin</a>
-                    </li>
+                    {% if current_user.is_authenticated %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'main.chat' %}active-page{% endif %}" href="{{ url_for('main.chat') }}">Chat</a>
+                        </li>
+                        {% if current_user.is_admin %}
+                        <li class="nav-item">
+                            <a class="nav-link {% if request.endpoint == 'main.admin' %}active-page{% endif %}" href="{{ url_for('main.admin') }}" id="admin-link">Admin</a>
+                        </li>
+                        {% endif %}
+                    {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">
+                    {% if current_user.is_authenticated %}
                     <li class="nav-item">
                         <span class="navbar-text">Welcome, {{ current_user.email }}!</span>
                     </li>
                     <li class="nav-item">
                         <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
                     </li>
+                    {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                    </li>
+                    {% endif %}
                 </ul>
             </div>
         </div>
     </nav>
 
     <div class="container mt-4">
-        <h1>Admin Panel</h1>
-        <div class="d-flex justify-content-between align-items-center mb-3">
-            <h2>Questions</h2>
-            <button class="btn btn-primary" onclick="showAddQuestionForm()">Add Question</button>
+        <ul class="nav nav-tabs" id="admin-tabs" role="tablist">
+            <li class="nav-item" role="presentation">
+                <button class="nav-link active" id="questions-tab" data-bs-toggle="tab" data-bs-target="#questions" type="button" role="tab" aria-controls="questions" aria-selected="true">Questions</button>
+            </li>
+            <li class="nav-item" role="presentation">
+                <button class="nav-link" id="unanswered-questions-tab" data-bs-toggle="tab" data-bs-target="#unanswered-questions" type="button" role="tab" aria-controls="unanswered-questions" aria-selected="false">Unanswered Questions</button>
+            </li>
+        </ul>
+        <div class="tab-content" id="admin-tabs-content">
+            <div class="tab-pane fade show active" id="questions" role="tabpanel" aria-labelledby="questions-tab">
+                <div class="table-responsive mt-3">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Question</th>
+                                <th>Answer</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="questions-table-body">
+                            <!-- Questions will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+                <button class="btn btn-primary" onclick="showAddQuestionForm()">Add Question</button>
+            </div>
+            <div class="tab-pane fade" id="unanswered-questions" role="tabpanel" aria-labelledby="unanswered-questions-tab">
+                <div class="table-responsive mt-3">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>Question</th>
+                                <th>User</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="unanswered-questions-table-body">
+                            <!-- Unanswered questions will be populated here -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Question</th>
-                    <th>Answer</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="questions-table-body">
-                <!-- Questions will be populated here -->
-            </tbody>
-        </table>
-        
-        <h2>Unanswered Questions</h2>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Question</th>
-                    <th>Asked By</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="unanswered-questions-table-body">
-                <!-- Unanswered questions will be populated here -->
-            </tbody>
-        </table>
     </div>
 
+    <!-- Modal -->
     <div class="modal fade" id="question-modal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
-                    <h5 class="modal-title" id="questionModalLabel">Add Question</h5>
+                    <h5 class="modal-title" id="questionModalLabel"></h5>
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
                     <form id="question-form">
                         <div class="mb-3">
                             <label for="question-input" class="form-label">Question</label>
-                            <input type="text" class="form-control" id="question-input" required>
+                            <textarea class="form-control" id="question-input" rows="3"></textarea>
                         </div>
                         <div class="mb-3">
                             <label for="answer-input" class="form-label">Answer</label>
-                            <textarea class="form-control" id="answer-input" rows="3" required></textarea>
+                            <textarea class="form-control" id="answer-input" rows="3"></textarea>
                         </div>
                         <button type="submit" class="btn btn-primary">Save</button>
                     </form>

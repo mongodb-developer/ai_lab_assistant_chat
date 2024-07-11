@@ -1,4 +1,4 @@
-// admin.js
+// admin-new.js
 
 document.addEventListener('DOMContentLoaded', fetchQuestions);
 document.addEventListener('DOMContentLoaded', fetchUnansweredQuestions);
@@ -16,7 +16,6 @@ async function fetchQuestions() {
     }
 }
 
-
 function populateQuestionsTable(questions) {
     const tableBody = document.getElementById('questions-table-body');
     tableBody.innerHTML = '';
@@ -26,24 +25,8 @@ function populateQuestionsTable(questions) {
             <td>${question.question}</td>
             <td>${question.answer}</td>
             <td>
-                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" data-answer="${escapeHTML(question.answer)}" onclick="showEditQuestionForm(this)">Edit</button>
+                <button class="btn btn-sm btn-primary" onclick="showEditQuestionForm('${question._id}', ${JSON.stringify(question.question)}, ${JSON.stringify(question.answer)})">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteQuestion('${question._id}')">Delete</button>
-            </td>
-        `;
-        tableBody.appendChild(row);
-    });
-}
-
-function populateUnansweredQuestionsTable(unansweredQuestions) {
-    const tableBody = document.getElementById('unanswered-questions-table-body');
-    tableBody.innerHTML = '';
-    unansweredQuestions.forEach(question => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${question.question}</td>
-            <td>${question.user_name}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" onclick="showAnswerQuestionForm(this)">Answer</button>
             </td>
         `;
         tableBody.appendChild(row);
@@ -72,7 +55,7 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
             <td>${question.question}</td>
             <td>${question.user_name}</td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="showAnswerQuestionForm('${question._id}', \`${question.question}\`)">Answer</button>
+                <button class="btn btn-sm btn-primary" onclick="showAnswerQuestionForm('${question._id}', ${JSON.stringify(question.question)})">Answer</button>
             </td>
         `;
         tableBody.appendChild(row);
@@ -92,10 +75,7 @@ function showAddQuestionForm() {
     modal.show();
 }
 
-function showEditQuestionForm(button) {
-    const id = button.getAttribute('data-id');
-    const question = unescapeHTML(button.getAttribute('data-question'));
-    const answer = unescapeHTML(button.getAttribute('data-answer'));
+function showEditQuestionForm(id, question, answer) {
     document.getElementById('questionModalLabel').innerText = 'Edit Question';
     document.getElementById('question-input').value = question;
     document.getElementById('answer-input').value = answer;
@@ -108,9 +88,7 @@ function showEditQuestionForm(button) {
     modal.show();
 }
 
-function showAnswerQuestionForm(button) {
-    const id = button.getAttribute('data-id');
-    const question = unescapeHTML(button.getAttribute('data-question'));
+function showAnswerQuestionForm(id, question) {
     document.getElementById('questionModalLabel').innerText = 'Answer Question';
     document.getElementById('question-input').value = question;
     document.getElementById('answer-input').value = '';
@@ -204,24 +182,4 @@ async function deleteQuestion(id) {
     } catch (error) {
         console.error('Error deleting question:', error);
     }
-}
-
-function escapeHTML(str) {
-    return str.replace(/[&<>'"]/g, tag => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        "'": '&#39;',
-        '"': '&quot;'
-    }[tag] || tag));
-}
-
-function unescapeHTML(str) {
-    return str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, tag => ({
-        '&amp;': '&',
-        '&lt;': '<',
-        '&gt;': '>',
-        '&#39;': "'",
-        '&quot;': '"'
-    }[tag] || tag));
 }
