@@ -34,6 +34,7 @@ db = client[Config.MONGODB_DB]
 conversation_collection = db['conversations']
 documents_collection = db['documents']
 unanswered_collection = db['unanswered_questions']
+users_collection = db['users']
 SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is float
 
 @main.route('/')
@@ -289,3 +290,36 @@ def admin():
     if not current_user.is_admin:
         return jsonify({"error": "Unauthorized access"}), 403
     return render_template('admin.html')
+
+# New route to fetch all users
+@main.route('/api/users', methods=['GET'])
+@login_required
+def get_users():
+    users = list(users_collection.find())
+    for user in users:
+        user['_id'] = str(user['_id'])
+    return jsonify(users)
+
+# New route to update a user's admin status
+@main.route('/api/users/<id>', methods=['PUT'])
+@login_required
+def update_user(id):
+    data = request.json
+    users_collection.update_one({'_id': ObjectId(id)}, {'$set': data})
+    return '', 204
+
+@main.route('/api/feedback', methods=['POST'])
+def receive_feedback():
+    data = request.json
+    rating = data.get('rating')
+    
+    if rating:
+        # Store the feedback in the database
+        feedback = {
+            'rating': rating,
+            'timestamp': datetime.now()
+        }
+        db.feedback.insert_one(feedback)
+        return jsonify({"message": "Feedback received"}), 200
+    else:
+        return jsonify({"error": "Invalid feedback"}), 400

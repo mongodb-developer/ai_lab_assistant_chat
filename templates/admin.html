@@ -14,55 +14,75 @@
     <!-- Include the navigation bar -->
     {% include 'navbar.html' %}
 
-    <div class="container mt-4">
-        <ul class="nav nav-tabs" id="admin-tabs" role="tablist">
-            <li class="nav-item" role="presentation">
-                <button class="nav-link active" id="questions-tab" data-bs-toggle="tab" data-bs-target="#questions" type="button" role="tab" aria-controls="questions" aria-selected="true">Questions</button>
-            </li>
-            <li class="nav-item" role="presentation">
-                <button class="nav-link" id="unanswered-questions-tab" data-bs-toggle="tab" data-bs-target="#unanswered-questions" type="button" role="tab" aria-controls="unanswered-questions" aria-selected="false">Unanswered Questions</button>
-            </li>
-        </ul>
-        <div class="tab-content" id="admin-tabs-content">
-            <div class="tab-pane fade show active" id="questions" role="tabpanel" aria-labelledby="questions-tab">
-                <div class="table-responsive mt-3">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Question</th>
-                                <th>Answer</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="questions-table-body">
-                            <!-- Questions will be populated here -->
-                        </tbody>
-                    </table>
+    <div class="d-flex">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <a href="#" onclick="showQuestions()">Questions</a>
+            <a href="#" onclick="showUnansweredQuestions()">Unanswered Questions</a>
+            <a href="#" onclick="showUsers()">User Management</a>
+        </div>
+
+        <!-- Content -->
+        <div class="content container mt-4" id="content">
+            <!-- Default content (Questions) will be loaded here -->
+            <div class="tab-content" id="admin-tabs-content">
+                <div class="tab-pane fade show active" id="questions" role="tabpanel" aria-labelledby="questions-tab">
+                    <div class="table-responsive mt-3">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Question</th>
+                                    <th>Answer</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="questions-table-body">
+                                <!-- Questions will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <button class="btn btn-primary" onclick="showAddQuestionForm()">Add Question</button>
                 </div>
-                <button class="btn btn-primary" onclick="showAddQuestionForm()">Add Question</button>
-            </div>
-            <div class="tab-pane fade" id="unanswered-questions" role="tabpanel" aria-labelledby="unanswered-questions-tab">
-                <div class="table-responsive mt-3">
-                    <table class="table">
-                        <thead>
-                            <tr>
-                                <th>Question</th>
-                                <th>User</th>
-                                <th>Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody id="unanswered-questions-table-body">
-                            <!-- Unanswered questions will be populated here -->
-                        </tbody>
-                    </table>
+                <div class="tab-pane fade" id="unanswered-questions" role="tabpanel" aria-labelledby="unanswered-questions-tab">
+                    <div class="table-responsive mt-3">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Question</th>
+                                    <th>User</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="unanswered-questions-table-body">
+                                <!-- Unanswered questions will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+                    <div class="table-responsive mt-3">
+                        <table class="table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Email</th>
+                                    <th>Admin</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="users-table-body">
+                                <!-- Users will be populated here -->
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal -->
+    <!-- Modal for adding/editing questions -->
     <div class="modal fade" id="question-modal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog modal-lg-custom"> <!-- Updated class here -->
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="questionModalLabel"></h5>
@@ -77,6 +97,28 @@
                         <div class="mb-3">
                             <label for="answerEditor" class="form-label">Answer</label>
                             <textarea class="form-control" id="answerEditor" rows="3"></textarea>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Save</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for editing user -->
+    <div class="modal fade" id="user-modal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="userModalLabel">Edit User</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="user-form">
+                        <input type="hidden" id="user-id">
+                        <div class="mb-3 form-check">
+                            <input type="checkbox" class="form-check-input" id="user-is-admin">
+                            <label class="form-check-label" for="user-is-admin">Admin</label>
                         </div>
                         <button type="submit" class="btn btn-primary">Save</button>
                     </form>

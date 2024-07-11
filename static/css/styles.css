@@ -365,3 +365,78 @@ a:hover, a:focus {
 .btn-close {
     background-color: #e9ecef;
 }
+
+
+/* Content */
+.content {
+    margin-left: 260px;
+    padding: 20px;
+}
+
+.modal-lg-custom {
+    max-width: 90%;
+}
+#feedback-container {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 300px;
+    background-color: white;
+    border: 1px solid #ddd;
+    border-radius: 10px 10px 0 0;
+    padding: 1rem;
+    box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.1);
+    z-index: 1000;
+    text-align: center;
+}
+
+#close-feedback {
+    position: absolute;
+    top: 5px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+#feedback-scale {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+#feedback-scale .feedback-button {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+
+#feedback-scale .feedback-button:hover {
+    transform: scale(1.2);
+}
+
+#feedback-scale .feedback-button:focus {
+    outline: none;
+}
+
+#feedback-response {
+    font-size: 1rem;
+    font-weight: bold;
+    text-align: center;
+    margin-top: 1rem;
+}
+
+.custom-alert {
+    background-color: #f0f8ff; /* Replace with your desired color */
+    color: #bdf1a7; /* Adjust the text color to ensure readability */
+    border-color: #065c11; /* Optional: adjust border color */
+    font-size: 1rem;
+    line-height: 1.5;
+    border-left: 5px solid #065c11;
+    padding: 1rem;
+    margin-top: 2rem;
+}

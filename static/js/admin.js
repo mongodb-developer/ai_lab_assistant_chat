@@ -1,13 +1,13 @@
-var answerEditor;
-
 document.addEventListener('DOMContentLoaded', () => {
-    answerEditor = new EasyMDE({
-        element: document.getElementById('answerEditor'),
-        spellChecker: false
-    });
-
     fetchQuestions();
     fetchUnansweredQuestions();
+    fetchUsers();
+    showQuestions();
+});
+
+var answerEditor = new EasyMDE({
+    element: document.getElementById('answerEditor'),
+    spellChecker: false
 });
 
 async function fetchQuestions() {
@@ -27,10 +27,11 @@ function populateQuestionsTable(questions) {
     const tableBody = document.getElementById('questions-table-body');
     tableBody.innerHTML = '';
     questions.forEach(question => {
+        const shortAnswer = question.answer.split("\n").slice(0, 3).join("\n");
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${question.question}</td>
-            <td>${truncateText(question.answer, 100)}</td>
+            <td>${shortAnswer}</td>
             <td>
                 <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" data-answer="${escapeHTML(question.answer)}" onclick="showEditQuestionForm(this)">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteQuestion('${question._id}')">Delete</button>
@@ -39,32 +40,25 @@ function populateQuestionsTable(questions) {
         tableBody.appendChild(row);
     });
 }
-
-
-function truncateText(text, maxLength) {
-    if (text.length > maxLength) {
-        return text.substring(0, maxLength) + '...';
+async function toggleAdminStatus(button) {
+    const id = button.getAttribute('data-id');
+    const isAdmin = button.getAttribute('data-is-admin') === 'true';
+    try {
+        const response = await fetch(`/api/users/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ isAdmin: !isAdmin }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        fetchUsers();
+    } catch (error) {
+        console.error('Error updating user:', error);
     }
-    return text;
 }
-
-
-function populateUnansweredQuestionsTable(unansweredQuestions) {
-    const tableBody = document.getElementById('unanswered-questions-table-body');
-    tableBody.innerHTML = '';
-    unansweredQuestions.forEach(question => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${question.question}</td>
-            <td>${question.user_name}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" onclick="showAnswerQuestionForm(this)">Answer</button>
-            </td>
-        `;
-        tableBody.appendChild(row);
-    });
-}
-
 async function fetchUnansweredQuestions() {
     try {
         const response = await fetch('/api/unanswered_questions');
@@ -97,7 +91,7 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
 function showAddQuestionForm() {
     document.getElementById('questionModalLabel').innerText = 'Add Question';
     document.getElementById('question-input').value = '';
-    answerEditor.value('');
+    document.getElementById('answerEditor').value = '';
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
@@ -111,35 +105,30 @@ function showEditQuestionForm(button) {
     const id = button.getAttribute('data-id');
     const question = unescapeHTML(button.getAttribute('data-question'));
     const answer = unescapeHTML(button.getAttribute('data-answer'));
-
     document.getElementById('questionModalLabel').innerText = 'Edit Question';
     document.getElementById('question-input').value = question;
-    answerEditor.value(answer);  // Set the value of EasyMDE editor
-
+    answerEditor.value(answer);  // Correctly setting the value for EasyMDE instance
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
         await updateQuestion(id);
     };
-
     const modal = new bootstrap.Modal(document.getElementById('question-modal'));
     modal.show();
 }
 
+
 function showAnswerQuestionForm(button) {
     const id = button.getAttribute('data-id');
     const question = unescapeHTML(button.getAttribute('data-question'));
-
     document.getElementById('questionModalLabel').innerText = 'Answer Question';
     document.getElementById('question-input').value = question;
-    answerEditor.value('');  // Clear the value of EasyMDE editor
-
+    document.getElementById('answerEditor').value = '';
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
         await answerQuestion(id);
     };
-
     const modal = new bootstrap.Modal(document.getElementById('question-modal'));
     modal.show();
 }
@@ -239,10 +228,163 @@ function escapeHTML(str) {
 
 function unescapeHTML(str) {
     return str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, tag => ({
-        '&': '&',
+        '&amp;': '&',
         '&lt;': '<',
         '&gt;': '>',
         '&#39;': "'",
         '&quot;': '"'
     }[tag] || tag));
+}
+
+// User Management Functions
+async function fetchUsers() {
+    try {
+        const response = await fetch('/api/users');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const users = await response.json();
+        populateUsersTable(users);
+    } catch (error) {
+        console.error('Error fetching users:', error);
+    }
+}
+
+function populateUsersTable(users) {    
+    const tableBody = document.getElementById('users-table-body');
+    if (!tableBody) {
+        console.error('Could not find users-table-body element.');
+        return;
+    }
+    tableBody.innerHTML = '';
+    users.forEach(user => {
+        const row = document.createElement('tr');
+        row.innerHTML = `
+            <td>${user.name}</td>
+            <td>${user.email}</td>
+            <td>${user.isAdmin ? 'Yes' : 'No'}</td>
+            <td>
+                <button class="btn btn-sm btn-primary" data-id="${user._id}" data-is-admin="${user.isAdmin}" onclick="toggleAdminStatus(this)">Toggle Admin</button>
+            </td>
+        `;
+        tableBody.appendChild(row);
+    });
+}
+
+function showEditUserForm(button) {
+    const id = button.getAttribute('data-id');
+    const isAdmin = button.getAttribute('data-is-admin') === 'true';
+    document.getElementById('user-id').value = id;
+    document.getElementById('user-is-admin').checked = isAdmin;
+    const modal = new bootstrap.Modal(document.getElementById('user-modal'));
+    modal.show();
+}
+
+async function updateUser() {
+    const id = document.getElementById('user-id').value;
+    const isAdmin = document.getElementById('user-is-admin').checked;
+    try {
+        const response = await fetch(`/api/users/${id}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ isAdmin }),
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        fetchUsers();
+        const modal = bootstrap.Modal.getInstance(document.getElementById('user-modal'));
+        modal.hide();
+    } catch (error) {
+        console.error('Error updating user:', error);
+    }
+}
+
+function showQuestions() {
+    document.getElementById('content').innerHTML = `
+        <div id="questions-content">
+            <h2>Questions</h2>
+            <button class="btn btn-primary mb-3" onclick="showAddQuestionForm()">Add Question</button>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="questions-table-body">
+                        <!-- Questions data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+            <h2>Unanswered Questions</h2>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>User</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="unanswered-questions-table-body">
+                        <!-- Unanswered questions data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    fetchQuestions();
+    fetchUnansweredQuestions();
+}
+
+function showUnansweredQuestions() {
+    document.getElementById('content').innerHTML = `
+        <div id="unanswered-questions-content">
+            <h2>Unanswered Questions</h2>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>User</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="unanswered-questions-table-body">
+                        <!-- Unanswered questions data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    fetchUnansweredQuestions();
+}
+
+function showUsers() {
+    document.getElementById('content').innerHTML = `
+        <div id="users-content">
+            <h2>User Management</h2>
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Email</th>
+                            <th>Admin</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="users-table-body">
+                        <!-- User data will be populated here -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    `;
+    fetchUsers();
 }
