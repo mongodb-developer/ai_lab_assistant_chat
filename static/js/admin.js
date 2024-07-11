@@ -16,7 +16,6 @@ async function fetchQuestions() {
     }
 }
 
-
 function populateQuestionsTable(questions) {
     const tableBody = document.getElementById('questions-table-body');
     tableBody.innerHTML = '';
@@ -28,22 +27,6 @@ function populateQuestionsTable(questions) {
             <td>
                 <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" data-answer="${escapeHTML(question.answer)}" onclick="showEditQuestionForm(this)">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteQuestion('${question._id}')">Delete</button>
-            </td>
-        `;
-        tableBody.appendChild(row);
-    });
-}
-
-function populateUnansweredQuestionsTable(unansweredQuestions) {
-    const tableBody = document.getElementById('unanswered-questions-table-body');
-    tableBody.innerHTML = '';
-    unansweredQuestions.forEach(question => {
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${question.question}</td>
-            <td>${question.user_name}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" onclick="showAnswerQuestionForm(this)">Answer</button>
             </td>
         `;
         tableBody.appendChild(row);
@@ -72,7 +55,7 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
             <td>${question.question}</td>
             <td>${question.user_name}</td>
             <td>
-                <button class="btn btn-sm btn-primary" onclick="showAnswerQuestionForm('${question._id}', \`${question.question}\`)">Answer</button>
+                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" onclick="showAnswerQuestionForm(this)">Answer</button>
             </td>
         `;
         tableBody.appendChild(row);
