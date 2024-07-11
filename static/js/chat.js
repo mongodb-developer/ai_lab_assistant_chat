@@ -169,9 +169,14 @@ if (adminForm) {
     });
 }
 
-userInput.addEventListener('keypress', function(event) {
-    if (event.key === 'Enter') {
-        sendMessage();
+document.addEventListener('DOMContentLoaded', function() {
+    const userInput = document.getElementById('user-input');
+    if (userInput) {
+        userInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
     }
 });
 
@@ -278,4 +283,13 @@ function sanitizeAndRenderMarkdown(message) {
 }
 
 // // Fetch conversations on page load
-// document.addEventListener('DOMContentLoaded', fetchConversations);
+document.addEventListener('DOMContentLoaded', function() {
+    const userInput = document.getElementById('user-input');
+    if (userInput) {
+        userInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    }
+});
