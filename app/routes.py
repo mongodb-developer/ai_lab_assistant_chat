@@ -141,7 +141,7 @@ def chat_api():
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
 
-@main.route('/api/add_question', methods=['POST'])
+@main.route('/api/questions', methods=['POST'])
 @login_required
 def add_question():
     debug_info = {}
@@ -172,6 +172,7 @@ def add_question():
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
 
+
 @main.route('/api/questions', methods=['GET'])
 @login_required
 def get_questions():
@@ -183,6 +184,7 @@ def get_questions():
     except Exception as e:
         current_app.logger.error(f"Error fetching questions: {str(e)}")
         return jsonify({'error': 'An internal error occurred'}), 500
+
 
 @main.route('/api/questions/<string:question_id>', methods=['PUT'])
 @login_required
@@ -200,13 +202,9 @@ def update_question(question_id):
         return jsonify({'error': 'Question and answer are required.'}), 400
 
     try:
-        # Debug: Print all question IDs in the unanswered_collection
-        all_unanswered_documents = unanswered_collection.find({}, {"_id": 1})
-        all_unanswered_ids = [str(doc['_id']) for doc in all_unanswered_documents]
-        current_app.logger.info(f"Unanswered document IDs: {all_unanswered_ids}")
-
         # Check if the question_id exists in the unanswered_collection
-        if question_id in all_unanswered_ids:
+        unanswered_question = unanswered_collection.find_one({'_id': ObjectId(question_id)})
+        if unanswered_question:
             # Update the unanswered question with the answered flag
             result = unanswered_collection.update_one(
                 {'_id': ObjectId(question_id)},
@@ -217,13 +215,11 @@ def update_question(question_id):
                 current_app.logger.error("Unanswered question not found")
                 return jsonify({'error': 'Unanswered question not found'}), 404
 
-            # Add the answered question to the documents collection
-            unanswered_question = unanswered_collection.find_one({'_id': ObjectId(question_id)})
-            
             # Generate embeddings for the question and the answer
             question_embedding, question_debug = generate_embedding(question)
             answer_embedding, answer_debug = generate_embedding(answer)
 
+            # Add the answered question to the documents collection
             documents_collection.insert_one({
                 'question': unanswered_question['question'],
                 'question_embedding': question_embedding,
@@ -236,8 +232,18 @@ def update_question(question_id):
 
             return jsonify({'message': 'Question updated successfully'}), 200
 
-        current_app.logger.error("Question not found in unanswered_collection")
-        return jsonify({'error': 'Question not found in unanswered_collection'}), 404
+        # If the question_id is not in the unanswered_collection, check the documents_collection
+        result = documents_collection.update_one(
+            {'_id': ObjectId(question_id)},
+            {'$set': {'question': question, 'answer': answer, 'updated_at': datetime.now()}}
+        )
+
+        if result.matched_count == 0:
+            current_app.logger.error("Question not found in documents collection")
+            return jsonify({'error': 'Question not found in documents collection'}), 404
+
+        current_app.logger.info("Question updated in documents collection")
+        return jsonify({'message': 'Question updated successfully'}), 200
 
     except Exception as e:
         current_app.logger.error(f"Error updating question: {str(e)}")
