@@ -19,7 +19,6 @@
         console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
     </script>
 
-    
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-light bg-light">
@@ -65,15 +64,7 @@
     <div class="container-fluid">
         <div class="row">
             {% if is_chat %}
-                {% if current_user.is_authenticated %}
-                <div class="col-md-3 sidebar">
-                    <h4>Previous Chats</h4>
-                    <ul id="conversation-list" class="list-unstyled"></ul>
-                </div>
-                <div class="col-md-9 main-content">
-                {% else %}
                 <div class="col-md-12 main-content">
-                {% endif %}
                     <div class="d-flex flex-column align-items-center mb-3">
                         <h5>Are you having trouble?</h5>
                         <div class="subheader">Consider some of these frequently asked questions</div>
@@ -83,9 +74,7 @@
                             <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why is my github codespace not responding or launching the application properly?')">Why is my github codespace not responding or launching the application properly?</button>
                         </div>
                     </div>
-                    <div class="d-flex justify-content-end mb-2">
-                        <button class="btn btn-primary" onclick="startNewChat()">New Chat</button>
-                    </div>
+
                     <div class="chat-container" id="chat-container"></div>
                     <div class="input-container">
                         <div class="input-group">
