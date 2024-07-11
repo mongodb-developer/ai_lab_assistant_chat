@@ -430,9 +430,20 @@ a:hover, a:focus {
     margin-top: 1rem;
 }
 
-.custom-alert {
-    background-color: #f0f8ff; /* Replace with your desired color */
-    color: #bdf1a7; /* Adjust the text color to ensure readability */
+#beta-note {
+    background-color: #c0ebc8; /* Replace with your desired color */
+    color: #000000; /* Adjust the text color to ensure readability */
+    border-color: #065c11; /* Optional: adjust border color */
+    font-size: 1rem;
+    line-height: 1.5;
+    border-left: 5px solid #065c11;
+    padding: 1rem;
+    margin-top: 2rem;
+}
+
+.custom-alert .alert-info {
+    background-color: #c0ebc8; /* Replace with your desired color */
+    color: #000000; /* Adjust the text color to ensure readability */
     border-color: #065c11; /* Optional: adjust border color */
     font-size: 1rem;
     line-height: 1.5;

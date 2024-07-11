@@ -1,3 +1,4 @@
+// Define references to HTML elements
 const conversationList = document.getElementById('conversation-list');
 const chatContainer = document.getElementById('chat-container');
 const userInput = document.getElementById('user-input');
@@ -8,7 +9,8 @@ console.log('conversationList:', conversationList);
 console.log('chatContainer:', chatContainer);
 console.log('userInput:', userInput);
 console.log('adminForm:', adminForm);
-console.log('Markdown test in chat.js:', marked.parse('# Hello\n\nThis is a **test**.'));
+
+// Send a message to the server
 async function sendMessage() {
     const question = userInput.value;
     if (!question) return;
@@ -56,11 +58,13 @@ async function sendMessage() {
     }
 }
 
+// Handle sample question button clicks
 function handleSampleQuestion(question) {
     userInput.value = question;
     sendMessage();
 }
 
+// Append a new message to the chat container
 function appendMessage(sender, message) {
     console.log(`Appending message from ${sender}:`, message);
     
@@ -112,11 +116,14 @@ function appendMessage(sender, message) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
+// Strip HTML tags from a string
 function stripHtml(html) {
     let tmp = document.createElement("DIV");
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || "";
 }
+
+// Append a loader to the chat container
 function appendLoader() {
     const loaderElement = document.createElement('div');
     loaderElement.classList.add('loader');
@@ -125,6 +132,7 @@ function appendLoader() {
     return loaderElement;
 }
 
+// Append debug information to the chat container
 function appendDebugInfo(title, debugInfo) {
     const debugElement = document.createElement('details');
     debugElement.innerHTML = `<summary>${title}</summary><pre>${JSON.stringify(debugInfo, null, 2)}</pre>`;
@@ -134,6 +142,7 @@ function appendDebugInfo(title, debugInfo) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
+// Event listener for admin form submission
 if (adminForm) {
     adminForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -169,120 +178,7 @@ if (adminForm) {
     });
 }
 
-document.addEventListener('DOMContentLoaded', function() {
-    const userInput = document.getElementById('user-input');
-    if (userInput) {
-        userInput.addEventListener('keypress', function (event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        });
-    }
-});
-
-// async function fetchConversations() {
-//     try {
-//         const response = await fetch('/api/conversations', {
-//             method: 'GET',
-//             headers: {
-//                 'Content-Type': 'application/json',
-//             }
-//         });
-
-//         if (!response.ok) {
-//             throw new Error(`HTTP error! status: ${response.status}`);
-//         }
-
-//         const conversations = await response.json();
-//         console.log('Conversations:', conversations);  // Debugging
-//         displayConversations(conversations);
-//     } catch (error) {
-//         console.error('Error fetching conversations:', error);
-//     }
-// }
-
-function displayConversations(conversations) {
-    conversationList.innerHTML = '';
-    conversations.forEach(conversation => {
-        const li = document.createElement('li');
-        li.className = 'conversation-item d-flex justify-content-between align-items-center';
-        li.innerHTML = `
-            <span>
-                <strong>${conversation.title}</strong><br><span class="timestamp">${conversation.timestamp}</span>
-            </span>
-            <i class="fas fa-trash-alt delete-icon" onclick="deleteConversation('${conversation.id}')"></i>
-        `;
-        li.addEventListener('click', () => loadConversation(conversation.id));
-        conversationList.appendChild(li);
-    });
-}
-
-async function loadConversation(conversationId) {
-    try {
-        const response = await fetch(`/api/conversations/${conversationId}`, {
-            method: 'GET',
-            headers: {
-                'Content-Type': 'application/json',
-            }
-        });
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const messages = await response.json();
-        chatContainer.innerHTML = '';
-        messages.forEach(message => {
-            appendMessage(message.sender, message.message);
-        });
-    } catch (error) {
-        console.error('Error loading conversation:', error);
-    }
-}
-
-// async function deleteConversation(conversationId) {
-//     if (!confirm('Are you sure you want to delete this conversation?')) {
-//         return;
-//     }
-
-//     try {
-//         const response = await fetch(`/api/conversations/${conversationId}`, {
-//             method: 'DELETE',
-//             headers: {
-//                 'Content-Type': 'application/json',
-//             }
-//         });
-
-//         if (!response.ok) {
-//             throw new Error(`HTTP error! status: ${response.status}`);
-//         }
-
-//         fetchConversations(); // Refresh the conversation list
-//     } catch (error) {
-//         console.error('Error deleting conversation:', error);
-//     }
-// }
-
-function startNewChat() {
-    chatContainer.innerHTML = '';
-    userInput.value = '';
-    // Add any additional logic to start a new chat
-}
-
-function sanitizeAndRenderMarkdown(message) {
-    // Basic sanitization
-    const sanitized = message
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&#039;');
-    
-    // Render Markdown
-    return marked.parse(sanitized);
-}
-
-// // Fetch conversations on page load
+// Event listener for Enter key press to send a message
 document.addEventListener('DOMContentLoaded', function() {
     const userInput = document.getElementById('user-input');
     if (userInput) {

@@ -5,11 +5,13 @@ document.addEventListener('DOMContentLoaded', () => {
     showQuestions();
 });
 
+// Initialize EasyMDE for markdown editing
 var answerEditor = new EasyMDE({
     element: document.getElementById('answerEditor'),
     spellChecker: false
 });
 
+// Fetch and display questions
 async function fetchQuestions() {
     try {
         const response = await fetch('/api/questions');
@@ -23,6 +25,7 @@ async function fetchQuestions() {
     }
 }
 
+// Populate questions table with data
 function populateQuestionsTable(questions) {
     const tableBody = document.getElementById('questions-table-body');
     tableBody.innerHTML = '';
@@ -40,6 +43,8 @@ function populateQuestionsTable(questions) {
         tableBody.appendChild(row);
     });
 }
+
+// Toggle admin status for a user
 async function toggleAdminStatus(button) {
     const id = button.getAttribute('data-id');
     const isAdmin = button.getAttribute('data-is-admin') === 'true';
@@ -59,6 +64,8 @@ async function toggleAdminStatus(button) {
         console.error('Error updating user:', error);
     }
 }
+
+// Fetch and display unanswered questions
 async function fetchUnansweredQuestions() {
     try {
         const response = await fetch('/api/unanswered_questions');
@@ -72,6 +79,7 @@ async function fetchUnansweredQuestions() {
     }
 }
 
+// Populate unanswered questions table with data
 function populateUnansweredQuestionsTable(unansweredQuestions) {
     const tableBody = document.getElementById('unanswered-questions-table-body');
     tableBody.innerHTML = '';
@@ -88,6 +96,7 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
     });
 }
 
+// Show add question form
 function showAddQuestionForm() {
     document.getElementById('questionModalLabel').innerText = 'Add Question';
     document.getElementById('question-input').value = '';
@@ -101,6 +110,7 @@ function showAddQuestionForm() {
     modal.show();
 }
 
+// Show edit question form
 function showEditQuestionForm(button) {
     const id = button.getAttribute('data-id');
     const question = unescapeHTML(button.getAttribute('data-question'));
@@ -117,7 +127,7 @@ function showEditQuestionForm(button) {
     modal.show();
 }
 
-
+// Show answer question form
 function showAnswerQuestionForm(button) {
     const id = button.getAttribute('data-id');
     const question = unescapeHTML(button.getAttribute('data-question'));
@@ -133,6 +143,7 @@ function showAnswerQuestionForm(button) {
     modal.show();
 }
 
+// Add a new question
 async function addQuestion() {
     const question = document.getElementById('question-input').value;
     const answer = answerEditor.value();
@@ -155,6 +166,7 @@ async function addQuestion() {
     }
 }
 
+// Update an existing question
 async function updateQuestion(id) {
     const question = document.getElementById('question-input').value;
     const answer = answerEditor.value();
@@ -177,6 +189,7 @@ async function updateQuestion(id) {
     }
 }
 
+// Answer an unanswered question
 async function answerQuestion(id) {
     const question = document.getElementById('question-input').value;
     const answer = answerEditor.value();
@@ -199,6 +212,7 @@ async function answerQuestion(id) {
     }
 }
 
+// Delete a question
 async function deleteQuestion(id) {
     try {
         const response = await fetch(`/api/questions/${id}`, {
@@ -216,6 +230,7 @@ async function deleteQuestion(id) {
     }
 }
 
+// Escape HTML special characters in a string
 function escapeHTML(str) {
     return str.replace(/[&<>'"]/g, tag => ({
         '&': '&amp;',
@@ -226,6 +241,7 @@ function escapeHTML(str) {
     }[tag] || tag));
 }
 
+// Unescape HTML special characters in a string
 function unescapeHTML(str) {
     return str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, tag => ({
         '&amp;': '&',
@@ -237,6 +253,8 @@ function unescapeHTML(str) {
 }
 
 // User Management Functions
+
+// Fetch and display users
 async function fetchUsers() {
     try {
         const response = await fetch('/api/users');
@@ -250,6 +268,7 @@ async function fetchUsers() {
     }
 }
 
+// Populate users table with data
 function populateUsersTable(users) {    
     const tableBody = document.getElementById('users-table-body');
     if (!tableBody) {
@@ -271,6 +290,7 @@ function populateUsersTable(users) {
     });
 }
 
+// Show edit user form
 function showEditUserForm(button) {
     const id = button.getAttribute('data-id');
     const isAdmin = button.getAttribute('data-is-admin') === 'true';
@@ -280,6 +300,7 @@ function showEditUserForm(button) {
     modal.show();
 }
 
+// Update user admin status
 async function updateUser() {
     const id = document.getElementById('user-id').value;
     const isAdmin = document.getElementById('user-is-admin').checked;
@@ -302,6 +323,7 @@ async function updateUser() {
     }
 }
 
+// Display questions tab
 function showQuestions() {
     document.getElementById('content').innerHTML = `
         <div id="questions-content">
@@ -342,6 +364,7 @@ function showQuestions() {
     fetchUnansweredQuestions();
 }
 
+// Display unanswered questions tab
 function showUnansweredQuestions() {
     document.getElementById('content').innerHTML = `
         <div id="unanswered-questions-content">
@@ -365,6 +388,7 @@ function showUnansweredQuestions() {
     fetchUnansweredQuestions();
 }
 
+// Display users tab
 function showUsers() {
     document.getElementById('content').innerHTML = `
         <div id="users-content">

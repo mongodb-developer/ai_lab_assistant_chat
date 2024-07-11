@@ -6,19 +6,23 @@
         </button>
         <div class="collapse navbar-collapse" id="navbarNav">
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
+                <!-- Home link -->
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'main.index' %}active-page{% endif %}" aria-current="page" href="{{ url_for('main.index') }}">Home</a>
                 </li>
                 {% if current_user.is_authenticated %}
+                <!-- Chat link -->
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.chat' %}active-page{% endif %}" href="{{ url_for('main.chat') }}">Chat</a>
                     </li>
                     {% if current_user.is_admin %}
+                    <!-- Admin link (only for admins) -->
                     <li class="nav-item">
                         <a class="nav-link {% if request.endpoint == 'main.admin' %}active-page{% endif %}" href="{{ url_for('main.admin') }}" id="admin-link">Admin</a>
                     </li>
                     {% endif %}
                 {% endif %}
+                <!-- Developer Day Labs dropdown -->
                 <li class="nav-item dropdown">
                     <a class="nav-link dropdown-toggle" href="#" id="labsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                         MongoDB Developer Day Labs
@@ -30,12 +34,14 @@
                         <li><a class="dropdown-item" href="https://mongodb-developer.github.io/relational-migrator-lab/" target="_blank">Relational Migrator Lab</a></li>
                     </ul>
                 </li>
+                <!-- Help link -->
                 <li class="nav-item">
                     <a class="nav-link" href="https://mongodb.com/docs" target="_blank">Help</a>
                 </li>
             </ul>
             <ul class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
+                <!-- User greeting and logout -->
                 <li class="nav-item">
                     <span class="nav-link">Welcome, {{ current_user.name }}!</span>
                 </li>
@@ -43,6 +49,7 @@
                     <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
                 </li>
                 {% else %}
+                <!-- Login link -->
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
                 </li>

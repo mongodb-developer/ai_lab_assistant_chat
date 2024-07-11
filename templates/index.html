@@ -10,8 +10,6 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <!-- Add marked library -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.3/purify.min.js"></script>
     <script src="{{ url_for('static', filename='js/feedback.js') }}"></script>
-
-
     <script>
         marked.setOptions({
             breaks: true, // This will render line breaks in Markdown
@@ -20,7 +18,6 @@
         console.log('Marked library loaded:', typeof marked);
         console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
     </script>
-
 </head>
 <body>
     <!-- Include the navigation bar -->
@@ -29,6 +26,7 @@
     <div class="container-fluid">
         <div class="row">
             {% if is_chat %}
+            <!-- Chat interface -->
                 <div class="col-md-12 main-content">
                     <div class="d-flex flex-column align-items-center mb-3">
                         <h5>Are you having trouble?</h5>
@@ -49,6 +47,7 @@
                     </div>
                 </div>
             {% else %}
+            <!-- Home page content -->
                 <div class="col-md-12 main-content">
                     <div class="home-page">
                         <h1>Welcome to the AI Lab Assistant</h1>
@@ -57,19 +56,21 @@
                             Whether you're having trouble connecting to your MongoDB cluster, displaying data in your application, or launching your GitHub codespace, 
                             the AI Lab Assistant is here to provide guidance and solutions.
                         </p>
+                        <!-- Beta testing note -->
                         <div class="container mt-5">
-                            <div class="alert alert-info alert-dismissible fade show" role="alert" id="beta-note">
+                            <div class="alert custom-alert alert-dismissible fade show" role="alert" id="beta-note">
                                 <strong>Note Regarding This Software:</strong> This system is in beta testing and may have bugs. If you encounter any issues, please notify your instructor.
                                 <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
                             </div>
                         </div>
-                            <a href="{{ url_for('main.chat') }}" class="btn btn-primary">Start a Conversation</a></br>
+                        <a href="{{ url_for('main.chat') }}" class="btn btn-primary">Start a Conversation</a></br>
                         </p>
                     </div>
                 </div>
             {% endif %}
         </div>
     </div>
+    <!-- Feedback section -->
     <div class="container mt-5" id="feedback-container">
         <button id="close-feedback" class="close-feedback-btn">&times;</button>
         <h2>We value your feedback!</h2>
@@ -85,7 +86,5 @@
     </div>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
-    
-
 </body>
 </html>
