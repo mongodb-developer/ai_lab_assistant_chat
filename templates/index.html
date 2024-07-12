@@ -48,25 +48,29 @@
                 </div>
             {% else %}
             <!-- Home page content -->
-                <div class="col-md-12 main-content">
-                    <div class="home-page">
-                        <h1>Welcome to the AI Lab Assistant</h1>
-                        <p>
-                            The AI Lab Assistant is designed to help you with commonly encountered issues while working on MongoDB projects. 
-                            Whether you're having trouble connecting to your MongoDB cluster, displaying data in your application, or launching your GitHub codespace, 
-                            the AI Lab Assistant is here to provide guidance and solutions.
-                        </p>
-                        <!-- Beta testing note -->
-                        <div class="container mt-5">
-                            <div class="alert custom-alert alert-dismissible fade show" role="alert" id="beta-note">
-                                <strong>Note Regarding This Software:</strong> This system is in beta testing and may have bugs. If you encounter any issues, please notify your instructor.
-                                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                            </div>
-                        </div>
-                        <a href="{{ url_for('main.chat') }}" class="btn btn-primary">Start a Conversation</a></br>
-                        </p>
+            <div class="col-md-12 main-content">
+                <div class="home-page">
+                    <h1>Welcome to the AI Lab Assistant</h1>
+                    <p>
+                        The AI Lab Assistant is designed to help you with commonly encountered issues while working on MongoDB projects. 
+                        Whether you're having trouble connecting to your MongoDB cluster, displaying data in your application, or launching your GitHub codespace, 
+                        the AI Lab Assistant is here to provide guidance and solutions.
+                    </p>
+                    <h3>Key Features:</h3>
+                    <ul>
+                        <li><strong>Real-time Assistance:</strong> Get immediate help with common MongoDB issues through our chat interface.</li>
+                        <li><strong>Sample Questions:</strong> Quickly access solutions to frequently asked questions about MongoDB setup and troubleshooting.</li>
+                        <li><strong>Admin Panel:</strong> Admins can manage questions and review unanswered queries to improve our knowledge base.</li>
+                        <li><strong>Labs Access:</strong> Explore our developer labs to deepen your MongoDB knowledge and skills.</li>
+                    </ul>
+                    <p>
+                        <a href="{{ url_for('main.chat') }}" class="btn btn-primary">Start a Conversation</a>
+                    </p>
+                    <div class="alert alert-info" role="alert">
+                        <strong>Note Regarding This Software:</strong> This system is in beta testing and may have bugs. If you encounter any issues, please notify your instructor.
                     </div>
                 </div>
+            </div>
             {% endif %}
         </div>
     </div>
