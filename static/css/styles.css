@@ -12,16 +12,72 @@ body {
     padding: 10px 20px; /* Padding for the navbar */
 }
 
-.navbar-brand, .navbar-nav .nav-link {
+.navbar__logo {
+    display: flex;
+    align-items: center;
+}
+
+.navbar__logo img {
+    height: 50px; /* Adjust logo height */
+    margin-right: 10px; /* Space between logo and brand name */
+}
+
+.navbar-brand {
+    margin-left: 10px; /* Space between logo and brand name */
     color: #333; /* Dark gray color for navbar text */
 }
 
-.navbar-brand:hover, .navbar-nav .nav-link:hover {
+.navbar-brand:hover {
     color: #00a35c; /* MongoDB green for hover state */
 }
 
-.navbar-text {
-    margin-right: 15px; /* Add margin to the right of the welcome message */
+.navbar-nav .nav-link {
+    color: #333; /* Dark gray color for navbar text */
+}
+
+.navbar-nav .nav-link:hover {
+    color: #00a35c; /* MongoDB green for hover state */
+}
+
+.navbar-toggler {
+    border: none; /* Remove border */
+}
+
+.navbar-toggler-icon {
+    color: #333; /* Dark gray color for the icon */
+}
+
+.collapse {
+    background-color: #ffffff; /* Background color for toggled menu items */
+}
+
+.navbar-collapse {
+    background-color: #ffffff; /* Background color for toggled menu items */
+}
+
+.navbar-nav .nav-item {
+    margin: 0 5px; /* Margin between nav items */
+}
+
+/* Active page styling */
+.nav-link.active-page {
+    color: #00a35c; /* MongoDB green for active page */
+    font-weight: bold; /* Bold text for active page */
+}
+
+/* Additional responsive styles */
+@media (max-width: 991px) {
+    .navbar-brand {
+        margin-left: 0; /* Reset margin for smaller screens */
+    }
+
+    .navbar-collapse {
+        background-color: #ffffff; /* Ensure background color for toggled menu items */
+    }
+
+    .navbar-nav .nav-item {
+        margin: 5px 0; /* Margin between nav items for smaller screens */
+    }
 }
 
 /* Sidebar styles */
@@ -31,6 +87,7 @@ body {
     padding: 20px; /* Padding for the sidebar */
     height: 100vh; /* Adjusted full height to 10vh */
     overflow-y: auto; /* Scrollable */
+    flex-shrink: 0; /* Prevent sidebar from shrinking */
 }
 
 .sidebar h4 {
@@ -51,8 +108,16 @@ body {
 
 /* Main content styles */
 .main-content {
-    padding: 20px; /* Padding for the main content */
+    flex-grow: 1;
+    padding: 20px;
 }
+
+/* Container layout */
+.container-fluid {
+    display: flex; /* Use flexbox for the main container */
+    height: 10vh; /* Full viewport height */
+}
+
 
 /* Header styles */
 .header {
@@ -85,11 +150,6 @@ body {
 .timestamp {
     color: #999; /* Light gray color for timestamp */
     font-size: 0.9em; /* Smaller font size */
-}
-
-/* Container layout */
-.container-fluid {
-    height: 10vh; /* Updated to 10vh */
 }
 
 .chat-container-wrapper {
@@ -164,17 +224,6 @@ a:hover, a:focus {
     font-weight: bold;
 }
 
-.sidebar {
-    min-height: 100vh;
-    background-color: #f8f8f8;
-    border-right: 1px solid #e0e0e0;
-    padding: 20px;
-}
-
-.main-content {
-    padding: 20px;
-}
-
 .subheader {
     font-size: 0.9em;
     color: #555;
@@ -183,13 +232,6 @@ a:hover, a:focus {
 .nav-link.active-page {
     color: #00a35c;
     font-weight: bold;
-}
-
-.sidebar {
-    min-height: 100vh;
-    background-color: #f8f8f8;
-    border-right: 1px solid #e0e0e0;
-    padding: 20px;
 }
 
 .subheader {

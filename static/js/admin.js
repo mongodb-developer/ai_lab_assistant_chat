@@ -82,6 +82,10 @@ async function fetchUnansweredQuestions() {
 // Populate unanswered questions table with data
 function populateUnansweredQuestionsTable(unansweredQuestions) {
     const tableBody = document.getElementById('unanswered-questions-table-body');
+    if (!tableBody) {
+        console.error('Element with ID "unanswered-questions-table-body" not found.');
+        return;
+    }
     tableBody.innerHTML = '';
     unansweredQuestions.forEach(question => {
         const row = document.createElement('tr');
