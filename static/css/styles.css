@@ -7,7 +7,7 @@ body {
 
 /* Navbar styles */
 .navbar {
-    background-color: #ffffff; /* White background for the navbar */
+    background-color: #f7f8f9; /* White background for the navbar */
     border-bottom: 1px solid #e0e0e0; /* Light gray border at the bottom */
     padding: 10px 20px; /* Padding for the navbar */
 }
@@ -33,6 +33,8 @@ body {
 
 .navbar-nav .nav-link {
     color: #333; /* Dark gray color for navbar text */
+    background-color: #f7f8f9; /* White background for navbar items */
+    padding: 10px 15px; /* Add padding for consistency */
 }
 
 .navbar-nav .nav-link:hover {
@@ -48,15 +50,16 @@ body {
 }
 
 .collapse {
-    background-color: #ffffff; /* Background color for toggled menu items */
+    background-color: #f7f8f9; /* Background color for toggled menu items */
 }
 
 .navbar-collapse {
-    background-color: #ffffff; /* Background color for toggled menu items */
+    background-color: #f7f8f9; /* Background color for toggled menu items */
 }
 
 .navbar-nav .nav-item {
     margin: 0 5px; /* Margin between nav items */
+    background-color: #f7f8f9; /* Background color for toggled menu items */
 }
 
 /* Active page styling */
@@ -72,7 +75,7 @@ body {
     }
 
     .navbar-collapse {
-        background-color: #ffffff; /* Ensure background color for toggled menu items */
+        background-color: #f7f8f9; /* Ensure background color for toggled menu items */
     }
 
     .navbar-nav .nav-item {
@@ -85,26 +88,37 @@ body {
     background-color: #f8f8f8; /* Light gray background for the sidebar */
     border-right: 1px solid #e0e0e0; /* Light gray border on the right */
     padding: 20px; /* Padding for the sidebar */
-    height: 100vh; /* Adjusted full height to 10vh */
+    height: 100vh; /* Full height */
     overflow-y: auto; /* Scrollable */
     flex-shrink: 0; /* Prevent sidebar from shrinking */
 }
 
 .sidebar h4 {
-    color: #333;
+    color: #333; /* Dark gray color for headers */
+    margin-bottom: 20px; /* Space below headers */
+    font-weight: bold; /* Bold font for headers */
 }
 
 .sidebar a {
-    color: #333; /* Dark gray color for sidebar links */
+    color: #555; /* Subtle dark gray color for sidebar links */
     text-decoration: none; /* No underline for links */
     display: block; /* Block display for links */
-    padding: 10px 0; /* Padding for links */
+    padding: 10px 15px; /* Padding for links */
+    border-radius: 5px; /* Rounded corners for links */
+    transition: background-color 0.3s, color 0.3s; /* Smooth transition for hover state */
 }
 
 .sidebar a:hover {
-    background-color: #e0e0e0; /* Light gray background for hover state */
-    color: #00a35c; /* MongoDB green for hover state */
+    background-color: #e5e5e5; /* Very light gray background for hover state */
+    color: #007b5e; /* Slightly darker MongoDB green for hover state */
 }
+
+.sidebar a.active {
+    background-color: #dcdcdc; /* Slightly darker background for active state */
+    color: #007b5e; /* Slightly darker MongoDB green for active state */
+    font-weight: bold; /* Bold font for active state */
+}
+
 
 /* Main content styles */
 .main-content {
