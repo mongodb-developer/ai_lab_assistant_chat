@@ -16,11 +16,15 @@ from app.utils import (
     get_collection_stats,
     json_serialize,
     store_message,
+    generate_title,
+    generate_references,
+    generate_summary,
     get_user_conversations,
     get_conversation_messages,
     start_new_conversation,  # Ensure this is imported
     add_unanswered_question  # Ensure this is imported
 )
+import openai
 
 main = Blueprint('main', __name__)
 
@@ -131,9 +135,14 @@ def chat_api():
         else:
             # Add the unanswered question to the unanswered_questions collection
             add_unanswered_question(user_id, user_name, user_question)
+            potential_answer = generate_potential_answer(user_question)
             response_message = 'No similar questions found. Your question has been logged for review.'
-            response = {'error': response_message, 'debug_info': debug_info}
 
+            response = {
+                'error': response_message,
+                'potential_answer': potential_answer['answer'],  # Ensure only the answer part is sent to the user
+                'debug_info': debug_info
+            }
         store_message(user_id, response_message, 'Assistant', conversation_id)
         return json.dumps(response, default=json_serialize), 200, {'Content-Type': 'application/json'}
     except ValueError as e:
@@ -145,6 +154,32 @@ def chat_api():
         debug_info['error'] = str(e)
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
+
+
+def generate_potential_answer(question):
+    context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
+    prompt = f"{context}\n\nPlease provide a detailed answer for the following question:\n\n{question}"
+    
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are an assistant that provides detailed answers."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    answer = response['choices'][0]['message']['content'].strip()
+
+    # Generate title, summary, and references
+    title = generate_title(answer)
+    summary = generate_summary(answer)
+    references = generate_references(answer)
+
+    return {
+        'title': title,
+        'summary': summary,
+        'answer': answer,
+        'references': references
+    }
 
 @main.route('/api/questions', methods=['POST'])
 @login_required

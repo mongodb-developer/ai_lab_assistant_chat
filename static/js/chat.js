@@ -10,52 +10,13 @@ console.log('chatContainer:', chatContainer);
 console.log('userInput:', userInput);
 console.log('adminForm:', adminForm);
 
-// Send a message to the server
-async function sendMessage() {
-    const question = userInput.value;
-    if (!question) return;
 
-    appendMessage('user', question);
-    userInput.value = '';
-
-    const loader = appendLoader();
-
-    try {
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ question }),
-        });
-
-        if (response.status === 401) {
-            window.location.href = '/login';
-            return;
-        }
-
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-
-        const data = await response.json();
-        
-        if (data.debug_info) {
-            appendDebugInfo('Debug Information', data.debug_info);
-        }
-
-        if (data.error) {
-            appendMessage('assistant', `Error: ${data.error}`);
-        } else {
-            console.log('Raw assistant message:', data.answer);  // Debug log
-            appendMessage('assistant', data.answer);
-        }
-    } catch (error) {
-        console.error('Error:', error);
-        appendMessage('assistant', `An error occurred: ${error.message}`);
-    } finally {
-        loader.remove();
-    }
+function displaySystemMessage(message) {
+    const systemMessage = document.createElement('div');
+    systemMessage.classList.add('message', 'system');
+    systemMessage.innerText = message;
+    chatContainer.appendChild(systemMessage);
+    chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
 // Handle sample question button clicks
@@ -116,6 +77,40 @@ function appendMessage(sender, message) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
+// Handle the API response
+async function sendMessage(question) {
+    const userMessage = question || userInput.value.trim();
+    if (!userMessage) return;
+
+    appendMessage('User', userMessage);
+    userInput.value = '';
+
+    try {
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ question: userMessage })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        if (data.answer) {
+            appendMessage('Assistant', data.answer);
+        } else if (data.potential_answer) {
+            appendMessage('Assistant', data.potential_answer);
+        } else {
+            appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        appendMessage('Assistant', `Error: ${error.message}`);
+    }
+}
 // Strip HTML tags from a string
 function stripHtml(html) {
     let tmp = document.createElement("DIV");

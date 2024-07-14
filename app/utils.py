@@ -307,3 +307,46 @@ def get_conversation_messages(conversation_id):
 
     __all__ = ['get_db_connection', 'generate_embedding', 'add_question_answer', 'add_unanswered_question','search_similar_questions', 'json_serialize']
 
+def generate_title(answer):
+    context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
+    prompt = f"{context}\n\nPlease provide a concise and descriptive title for the following answer:\n\n{answer}"
+    
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are an assistant that provides concise and descriptive titles."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    title = response['choices'][0]['message']['content'].strip()
+    return title
+
+def generate_summary(answer):
+    context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
+    prompt = f"{context}\n\nPlease summarize the following text:\n\n{answer}"
+    
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are an assistant that provides summaries."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    summary = response['choices'][0]['message']['content'].strip()
+    return summary
+
+def generate_references(answer):
+    context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
+    prompt = f"{context}\n\nPlease provide a relevant reference for the following text from the MongoDB documentation:\n\n{answer}"
+    
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are an assistant that provides relevant references."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    references = response['choices'][0]['message']['content'].strip()
+    if not references:
+        references = "No specific references provided. Please refer to the MongoDB Documentation at https://www.mongodb.com/docs/"
+    return references
