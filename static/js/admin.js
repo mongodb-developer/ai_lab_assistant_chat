@@ -5,12 +5,6 @@ document.addEventListener('DOMContentLoaded', () => {
     showQuestions();
 });
 
-// Initialize EasyMDE for markdown editing
-var answerEditor = new EasyMDE({
-    element: document.getElementById('answerEditor'),
-    spellChecker: false
-});
-
 // Fetch and display questions
 async function fetchQuestions() {
     try {
@@ -32,12 +26,14 @@ function populateQuestionsTable(questions) {
     questions.forEach(question => {
         const title = question.title || 'No title provided';
         const summary = question.summary || 'No summary provided';
+        const answer = question.answer || 'No main answer provided';
         const mainAnswer = question.main_answer || 'No main answer provided';
         const references = question.references || 'No references provided';
 
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${escapeHTML(title)}</td>
+            <td>${escapeHTML(question.question)}</td>
             <td>${escapeHTML(summary)}</td>
             <td>${escapeHTML(mainAnswer.split('\n').slice(0, 3).join('\n'))}</td>
             <td>
@@ -55,7 +51,6 @@ function populateQuestionsTable(questions) {
         tableBody.appendChild(row);
     });
 }
-
 
 // Toggle admin status for a user
 async function toggleAdminStatus(button) {
@@ -136,7 +131,7 @@ async function deleteUnansweredQuestion(id) {
 function showAddQuestionForm() {
     document.getElementById('questionModalLabel').innerText = 'Add Question';
     document.getElementById('question-input').value = '';
-    document.getElementById('answerEditor').value = '';
+    document.getElementById('main-answer-input').value = '';  // Change this line
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
@@ -159,7 +154,7 @@ function showEditQuestionForm(button) {
     document.getElementById('question-input').value = question;
     document.getElementById('title-input').value = title;
     document.getElementById('summary-input').value = summary;
-    document.getElementById('main-answer-input').value = mainAnswer;
+    document.getElementById('main-answer-input').value = mainAnswer;  // Change this line
     document.getElementById('references-input').value = references;
 
     const form = document.getElementById('question-form');
@@ -171,14 +166,13 @@ function showEditQuestionForm(button) {
     modal.show();
 }
 
-
 // Show answer question form
 function showAnswerQuestionForm(button) {
     const id = button.getAttribute('data-id');
     const question = unescapeHTML(button.getAttribute('data-question'));
     document.getElementById('questionModalLabel').innerText = 'Answer Question';
     document.getElementById('question-input').value = question;
-    document.getElementById('answerEditor').value = '';
+    document.getElementById('main-answer-input').value = '';  // Change this line
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
@@ -191,7 +185,7 @@ function showAnswerQuestionForm(button) {
 // Add a new question
 async function addQuestion() {
     const question = document.getElementById('question-input').value;
-    const answer = answerEditor.value();
+    const answer = document.getElementById('main-answer-input').value;  // Change this line
     try {
         const response = await fetch('/api/questions', {
             method: 'POST',
@@ -214,7 +208,7 @@ async function addQuestion() {
 // Update an existing question
 async function updateQuestion(id) {
     const question = document.getElementById('question-input').value;
-    const answer = answerEditor.value();
+    const answer = document.getElementById('main-answer-input').value;  // Change this line
     try {
         const response = await fetch(`/api/questions/${id}`, {
             method: 'PUT',
@@ -237,7 +231,7 @@ async function updateQuestion(id) {
 // Answer an unanswered question
 async function answerQuestion(id) {
     const question = document.getElementById('question-input').value;
-    const answer = answerEditor.value();
+    const answer = document.getElementById('main-answer-input').value;  // Change this line
     try {
         const response = await fetch(`/api/questions/${id}`, {
             method: 'PUT',
@@ -378,7 +372,8 @@ function showQuestions() {
                 <table class="table table-bordered">
                     <thead>
                         <tr>
-                            <th>Question</th>
+                            <th>Title</th>
+                            <th>Summary</th>
                             <th>Answer</th>
                             <th>Actions</th>
                         </tr>

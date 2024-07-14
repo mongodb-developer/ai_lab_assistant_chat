@@ -121,27 +121,36 @@ def chat_api():
         similar_questions, search_debug = search_similar_questions(question_embedding)
         debug_info['search'] = search_debug
 
+        response_data = {}
+        
         if similar_questions and similar_questions[0]['score'] > SIMILARITY_THRESHOLD:
             response_message = similar_questions[0]['answer']
-            response = {
+            response_data = {
                 'question': similar_questions[0]['question'],
                 'answer': response_message,
                 'score': similar_questions[0]['score'],
+                'title': similar_questions[0].get('title', ''),
+                'summary': similar_questions[0].get('summary', ''),
+                'references': similar_questions[0].get('references', ''),
                 'debug_info': debug_info
             }
         else:
             # Add the unanswered question to the unanswered_questions collection
             add_unanswered_question(user_id, user_name, user_question)
-            potential_answer = generate_potential_answer(user_question)
             response_message = 'No similar questions found. Your question has been logged for review.'
+            potential_answer_data = generate_potential_answer(user_question)
 
-            response = {
+            response_data = {
                 'error': response_message,
-                'potential_answer': potential_answer['answer'],  # Ensure only the answer part is sent to the user
+                'potential_answer': potential_answer_data['answer'],
+                'title': potential_answer_data.get('title', ''),
+                'summary': potential_answer_data.get('summary', ''),
+                'references': potential_answer_data.get('references', ''),
                 'debug_info': debug_info
             }
+        
         store_message(user_id, response_message, 'Assistant', conversation_id)
-        return json.dumps(response, default=json_serialize), 200, {'Content-Type': 'application/json'}
+        return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
     except ValueError as e:
         logger.error(f"Value error in chat route: {str(e)}")
         debug_info['error'] = str(e)

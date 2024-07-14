@@ -26,47 +26,29 @@ function handleSampleQuestion(question) {
 }
 
 // Append a new message to the chat container
-function appendMessage(sender, message) {
+function appendMessage(sender, message, data = null) {
     console.log(`Appending message from ${sender}:`, message);
     
     const messageElement = document.createElement('div');
     messageElement.classList.add('chat-bubble', sender.toLowerCase());
 
-    if (sender.toLowerCase() === 'assistant') {
-        console.log('Before processing:', message);
-        
-        // Remove <p> tags but keep line breaks
-        let processedMessage = message.replace(/<p>/g, '').replace(/<\/p>/g, '\n\n').trim();
-        
-        // Replace <br> tags with newlines
-        processedMessage = processedMessage.replace(/<br>/g, '\n');
-        
-        // Strip any remaining HTML tags
-        processedMessage = stripHtml(processedMessage);
-        
-        console.log('After processing, before Markdown parsing:', processedMessage);
-        
-        // Configure marked
-        marked.setOptions({
-            breaks: true,
-            gfm: true,
-            headerIds: false,
-            mangle: false
-        });
-        
-        // Parse the processed message
-        let parsedMessage = marked.parse(processedMessage);
-        
-        console.log('After Markdown parsing:', parsedMessage);
-        
-        // Use DOMPurify to sanitize the HTML produced by marked, if available
+    if (sender.toLowerCase() === 'assistant' && data) {
+        const { title, summary, answer, references } = data;
+
+        let structuredMessage = '';
+        if (title) structuredMessage += `<h3>${title}</h3>`;
+        if (summary) structuredMessage += `<p><strong>Summary:</strong> ${summary}</p>`;
+        if (answer) structuredMessage += `<p>${marked.parse(answer)}</p>`;
+        if (references) structuredMessage += `<p><strong>References:</strong> ${marked.parse(references)}</p>`;
+
+        // Use DOMPurify to sanitize the HTML produced by marked
         if (typeof DOMPurify !== 'undefined') {
-            parsedMessage = DOMPurify.sanitize(parsedMessage);
+            structuredMessage = DOMPurify.sanitize(structuredMessage);
         } else {
             console.warn('DOMPurify is not available. Skipping sanitization.');
         }
-        
-        messageElement.innerHTML = parsedMessage;
+
+        messageElement.innerHTML = structuredMessage;
     } else {
         const span = document.createElement('span');
         span.textContent = message;
@@ -95,14 +77,16 @@ async function sendMessage(question) {
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorMessage = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
         }
 
         const data = await response.json();
+        console.log('Received data:', data);
         if (data.answer) {
-            appendMessage('Assistant', data.answer);
+            appendMessage('Assistant', data.answer, data);
         } else if (data.potential_answer) {
-            appendMessage('Assistant', data.potential_answer);
+            appendMessage('Assistant', data.potential_answer, data);
         } else {
             appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
         }
@@ -111,6 +95,15 @@ async function sendMessage(question) {
         appendMessage('Assistant', `Error: ${error.message}`);
     }
 }
+
+// Ensure `marked` is correctly loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Marked library loaded:', typeof marked);
+    console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
+});
+
+
+
 // Strip HTML tags from a string
 function stripHtml(html) {
     let tmp = document.createElement("DIV");

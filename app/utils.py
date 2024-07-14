@@ -156,6 +156,9 @@ def search_similar_questions(question_embedding):
                     '_id': 0,
                     'question': 1,
                     'answer': 1,
+                    'summary': 1,
+                    'title': 1,
+                    'references': 1,
                     'score': {
                         '$meta': 'vectorSearchScore'
                     }

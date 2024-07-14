@@ -12,12 +12,14 @@
     <script src="{{ url_for('static', filename='js/feedback.js') }}"></script>
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <script>
-        marked.setOptions({
-            breaks: true, // This will render line breaks in Markdown
-            gfm: true,    // GitHub Flavored Markdown
+        document.addEventListener('DOMContentLoaded', () => {
+            marked.setOptions({
+                breaks: true, // This will render line breaks in Markdown
+                gfm: true,    // GitHub Flavored Markdown
+            });
+            console.log('Marked library loaded:', typeof marked);
+            console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
         });
-        console.log('Marked library loaded:', typeof marked);
-        console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
     </script>
 </head>
 <body>
