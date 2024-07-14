@@ -6,6 +6,7 @@ import logging
 import datetime
 from bson import ObjectId, json_util
 import traceback
+import requests
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -350,3 +351,17 @@ def generate_references(answer):
     if not references:
         references = "No specific references provided. Please refer to the MongoDB Documentation at https://www.mongodb.com/docs/"
     return references
+
+def fetch_changelog(repo_owner, repo_name, access_token=None):
+    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/CHANGELOG.md"
+    headers = {"Accept": "application/vnd.github.v3.raw"}
+    
+    if access_token:
+        headers["Authorization"] = f"token {access_token}"
+    
+    response = requests.get(url, headers=headers)
+    
+    if response.status_code == 200:
+        return response.text
+    else:
+        raise Exception(f"Failed to fetch changelog: {response.status_code} {response.text}")

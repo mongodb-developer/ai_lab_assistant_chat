@@ -2,7 +2,7 @@ import os
 import json  # Ensure json is imported
 import traceback  # Ensure traceback is imported
 import logging
-from flask import Blueprint, request, jsonify, render_template, current_app, session
+from flask import Blueprint, request, jsonify, render_template, current_app, session, send_from_directory
 from flask_login import login_required, current_user
 from bson import ObjectId
 from pymongo import MongoClient
@@ -15,6 +15,7 @@ from app.utils import (
     check_database_connection,
     get_collection_stats,
     json_serialize,
+    fetch_changelog,
     store_message,
     generate_title,
     generate_references,
@@ -86,10 +87,6 @@ def chat():
     except Exception as e:
         current_app.logger.error(f"Error in chat route: {str(e)}")
         return jsonify({"error": "An internal error occurred"}), 500
-
-@main.route('/about')
-def about():
-    return render_template('about.html')
 
 @main.route('/api/chat', methods=['POST'])
 @login_required
@@ -211,6 +208,10 @@ def add_question():
         debug_info['error'] = str(e)
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
+
+@main.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(current_app.root_path, 'static'), 'favicon.ico')
 
 
 @main.route('/api/questions', methods=['GET'])
@@ -373,3 +374,29 @@ def receive_feedback():
         return jsonify({"message": "Feedback received"}), 200
     else:
         return jsonify({"error": "Invalid feedback"}), 400
+
+
+@main.route('/about')
+def about():
+    try:
+        # Adjust path if CHANGELOG.md is in the root directory
+        changelog_path = os.path.join(current_app.root_path, '..', 'CHANGELOG.md')
+        with open(changelog_path, 'r') as file:
+            changelog_content = file.read()
+        return render_template('about.html', changelog_content=changelog_content)
+    except Exception as e:
+        current_app.logger.error(f"Error reading CHANGELOG.md: {str(e)}")
+        return jsonify({'error': 'An internal error occurred while reading the changelog.'}), 500
+
+@main.route('/changelog')
+def changelog():
+    try:
+        # Adjust path if CHANGELOG.md is in the root directory
+        changelog_path = os.path.join(current_app.root_path, '..', 'CHANGELOG.md')
+        with open(changelog_path, 'r') as file:
+            changelog_content = file.read()
+        return render_template('index.html', changelog_content=changelog_content)
+    except Exception as e:
+        current_app.logger.error(f"Error reading CHANGELOG.md: {str(e)}")
+        return jsonify({'error': 'An internal error occurred while reading the changelog.'}), 500
+
