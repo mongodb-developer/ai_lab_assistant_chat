@@ -287,7 +287,18 @@ def get_unanswered_questions():
     except Exception as e:
         current_app.logger.error(f"Error fetching unanswered questions: {str(e)}")
         return jsonify({'error': 'An internal error occurred'}), 500
-
+    
+@main.route('/api/unanswered_questions/<id>', methods=['DELETE'])
+def delete_unanswered_question(id):
+    try:
+        result = unanswered_collection.delete_one({'_id': ObjectId(id)})
+        if result.deleted_count == 1:
+            return jsonify({'message': 'Unanswered question deleted successfully'}), 200
+        else:
+            return jsonify({'message': 'Unanswered question not found'}), 404
+    except Exception as e:
+        return jsonify({'message': str(e)}), 500
+    
 @main.route('/admin')
 @login_required
 def admin():

@@ -1,0 +1,8 @@
+"question","answer","title","references","summary"
+"How do I set up a MongoDB cluster in MongoDB Atlas?","To set up a MongoDB cluster in MongoDB Atlas, follow these steps:
+1. Sign in to your MongoDB Atlas account.
+2. Click ""Build a Cluster"".
+3. Choose your cloud provider and region.
+4. Select your cluster tier and settings.
+5. Click ""Create Cluster"".  
+For more details, refer to the [Intro Lab documentation](https://mongodb-developer.github.io/intro-lab/docs/intro).","Setting up MongoDB cluster in Atlas","https://mongodb-developer.github.io/intro-lab/docs/intro","Steps to set up a MongoDB cluster in MongoDB Atlas."

@@ -83,30 +83,46 @@
         </div>
     </div>
 
-    <!-- Modal for adding/editing questions -->
-    <div class="modal fade" id="question-modal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg-custom"> <!-- Updated class here -->
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="questionModalLabel"></h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="question-form">
-                        <div class="mb-3">
-                            <label for="question-input" class="form-label">Question</label>
-                            <textarea class="form-control" id="question-input" rows="3"></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="answerEditor" class="form-label">Answer</label>
-                            <textarea class="form-control" id="answerEditor" rows="3"></textarea>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Save</button>
-                    </form>
-                </div>
+    <!-- Modal for adding and editing questions -->
+<div class="modal fade" id="question-modal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="questionModalLabel"></h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
+            <form id="question-form">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="question-input" class="form-label">Question</label>
+                        <input type="text" class="form-control" id="question-input" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="title-input" class="form-label">Title</label>
+                        <input type="text" class="form-control" id="title-input" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="summary-input" class="form-label">Summary</label>
+                        <textarea class="form-control" id="summary-input" rows="2" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="main-answer-input" class="form-label">Main Answer</label>
+                        <textarea class="form-control" id="main-answer-input" rows="5" required></textarea>
+                    </div>
+                    <div class="mb-3">
+                        <label for="references-input" class="form-label">References</label>
+                        <textarea class="form-control" id="references-input" rows="2"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="submit" class="btn btn-primary">Save changes</button>
+                </div>
+            </form>
         </div>
     </div>
+</div>
+
 
     <!-- Modal for editing user -->
     <div class="modal fade" id="user-modal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">

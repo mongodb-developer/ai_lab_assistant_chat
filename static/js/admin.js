@@ -30,19 +30,32 @@ function populateQuestionsTable(questions) {
     const tableBody = document.getElementById('questions-table-body');
     tableBody.innerHTML = '';
     questions.forEach(question => {
-        const shortAnswer = question.answer.split("\n").slice(0, 3).join("\n");
+        const title = question.title || 'No title provided';
+        const summary = question.summary || 'No summary provided';
+        const mainAnswer = question.main_answer || 'No main answer provided';
+        const references = question.references || 'No references provided';
+
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${question.question}</td>
-            <td>${shortAnswer}</td>
+            <td>${escapeHTML(title)}</td>
+            <td>${escapeHTML(summary)}</td>
+            <td>${escapeHTML(mainAnswer.split('\n').slice(0, 3).join('\n'))}</td>
             <td>
-                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" data-answer="${escapeHTML(question.answer)}" onclick="showEditQuestionForm(this)">Edit</button>
+                <button class="btn btn-sm btn-primary" 
+                    data-id="${question._id}" 
+                    data-question="${escapeHTML(question.question)}" 
+                    data-title="${escapeHTML(title)}" 
+                    data-summary="${escapeHTML(summary)}" 
+                    data-main-answer="${escapeHTML(mainAnswer)}" 
+                    data-references="${escapeHTML(references)}" 
+                    onclick="showEditQuestionForm(this)">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteQuestion('${question._id}')">Delete</button>
             </td>
         `;
         tableBody.appendChild(row);
     });
 }
+
 
 // Toggle admin status for a user
 async function toggleAdminStatus(button) {
@@ -94,10 +107,29 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
             <td>${question.user_name}</td>
             <td>
                 <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" onclick="showAnswerQuestionForm(this)">Answer</button>
+                <button class="btn btn-sm btn-danger" onclick="deleteUnansweredQuestion('${question._id}')">Delete</button>
             </td>
         `;
         tableBody.appendChild(row);
     });
+}
+
+// Delete an unanswered question
+async function deleteUnansweredQuestion(id) {
+    try {
+        const response = await fetch(`/api/unanswered_questions/${id}`, {
+            method: 'DELETE',
+            headers: {
+                'Content-Type': 'application/json',
+            }
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        fetchUnansweredQuestions();
+    } catch (error) {
+        console.error('Error deleting unanswered question:', error);
+    }
 }
 
 // Show add question form
@@ -118,10 +150,18 @@ function showAddQuestionForm() {
 function showEditQuestionForm(button) {
     const id = button.getAttribute('data-id');
     const question = unescapeHTML(button.getAttribute('data-question'));
-    const answer = unescapeHTML(button.getAttribute('data-answer'));
+    const title = unescapeHTML(button.getAttribute('data-title'));
+    const summary = unescapeHTML(button.getAttribute('data-summary'));
+    const mainAnswer = unescapeHTML(button.getAttribute('data-main-answer'));
+    const references = unescapeHTML(button.getAttribute('data-references'));
+
     document.getElementById('questionModalLabel').innerText = 'Edit Question';
     document.getElementById('question-input').value = question;
-    answerEditor.value(answer);  // Correctly setting the value for EasyMDE instance
+    document.getElementById('title-input').value = title;
+    document.getElementById('summary-input').value = summary;
+    document.getElementById('main-answer-input').value = mainAnswer;
+    document.getElementById('references-input').value = references;
+
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
@@ -130,6 +170,7 @@ function showEditQuestionForm(button) {
     const modal = new bootstrap.Modal(document.getElementById('question-modal'));
     modal.show();
 }
+
 
 // Show answer question form
 function showAnswerQuestionForm(button) {
