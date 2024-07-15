@@ -106,7 +106,8 @@ def chat_api():
         user_name = current_user.name
 
         # Generate a title for the conversation
-        title = user_question[:50]  # Use the first 50 characters of the question as the title
+        # title = user_question[:50]  # Use the first 50 characters of the question as the title
+        title = user_question  # Use the first 50 characters of the question as the title
         
         # Start a new conversation if no active conversation exists
         conversation_id = start_new_conversation(user_id, title)
@@ -132,23 +133,25 @@ def chat_api():
                 'title': similar_questions[0].get('title', ''),
                 'summary': similar_questions[0].get('summary', ''),
                 'references': similar_questions[0].get('references', ''),
+                'usage_count': similar_questions[0].get('usage_count', 0) + 1,
                 'debug_info': debug_info
             }
         else:
             # Add the unanswered question to the unanswered_questions collection
-            add_unanswered_question(user_id, user_name, user_question)
-            response_message = 'No similar questions found. Your question has been logged for review.'
+            response_message = 'This question has not been specifically answered for MongoDB Developer Days. However, here is some information I found that may assist you.'
             potential_answer_data = generate_potential_answer(user_question)
 
             response_data = {
                 'error': response_message,
                 'potential_answer': potential_answer_data['answer'],
-                'title': potential_answer_data.get('title', ''),
+                'title': response_message + "<br>\n" + potential_answer_data.get('title', ''),
                 'summary': potential_answer_data.get('summary', ''),
                 'references': potential_answer_data.get('references', ''),
                 'debug_info': debug_info
             }
-        
+            add_unanswered_question(user_id, user_name, user_question, response_data)
+
+    
         store_message(user_id, response_message, 'Assistant', conversation_id)
         return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
     except ValueError as e:

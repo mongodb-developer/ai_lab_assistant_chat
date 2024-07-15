@@ -67,6 +67,8 @@ async function sendMessage(question) {
     appendMessage('User', userMessage);
     userInput.value = '';
 
+    const loader = appendLoader(); // Start the loader
+
     try {
         const response = await fetch('/api/chat', {
             method: 'POST',
@@ -76,12 +78,19 @@ async function sendMessage(question) {
             body: JSON.stringify({ question: userMessage })
         });
 
+        removeLoader(loader); // Remove the loader
+
         if (!response.ok) {
             const errorMessage = await response.text();
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
         }
 
         const data = await response.json();
+                       
+        if (data.debug_info) {
+            appendDebugInfo('Debug Information', data.debug_info);
+        }
+
         console.log('Received data:', data);
         if (data.answer) {
             appendMessage('Assistant', data.answer, data);
@@ -92,6 +101,7 @@ async function sendMessage(question) {
         }
     } catch (error) {
         console.error('Error:', error);
+        removeLoader(loader); // Remove the loader in case of error
         appendMessage('Assistant', `Error: ${error.message}`);
     }
 }
@@ -102,8 +112,6 @@ document.addEventListener('DOMContentLoaded', () => {
     console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
 });
 
-
-
 // Strip HTML tags from a string
 function stripHtml(html) {
     let tmp = document.createElement("DIV");
@@ -111,13 +119,40 @@ function stripHtml(html) {
     return tmp.textContent || tmp.innerText || "";
 }
 
-// Append a loader to the chat container
+// // Append a loader to the chat container
+// function appendLoader() {
+//     const loaderElement = document.createElement('div');
+//     loaderElement.classList.add('loader');
+//     chatContainer.appendChild(loaderElement);
+//     chatContainer.scrollTop = chatContainer.scrollHeight;
+//     return loaderElement;
+// }
+
+// // Remove the loader from the chat container
+// function removeLoader(loaderElement) {
+//     if (loaderElement && loaderElement.parentNode === chatContainer) {
+//         chatContainer.removeChild(loaderElement);
+//     }
+// }
+
+// Append a full-screen loader overlay
 function appendLoader() {
+    const loaderOverlay = document.createElement('div');
+    loaderOverlay.classList.add('loader-overlay');
+
     const loaderElement = document.createElement('div');
     loaderElement.classList.add('loader');
-    chatContainer.appendChild(loaderElement);
-    chatContainer.scrollTop = chatContainer.scrollHeight;
-    return loaderElement;
+    loaderOverlay.appendChild(loaderElement);
+
+    document.body.appendChild(loaderOverlay);
+    return loaderOverlay;
+}
+
+// Remove the full-screen loader overlay
+function removeLoader(loaderOverlay) {
+    if (loaderOverlay) {
+        document.body.removeChild(loaderOverlay);
+    }
 }
 
 // Append debug information to the chat container

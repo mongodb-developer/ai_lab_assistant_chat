@@ -3,7 +3,7 @@ from pymongo import MongoClient
 from config import Config
 import json
 import logging
-import datetime
+from datetime import datetime
 from bson import ObjectId, json_util
 import traceback
 import requests
@@ -183,20 +183,30 @@ def search_similar_questions(question_embedding):
         debug_info['traceback'] = traceback.format_exc()
         raise
 
-def add_unanswered_question(user_id, user_name, question):
+def add_unanswered_question(user_id, user_name, question, potential):
+    debug_info = {'function': 'add_unanswered_questions'}
+
     try:
         unanswered_collection.insert_one({
             'user_id': user_id,
             'user_name': user_name,
             'question': question,
             'timestamp': datetime.now(),
-            'answered': False
+            'answered': False,
+            'potential_answer': potential
         })
         logger.info(f"Unanswered question added for user {user_name} (ID: {user_id})")
+        debug_info['unanswered_question'] = {
+            'user_id': user_id,
+            'user_name': user_name,
+            'question': question,
+            'timestamp': datetime.now(),
+            'answered': False,
+            'potential_answer': potential,
+        }
     except Exception as e:
         logger.error(f"Error adding unanswered question: {str(e)}")
         raise
-
 
 def check_database_connection():
     try:
@@ -220,12 +230,6 @@ def get_collection_stats():
     except Exception as e:
         logger.error(f"Error getting collection stats: {str(e)}")
         return None
-    
-import json
-from bson import json_util
-from datetime import datetime
-
-# ... (keep the existing imports and configurations)
 
 def json_serialize(obj):
     """
@@ -261,7 +265,7 @@ def store_message(user_id, message, sender, conversation_id=None):
         'conversation_id': conversation_id,
         'sender': sender,
         'message': message,
-        'timestamp': datetime.utcnow()
+        'timestamp': datetime.now()
     }
     conversation_collection.insert_one(message_entry)
 
@@ -302,7 +306,6 @@ def get_user_conversations(user_id):
             'timestamp': conv['timestamp'].strftime('%Y-%m-%d %H:%M:%S')
         })
     return formatted_conversations
-
 
 def get_conversation_messages(conversation_id):
     return conversation_collection.find(

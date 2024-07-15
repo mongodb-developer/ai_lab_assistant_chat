@@ -35,9 +35,30 @@
                         <h5>Are you having trouble?</h5>
                         <div class="subheader">Consider some of these frequently asked questions</div>
                         <div class="sample-questions">
-                            <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why can\'t my application connect to the MongoDB Cluster?')">Why can't my application connect to the MongoDB Cluster?</button>
-                            <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why is my library application displaying no data or books?')">Why is my library application displaying no data or books?</button>
-                            <button class="btn btn-outline-primary m-1" onclick="handleSampleQuestion('Why is my github codespace not responding or launching the application properly?')">Why is my github codespace not responding or launching the application properly?</button>
+                            <div class="button-tile" onclick="handleSampleQuestion('Why can\'t my application connect to the MongoDB Cluster?')">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="icon-md" style="color: rgb(226, 197, 65);">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19a3 3 0 1 1-6 0M15.865 16A7.54 7.54 0 0 0 19.5 9.538C19.5 5.375 16.142 2 12 2S4.5 5.375 4.5 9.538A7.54 7.54 0 0 0 8.135 16m7.73 0h-7.73m7.73 0v3h-7.73v-3"></path>
+                                </svg>
+                                <div class="text">Can't connect?</div>
+                            </div>
+                            <div class="button-tile" onclick="handleSampleQuestion('Why is my library application displaying no data or books?')">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="icon-md" style="color: rgb(118, 208, 235);">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 19.5A2.5 2.5 0 006.5 22H20m-16-2.5V3.5A2.5 2.5 0 016.5 1H20a2.5 2.5 0 012.5 2.5v16.5m-18-2.5a2.5 2.5 0 012.5 2.5m-2.5-2.5H18M6.5 1v18M18 1v18M6.5 1H20M6.5 19.5H20" />
+                                </svg>
+                                <div class="text">No books displaying?</div>
+                            </div>
+                            <div class="button-tile" onclick="handleSampleQuestion('Why is my github codespace not responding or launching the application properly?')">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="icon-md" style="color: rgb(203, 139, 208);">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 2a10 10 0 1 0 10 10h-2a8 8 0 1 1-8-8v2a6 6 0 1 0 6 6h2a10 10 0 1 0-10-10z" />
+                                </svg>
+                                <div class="text">Restart Codespaces?</div>
+                            </div>
+                            <div class="button-tile" onclick="handleSampleQuestion('What is Atlas Search?')">
+                                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor" class="icon-md" style="color: rgb(237, 98, 98);">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a5 5 0 1 1-10 0 5 5 0 0 1 10 0z" />
+                                </svg>
+                                <div class="text">What is Atlas Search?</div>
+                            </div>
                         </div>
                     </div>
 
