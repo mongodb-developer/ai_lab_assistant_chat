@@ -41,28 +41,28 @@ The AI Lab Assistant Chat application is a web-based tool designed to help users
 
 Create a virtual environment:
 
-bash
-Copy code
+```bash
 python3 -m venv venv
 source venv/bin/activate
+```
 Install dependencies:
 
-bash
-Copy code
+```bash
 pip install -r requirements.txt
-Set up environment variables:
+```
+## Set up environment variables:
 
 Create a .env file in the root directory and add the following variables:
+```
 
-env
-Copy code
 FLASK_APP=run.py
 FLASK_ENV=development
 MONGODB_URI=your_mongodb_uri
 MONGODB_DB=your_database_name
 MONGODB_COLLECTION=your_collection_name
 OPENAI_API_KEY=your_openai_api_key
-Run the application:
+```
+## Run the application:
 
 ```bash
 flask run
