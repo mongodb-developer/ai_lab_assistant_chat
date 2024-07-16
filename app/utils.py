@@ -193,7 +193,10 @@ def add_unanswered_question(user_id, user_name, question, potential):
             'question': question,
             'timestamp': datetime.now(),
             'answered': False,
-            'potential_answer': potential
+            'answer': potential.get('potential_answer'),
+            'title': potential.get('title'),
+            'summary': potential.get('summary'),
+            'references': potential.get('references'),
         })
         logger.info(f"Unanswered question added for user {user_name} (ID: {user_id})")
         debug_info['unanswered_question'] = {

@@ -143,14 +143,14 @@ def chat_api():
 
             response_data = {
                 'error': response_message,
-                'potential_answer': potential_answer_data['answer'],
+                'potential_answer': potential_answer_data.get('answer'),
+                'answer': potential_answer_data['answer'],
                 'title': response_message + "<br>\n" + potential_answer_data.get('title', ''),
                 'summary': potential_answer_data.get('summary', ''),
                 'references': potential_answer_data.get('references', ''),
                 'debug_info': debug_info
             }
             add_unanswered_question(user_id, user_name, user_question, response_data)
-
     
         store_message(user_id, response_message, 'Assistant', conversation_id)
         return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
@@ -245,6 +245,9 @@ def update_question(question_id):
     data = request.get_json()
     question = data.get('question')
     answer = data.get('answer')
+    title = data.get('title')
+    summary = data.get('summary')
+    references = data.get('references')
 
     current_app.logger.info(f"Received request to update question with ID: {question_id}")
     current_app.logger.info(f"New question: {question}")
@@ -277,6 +280,9 @@ def update_question(question_id):
                 'question': unanswered_question['question'],
                 'question_embedding': question_embedding,
                 'answer': answer,
+                'title': title,
+                'summary': summary,
+                'references': references,
                 'answer_embedding': answer_embedding,
                 'created_at': unanswered_question.get('created_at', datetime.now()),  # Default to now if not present
                 'updated_at': datetime.now()

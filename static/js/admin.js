@@ -27,7 +27,7 @@ function populateQuestionsTable(questions) {
         const title = question.title || 'No title provided';
         const summary = question.summary || 'No summary provided';
         const answer = question.answer || 'No main answer provided';
-        const mainAnswer = question.main_answer || 'No main answer provided';
+        const mainAnswer = question.main_answer || answer || 'No main answer provided';
         const references = question.references || 'No references provided';
 
         const row = document.createElement('tr');
@@ -42,7 +42,7 @@ function populateQuestionsTable(questions) {
                     data-question="${escapeHTML(question.question)}" 
                     data-title="${escapeHTML(title)}" 
                     data-summary="${escapeHTML(summary)}" 
-                    data-main-answer="${escapeHTML(mainAnswer)}" 
+                    data-answer="${escapeHTML(mainAnswer)}" 
                     data-references="${escapeHTML(references)}" 
                     onclick="showEditQuestionForm(this)">Edit</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteQuestion('${question._id}')">Delete</button>
@@ -96,18 +96,35 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
     }
     tableBody.innerHTML = '';
     unansweredQuestions.forEach(question => {
+        console.log('Processing question:', question);
+        
+        const questionText = question.question || 'No question provided';
+        const userName = question.user_name || 'No user name provided';
+        const title = question.title || 'No title provided';
+        const summary = question.summary || 'No summary provided';
+        const references = question.references || 'No references provided';
+        const answer = question.answer || 'No answer provided';
+        
         const row = document.createElement('tr');
         row.innerHTML = `
-            <td>${question.question}</td>
-            <td>${question.user_name}</td>
+            <td>${escapeHTML(questionText)}</td>
+            <td>${escapeHTML(userName)}</td>
             <td>
-                <button class="btn btn-sm btn-primary" data-id="${question._id}" data-question="${escapeHTML(question.question)}" onclick="showAnswerQuestionForm(this)">Answer</button>
+                <button class="btn btn-sm btn-primary" 
+                    data-id="${question._id}" 
+                    data-question="${escapeHTML(questionText)}" 
+                    data-title="${escapeHTML(title)}" 
+                    data-summary="${escapeHTML(summary)}" 
+                    data-references="${escapeHTML(references)}" 
+                    data-answer="${escapeHTML(answer)}" 
+                    onclick="showAnswerQuestionForm(this)">Answer</button>
                 <button class="btn btn-sm btn-danger" onclick="deleteUnansweredQuestion('${question._id}')">Delete</button>
             </td>
         `;
         tableBody.appendChild(row);
     });
 }
+
 
 // Delete an unanswered question
 async function deleteUnansweredQuestion(id) {
@@ -147,7 +164,7 @@ function showEditQuestionForm(button) {
     const question = unescapeHTML(button.getAttribute('data-question'));
     const title = unescapeHTML(button.getAttribute('data-title'));
     const summary = unescapeHTML(button.getAttribute('data-summary'));
-    const mainAnswer = unescapeHTML(button.getAttribute('data-main-answer'));
+    const mainAnswer = unescapeHTML(button.getAttribute('data-answer'));
     const references = unescapeHTML(button.getAttribute('data-references'));
 
     document.getElementById('questionModalLabel').innerText = 'Edit Question';
@@ -169,10 +186,61 @@ function showEditQuestionForm(button) {
 // Show answer question form
 function showAnswerQuestionForm(button) {
     const id = button.getAttribute('data-id');
-    const question = unescapeHTML(button.getAttribute('data-question'));
-    document.getElementById('questionModalLabel').innerText = 'Answer Question';
-    document.getElementById('question-input').value = question;
-    document.getElementById('main-answer-input').value = '';  // Change this line
+    const questionAttr = button.getAttribute('data-question');
+    const titleAttr = button.getAttribute('data-title');
+    const answerAttr = button.getAttribute('data-answer');
+    const summaryAttr = button.getAttribute('data-summary');
+    const referencesAttr = button.getAttribute('data-references');
+
+    const question = questionAttr ? unescapeHTML(questionAttr) : '';
+    const title = titleAttr ? unescapeHTML(titleAttr) : '';
+    const answer = answerAttr ? unescapeHTML(answerAttr) : '';
+    const summary = summaryAttr ? unescapeHTML(summaryAttr) : '';
+    const references = referencesAttr ? unescapeHTML(referencesAttr) : '';
+
+    const questionModalLabel = document.getElementById('questionModalLabel');
+    const questionInput = document.getElementById('question-input');
+    const questionTitle = document.getElementById('title-input');
+    const questionSummary = document.getElementById('summary-input');
+    const questionReferences = document.getElementById('references-input');
+    const mainAnswerInput = document.getElementById('main-answer-input');
+
+    if (questionModalLabel) {
+        questionModalLabel.innerText = 'Answer Question';
+    } else {
+        console.error('Element with ID "questionModalLabel" not found.');
+    }
+
+    if (questionInput) {
+        questionInput.value = question;
+    } else {
+        console.error('Element with ID "question-input" not found.');
+    }
+
+    if (questionTitle) {
+        questionTitle.value = title;
+    } else {
+        console.error('Element with ID "question-title" not found.');
+    }
+
+    if (questionSummary) {
+        questionSummary.value = summary;
+    } else {
+        console.error('Element with ID "question-summary" not found.');
+    }
+
+    if (questionReferences) {
+        questionReferences.value = references;
+    } else {
+        console.error('Element with ID "question-references" not found.');
+    }
+
+    if (mainAnswerInput) {
+        mainAnswerInput.value = answer;
+    } else {
+        console.error('Element with ID "main-answer-input" not found.');
+    }
+
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
         event.preventDefault();
@@ -209,13 +277,16 @@ async function addQuestion() {
 async function updateQuestion(id) {
     const question = document.getElementById('question-input').value;
     const answer = document.getElementById('main-answer-input').value;  // Change this line
+    const title = document.getElementById('title-input').value;  // Change this line
+    const summary = document.getElementById('summary-input').value;  // Change this line
+    const references = document.getElementById('references-input').value;  // Change this line
     try {
         const response = await fetch(`/api/questions/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ question, answer }),
+            body: JSON.stringify({ question, answer, title, summary, references }),
         });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -232,13 +303,16 @@ async function updateQuestion(id) {
 async function answerQuestion(id) {
     const question = document.getElementById('question-input').value;
     const answer = document.getElementById('main-answer-input').value;  // Change this line
+    const title = document.getElementById('title-input').value;  // Change this line
+    const summary = document.getElementById('summary-input').value;  // Change this line
+    const references = document.getElementById('references-input').value;  // Change this line
     try {
         const response = await fetch(`/api/questions/${id}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ question, answer }),
+            body: JSON.stringify({ question, answer, title, summary, references }),
         });
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -271,6 +345,10 @@ async function deleteQuestion(id) {
 
 // Escape HTML special characters in a string
 function escapeHTML(str) {
+    if (typeof str !== 'string') {
+        console.warn('escapeHTML received a non-string value:', str);
+        return '';
+    }
     return str.replace(/[&<>'"]/g, tag => ({
         '&': '&amp;',
         '<': '&lt;',
@@ -282,6 +360,10 @@ function escapeHTML(str) {
 
 // Unescape HTML special characters in a string
 function unescapeHTML(str) {
+    if (typeof str !== 'string') {
+        console.warn('unescapeHTML received a non-string value:', str);
+        return '';
+    }
     return str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, tag => ({
         '&amp;': '&',
         '&lt;': '<',
