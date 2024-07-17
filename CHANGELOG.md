@@ -1,5 +1,17 @@
 # Changelog
 
+## 2024-07-16
+- automate answering questions from potential answers via LLM (e27228f)
+
+## 2024-07-15
+- replace sample questions and update css (3f9d197)
+
+## 2024-07-14
+- add automated questiona and answers via llm (820ff46)
+
+## 2024-07-14
+- Add changelog, and favicon (2211450)
+
 ## 2024-07-14
 - Add ability to reference gpt-3.5-turbo for unanswered questions (4752565)
 
