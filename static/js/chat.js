@@ -1,14 +1,39 @@
 // Define references to HTML elements
 const conversationList = document.getElementById('conversation-list');
-const chatContainer = document.getElementById('chat-container');
-const userInput = document.getElementById('user-input');
 const adminForm = document.getElementById('admin-form'); // Ensure this is only referenced if it exists
+
+let chatContainer;
+let userInput;
 
 // Verify if the elements are correctly referenced
 console.log('conversationList:', conversationList);
 console.log('chatContainer:', chatContainer);
 console.log('userInput:', userInput);
 console.log('adminForm:', adminForm);
+
+function initChat() {
+    chatContainer = document.querySelector('.chat-container-wrapper .chat-container');
+    userInput = document.getElementById('user-input');
+
+    if (!chatContainer) {
+        console.error('Chat container not found. Make sure there is an element with class "chat-container" inside an element with class "chat-container-wrapper" in your HTML.');
+        return false;
+    }
+
+    if (!userInput) {
+        console.error('User input not found. Make sure there is an input element with id "user-input" in your HTML.');
+        return false;
+    }
+
+    userInput.addEventListener('keypress', function(event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    });
+
+    console.log('Chat initialized successfully');
+    return true;
+}
 
 
 function displaySystemMessage(message) {
@@ -21,12 +46,22 @@ function displaySystemMessage(message) {
 
 // Handle sample question button clicks
 function handleSampleQuestion(question) {
+    if (!chatContainer || !userInput) {
+        console.error('Chat not properly initialized. Cannot handle sample question.');
+        return;
+    }
+
     userInput.value = question;
-    sendMessage();
+    sendMessage(question);
 }
 
 // Append a new message to the chat container
 function appendMessage(sender, message, data = null) {
+    if (!chatContainer) {
+        console.error('Chat container not available. Message not appended.');
+        return;
+    }
+
     console.log(`Appending message from ${sender}:`, message);
     
     const messageElement = document.createElement('div');
@@ -55,12 +90,17 @@ function appendMessage(sender, message, data = null) {
         messageElement.appendChild(span);
     }
 
-    chatContainer.appendChild(messageElement);
+    chatContainer.insertBefore(messageElement, chatContainer.lastElementChild);
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
 // Handle the API response
 async function sendMessage(question) {
+    if (!chatContainer || !userInput) {
+        console.error('Chat not properly initialized. Cannot send message.');
+        return;
+    }
+    
     const userMessage = question || userInput.value.trim();
     if (!userMessage) return;
 
@@ -211,4 +251,10 @@ document.addEventListener('DOMContentLoaded', function() {
             }
         });
     }
+    if (!initChat()) {
+        console.error('Failed to initialize chat. Some features may not work correctly.');
+    }
 });
+
+window.handleSampleQuestion = handleSampleQuestion;
+window.sendMessage = sendMessage;

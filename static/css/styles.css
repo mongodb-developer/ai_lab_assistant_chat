@@ -169,20 +169,44 @@ body {
 .chat-container-wrapper {
     display: flex;
     flex-direction: column;
-    height: 100vh;
-    overflow: hidden;
-    padding: 20px;
+    height: 50vh;
+    border: 1px solid #e0e0e0;
+    border-radius: 10px;
 }
 
 .chat-container {
     flex-grow: 1;
     overflow-y: auto;
-    margin-bottom: 10px;
-    border: 1px solid #e0e0e0; /* Add border to chat container */
+    padding: 10px;
+}
+
+.input-container {
+    border-top: 1px solid #e0e0e0;
+    padding: 10px;
+    background-color: #f0f0f0;
 }
 
 .input-group {
-    width: 100%;
+    max-width: 800px;
+    margin: 0 auto;
+    display: flex;
+}
+
+#user-input {
+    flex-grow: 1;
+    border-radius: 20px 0 0 20px;
+    border: 1px solid #e0e0e0;
+    padding: 10px 15px;
+    font-size: 16px;
+}
+
+.input-group .btn {
+    border-radius: 0 20px 20px 0;
+    background-color: #00a35c;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    font-size: 16px;
 }
 
 #user-input {
@@ -276,13 +300,16 @@ a:hover, a:focus {
 .chat-container {
     display: flex;
     flex-direction: column;
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 10px;
 }
 
 .main-content {
-    padding: 20px;
     display: flex;
     flex-direction: column;
-    height: 80vh;
+    height: calc(100vh - 90px);
+    padding: 20px;
 }
 
 .chat-container {
@@ -293,13 +320,13 @@ a:hover, a:focus {
     border: 1px solid #e0e0e0;
     border-radius: 10px;
     padding: 10px;
-    margin-bottom: 10px;
+    margin-bottom: 20px;
 }
 
 .input-container {
     border-top: 1px solid #e0e0e0;
     padding: 10px;
-    background-color: #fff;
+    background-color: #f0f0f0;
 }
 
 .chat-bubble.assistant p {
@@ -543,15 +570,19 @@ a:hover, a:focus {
 }
 .sample-questions {
     display: flex;
+    flex-wrap: wrap;
     justify-content: center;
     gap: 1rem;
     margin-top: 1rem;
+    padding: 0 1rem;
 }
+
 .button-tile {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    width: 15rem;
+    width: calc(50% - 0.5rem);
+    max-width: 15rem;
     padding: 1rem;
     border: 1px solid #ccc;
     border-radius: 1rem;
@@ -562,14 +593,60 @@ a:hover, a:focus {
     cursor: pointer;
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
+
 .button-tile:hover {
     background-color: #f0f0f0;
 }
+
 .button-tile svg {
     width: 24px;
     height: 24px;
 }
+
 .button-tile .text {
     color: #555;
     word-wrap: break-word;
+    font-size: 0.9rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .sample-questions {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .button-tile {
+        width: 100%;
+        max-width: none;
+    }
+}
+
+/* Additional responsive adjustments */
+@media (max-width: 576px) {
+    .main-content {
+        padding: 10px;
+    }
+
+    .chat-container {
+        margin-bottom: 10px;
+    }
+
+    .input-container {
+        padding: 10px;
+    }
+
+    .input-group {
+        flex-direction: column;
+    }
+
+    #user-input {
+        border-radius: 20px;
+        margin-bottom: 10px;
+    }
+
+    .input-group .btn {
+        border-radius: 20px;
+        width: 100%;
+    }
 }
