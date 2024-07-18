@@ -128,6 +128,7 @@ def chat_api():
         if similar_questions and similar_questions[0]['score'] > SIMILARITY_THRESHOLD:
             response_message = similar_questions[0]['answer']
             response_data = {
+                'question_id': str(similar_questions[0]['_id']),  # Include this
                 'question': similar_questions[0]['question'],
                 'answer': response_message,
                 'score': similar_questions[0]['score'],
@@ -191,42 +192,6 @@ def generate_potential_answer(question):
         'references': references
     }
 
-@main.route('/api/questions', methods=['POST'])
-@login_required
-def add_question():
-    debug_info = {}
-    try:
-        debug_info['database_connection'] = check_database_connection()
-        if not debug_info['database_connection']:
-            raise Exception("Database connection failed")
-
-        debug_info['stats_before'] = get_collection_stats()
-
-        question = request.json['question']
-        answer = request.json['answer']
-        
-        inserted_id, add_debug = add_question_answer(question, answer)
-        debug_info['add_question'] = add_debug
-
-        debug_info['stats_after'] = get_collection_stats()
-
-        response = {
-            'message': 'Question and answer added successfully',
-            'id': str(inserted_id),
-            'debug_info': debug_info
-        }
-        return json.dumps(response, default=json_serialize), 200, {'Content-Type': 'application/json'}
-    except Exception as e:
-        logger.error(f"Error in add_question route: {str(e)}")
-        debug_info['error'] = str(e)
-        debug_info['traceback'] = traceback.format_exc()
-        return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
-
-@main.route('/favicon.ico')
-def favicon():
-    return send_from_directory(os.path.join(current_app.root_path, 'static'), 'favicon.ico')
-
-
 @main.route('/api/questions', methods=['GET'])
 @login_required
 def get_questions():
@@ -234,9 +199,56 @@ def get_questions():
         questions = list(documents_collection.find())
         for question in questions:
             question['_id'] = str(question['_id'])
+        current_app.logger.info(f"Fetched {len(questions)} questions")
         return jsonify(questions), 200
     except Exception as e:
         current_app.logger.error(f"Error fetching questions: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
+
+@main.route('/api/questions', methods=['POST'])
+@login_required
+def add_question():
+    debug_info = {}
+    try:
+        current_app.logger.info(f"Received request data: {request.data}")
+        current_app.logger.info(f"Received JSON: {request.json}")
+        
+        data = request.json
+        if not data:
+            raise ValueError("No JSON data received in the request")
+
+        if 'question' not in data or 'answer' not in data:
+            raise ValueError(f"Missing 'question' or 'answer' in request payload. Received keys: {', '.join(data.keys())}")
+
+        question = data['question']
+        answer = data['answer']
+        
+        # ... rest of the function ...
+
+    except ValueError as e:
+        current_app.logger.error(f"Value error in add_question route: {str(e)}")
+        return jsonify({'error': str(e)}), 400
+    except Exception as e:
+        current_app.logger.error(f"Error in add_question route: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
+
+@main.route('/favicon.ico')
+def favicon():
+    return send_from_directory(os.path.join(current_app.root_path, 'static'), 'favicon.ico')
+
+
+@main.route('/api/questions/<string:question_id>', methods=['GET'])
+@login_required
+def get_question(question_id):
+    try:
+        question = documents_collection.find_one({'_id': ObjectId(question_id)})
+        if question:
+            question['_id'] = str(question['_id'])  # Convert ObjectId to string
+            return jsonify(question), 200
+        else:
+            return jsonify({'error': 'Question not found'}), 404
+    except Exception as e:
+        current_app.logger.error(f"Error fetching question: {str(e)}")
         return jsonify({'error': 'An internal error occurred'}), 500
 
 
@@ -394,7 +406,6 @@ def receive_feedback():
     else:
         return jsonify({"error": "Invalid feedback"}), 400
 
-
 @main.route('/about')
 def about():
     try:
@@ -439,3 +450,85 @@ def generate_answer():
     except Exception as e:
         current_app.logger.error(f"Error generating answer: {str(e)}")
         return jsonify({'error': 'An error occurred while generating the answer.'}), 500
+    
+@main.route('/api/answer_feedback', methods=['POST'])
+@login_required
+def submit_answer_feedback():
+    data = request.json
+    question_id = data.get('question_id')
+    original_question = data.get('original_question')
+    proposed_answer = data.get('proposed_answer')
+    is_positive = data.get('is_positive')
+
+    if not all([question_id, original_question, proposed_answer, is_positive is not None]):
+        return jsonify({'error': 'Invalid feedback data'}), 400
+
+    try:
+        db.answer_feedback.insert_one({
+            'user_id': ObjectId(current_user.id),
+            'original_question': original_question,
+            'matched_question_id': ObjectId(question_id),
+            'proposed_answer': proposed_answer,
+            'is_positive': is_positive,
+            'timestamp': datetime.utcnow()
+        })
+        return jsonify({'message': 'Answer feedback submitted successfully'}), 200
+    except Exception as e:
+        current_app.logger.error(f"Error submitting answer feedback: {str(e)}")
+        return jsonify({'error': 'An error occurred while submitting answer feedback'}), 500
+
+@main.route('/api/answer_feedback_stats', methods=['GET'])
+@login_required
+def get_answer_feedback_stats():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    try:
+        pipeline = [
+            {
+                '$group': {
+                    '_id': '$matched_question_id',
+                    'total_feedback': {'$sum': 1},
+                    'positive_feedback': {
+                        '$sum': {'$cond': ['$is_positive', 1, 0]}
+                    },
+                    'original_questions': {'$addToSet': '$original_question'}
+                }
+            },
+            {
+                '$lookup': {
+                    'from': 'documents',
+                    'localField': '_id',
+                    'foreignField': '_id',
+                    'as': 'question_data'
+                }
+            },
+            {'$unwind': '$question_data'},
+            {
+                '$project': {
+                    'matched_question': '$question_data.question',
+                    'original_questions': 1,
+                    'total_feedback': 1,
+                    'positive_feedback': 1,
+                    'effectiveness': {
+                        '$multiply': [
+                            {'$divide': ['$positive_feedback', '$total_feedback']},
+                            100
+                        ]
+                    }
+                }
+            }
+        ]
+        
+        stats = list(db.answer_feedback.aggregate(pipeline))
+        
+        # Convert ObjectId to string and join original questions
+        for stat in stats:
+            if '_id' in stat:
+                stat['_id'] = str(stat['_id'])
+            stat['original_questions'] = '; '.join(set(stat['original_questions']))
+
+        return jsonify(stats), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching answer feedback stats: {str(e)}")
+        return jsonify({'error': 'An error occurred while fetching answer feedback stats'}), 500

@@ -7,25 +7,43 @@ document.addEventListener('DOMContentLoaded', () => {
     if (generateAnswerBtn) {
         generateAnswerBtn.addEventListener('click', generateAnswer);
     }
+    const answerStatsButton = document.querySelector('button[onclick="showAnswerFeedbackStats()"]');
+    if (answerStatsButton) {
+        answerStatsButton.addEventListener('click', showAnswerFeedbackStats);
+    }
 });
 
 // Fetch and display questions
 async function fetchQuestions() {
     try {
         const response = await fetch('/api/questions');
+        console.log('Fetch response:', response);
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('Error response text:', errorText);
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
+
         const questions = await response.json();
+        console.log('Fetched questions:', questions);
         populateQuestionsTable(questions);
     } catch (error) {
         console.error('Error fetching questions:', error);
+        const content = document.getElementById('content');
+        if (content) {
+            content.innerHTML += `<p class="error-message">Error loading questions: ${error.message}</p>`;
+        }
     }
 }
 
 // Populate questions table with data
 function populateQuestionsTable(questions) {
     const tableBody = document.getElementById('questions-table-body');
+    if (!tableBody) {
+        console.error('Element with ID "questions-table-body" not found. Make sure you are on the correct view.');
+        return;
+    }
     tableBody.innerHTML = '';
     questions.forEach(question => {
         const title = question.title || 'No title provided';
@@ -196,20 +214,37 @@ function showAddQuestionForm() {
 }
 
 // Show edit question form
-function showEditQuestionForm(button) {
+async function showEditQuestionForm(button) {
     const id = button.getAttribute('data-id');
-    const question = unescapeHTML(button.getAttribute('data-question'));
-    const title = unescapeHTML(button.getAttribute('data-title'));
-    const summary = unescapeHTML(button.getAttribute('data-summary'));
-    const mainAnswer = unescapeHTML(button.getAttribute('data-answer'));
-    const references = unescapeHTML(button.getAttribute('data-references'));
+    let question = button.getAttribute('data-question');
+    let title, summary, mainAnswer, references;
+
+    // If we don't have all the data, fetch it
+    if (!title || !summary || !mainAnswer || !references) {
+        try {
+            const response = await fetch(`/api/questions/${id}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const data = await response.json();
+            question = data.question;
+            title = data.title;
+            summary = data.summary;
+            mainAnswer = data.answer;
+            references = data.references;
+        } catch (error) {
+            console.error('Error fetching question details:', error);
+            alert('Failed to fetch question details. Please try again.');
+            return;
+        }
+    }
 
     document.getElementById('questionModalLabel').innerText = 'Edit Question';
     document.getElementById('question-input').value = question;
-    document.getElementById('title-input').value = title;
-    document.getElementById('summary-input').value = summary;
-    document.getElementById('main-answer-input').value = mainAnswer;  // Change this line
-    document.getElementById('references-input').value = references;
+    document.getElementById('title-input').value = title || '';
+    document.getElementById('summary-input').value = summary || '';
+    document.getElementById('main-answer-input').value = mainAnswer || '';
+    document.getElementById('references-input').value = references || '';
 
     const form = document.getElementById('question-form');
     form.onsubmit = async (event) => {
@@ -289,34 +324,48 @@ function showAnswerQuestionForm(button) {
 
 // Add a new question
 async function addQuestion() {
-    const question = document.getElementById('question-input').value;
-    const answer = document.getElementById('main-answer-input').value;  // Change this line
+    const questionData = {
+        question: document.getElementById('question-input').value,
+        answer: document.getElementById('main-answer-input').value,
+        title: document.getElementById('title-input').value,
+        summary: document.getElementById('summary-input').value,
+        references: document.getElementById('references-input').value
+    };
+
+    console.log('Sending question data:', questionData);
+
     try {
         const response = await fetch('/api/questions', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ question, answer }),
+            body: JSON.stringify(questionData),
         });
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorData = await response.json();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}`);
         }
+
+        const result = await response.json();
+        console.log('Question added:', result);
         fetchQuestions();
         const modal = bootstrap.Modal.getInstance(document.getElementById('question-modal'));
         modal.hide();
     } catch (error) {
         console.error('Error adding question:', error);
+        alert(`Failed to add question: ${error.message}`);
     }
 }
 
 // Update an existing question
 async function updateQuestion(id) {
     const question = document.getElementById('question-input').value;
-    const answer = document.getElementById('main-answer-input').value;  // Change this line
-    const title = document.getElementById('title-input').value;  // Change this line
-    const summary = document.getElementById('summary-input').value;  // Change this line
-    const references = document.getElementById('references-input').value;  // Change this line
+    const answer = document.getElementById('main-answer-input').value;
+    const title = document.getElementById('title-input').value;
+    const summary = document.getElementById('summary-input').value;
+    const references = document.getElementById('references-input').value;
     try {
         const response = await fetch(`/api/questions/${id}`, {
             method: 'PUT',
@@ -328,11 +377,19 @@ async function updateQuestion(id) {
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        fetchQuestions();
+        
+        // Check which view we're in and refresh accordingly
+        if (document.querySelector('table th').textContent.includes('Effectiveness')) {
+            showAnswerFeedbackStats();
+        } else {
+            fetchQuestions();
+        }
+        
         const modal = bootstrap.Modal.getInstance(document.getElementById('question-modal'));
         modal.hide();
     } catch (error) {
         console.error('Error updating question:', error);
+        alert('Failed to update question. Please try again.');
     }
 }
 
@@ -488,7 +545,8 @@ async function updateUser() {
 
 // Display questions tab
 function showQuestions() {
-    document.getElementById('content').innerHTML = `
+    const content = document.getElementById('content');
+    content.innerHTML = `
         <div id="questions-content">
             <h2>Questions</h2>
             <button class="btn btn-primary mb-3" onclick="showAddQuestionForm()">Add Question</button>
@@ -497,6 +555,7 @@ function showQuestions() {
                     <thead>
                         <tr>
                             <th>Title</th>
+                            <th>Question</th>
                             <th>Summary</th>
                             <th>Answer</th>
                             <th>Actions</th>
@@ -507,25 +566,9 @@ function showQuestions() {
                     </tbody>
                 </table>
             </div>
-            <h2>Unanswered Questions</h2>
-            <div class="table-responsive">
-                <table class="table table-bordered">
-                    <thead>
-                        <tr>
-                            <th>Question</th>
-                            <th>User</th>
-                            <th>Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="unanswered-questions-table-body">
-                        <!-- Unanswered questions data will be populated here -->
-                    </tbody>
-                </table>
-            </div>
         </div>
     `;
     fetchQuestions();
-    fetchUnansweredQuestions();
 }
 
 // Display unanswered questions tab
@@ -580,5 +623,121 @@ function showUsers() {
         if (usersTableBody) {
             usersTableBody.innerHTML = `<tr><td colspan="4">Error loading users: ${error.message}</td></tr>`;
         }
+    });
+}
+
+async function showAnswerFeedbackStats() {
+    try {
+        const response = await fetch('/api/answer_feedback_stats');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const stats = await response.json();
+        
+        const content = document.getElementById('content');
+        content.innerHTML = `
+        <h2>Answer Feedback Statistics</h2>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Matched Question</th>
+                    <th>Original Questions</th>
+                    <th>Total Feedback</th>
+                    <th>Positive Feedback</th>
+                    <th>Effectiveness</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                ${stats.map(stat => `
+                    <tr>
+                        <td>${escapeHTML(stat.matched_question)}</td>
+                        <td>${escapeHTML(stat.original_questions)}</td>
+                        <td>${stat.total_feedback}</td>
+                        <td>${stat.positive_feedback}</td>
+                        <td>${stat.effectiveness.toFixed(2)}%</td>
+                        <td>
+                            <button class="btn btn-sm btn-primary" 
+                                data-id="${stat._id}" 
+                                data-question="${escapeHTML(stat.matched_question)}" 
+                                onclick="showEditQuestionForm(this)">Edit</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            </tbody>
+        </table>
+        `;
+    } catch (error) {
+        console.error('Error fetching answer feedback stats:', error);
+        const content = document.getElementById('content');
+        content.innerHTML = `<p>Error loading answer feedback statistics: ${error.message}</p>`;
+    }
+}
+
+function editQuestion(questionId) {
+    // Fetch the question details
+    fetch(`/api/questions/${questionId}`)
+        .then(response => response.json())
+        .then(data => {
+            // Populate a modal with the question details
+            const modal = document.getElementById('editQuestionModal');
+            modal.innerHTML = `
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Edit Question</h5>
+                            <button type="button" class="close" data-dismiss="modal">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <form id="editQuestionForm">
+                                <div class="form-group">
+                                    <label for="questionText">Question:</label>
+                                    <input type="text" class="form-control" id="questionText" value="${escapeHTML(data.question)}">
+                                </div>
+                                <div class="form-group">
+                                    <label for="answerText">Answer:</label>
+                                    <textarea class="form-control" id="answerText">${escapeHTML(data.answer)}</textarea>
+                                </div>
+                                <button type="submit" class="btn btn-primary">Save Changes</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Show the modal
+            $(modal).modal('show');
+
+            // Handle form submission
+            document.getElementById('editQuestionForm').onsubmit = function(e) {
+                e.preventDefault();
+                updateQuestion(questionId);
+            };
+        });
+}
+
+function updateQuestion(questionId) {
+    const updatedQuestion = document.getElementById('questionText').value;
+    const updatedAnswer = document.getElementById('answerText').value;
+
+    fetch(`/api/questions/${questionId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            question: updatedQuestion,
+            answer: updatedAnswer,
+        }),
+    })
+    .then(response => response.json())
+    .then(data => {
+        alert('Question updated successfully');
+        $('#editQuestionModal').modal('hide');
+        showAnswerFeedbackStats(); // Refresh the stats
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Failed to update question');
     });
 }

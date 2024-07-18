@@ -153,7 +153,7 @@ def search_similar_questions(question_embedding):
             },
             {
                 '$project': {
-                    '_id': 0,
+                    '_id': 1,
                     'question': 1,
                     'answer': 1,
                     'summary': 1,

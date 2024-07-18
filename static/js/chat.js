@@ -1,6 +1,6 @@
 // Define references to HTML elements
 const conversationList = document.getElementById('conversation-list');
-const adminForm = document.getElementById('admin-form'); // Ensure this is only referenced if it exists
+const adminForm = document.getElementById('admin-form');
 
 let chatContainer;
 let userInput;
@@ -35,7 +35,6 @@ function initChat() {
     return true;
 }
 
-
 function displaySystemMessage(message) {
     const systemMessage = document.createElement('div');
     systemMessage.classList.add('message', 'system');
@@ -44,7 +43,6 @@ function displaySystemMessage(message) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// Handle sample question button clicks
 function handleSampleQuestion(question) {
     if (!chatContainer || !userInput) {
         console.error('Chat not properly initialized. Cannot handle sample question.');
@@ -55,7 +53,6 @@ function handleSampleQuestion(question) {
     sendMessage(question);
 }
 
-// Append a new message to the chat container
 function appendMessage(sender, message, data = null) {
     if (!chatContainer) {
         console.error('Chat container not available. Message not appended.');
@@ -68,7 +65,7 @@ function appendMessage(sender, message, data = null) {
     messageElement.classList.add('chat-bubble', sender.toLowerCase());
 
     if (sender.toLowerCase() === 'assistant' && data) {
-        const { title, summary, answer, references } = data;
+        const { title, summary, answer, references, question_id, original_question } = data;
 
         let structuredMessage = '';
         if (title) structuredMessage += `<h3>${title}</h3>`;
@@ -84,6 +81,21 @@ function appendMessage(sender, message, data = null) {
         }
 
         messageElement.innerHTML = structuredMessage;
+
+        // Add feedback buttons
+        const feedbackDiv = document.createElement('div');
+        feedbackDiv.classList.add('feedback-buttons');
+        
+        const escapedQuestionId = escapeSpecialChars(question_id || '');
+        const escapedOriginalQuestion = escapeSpecialChars(original_question || '');
+        const escapedAnswer = escapeSpecialChars(answer || '');
+
+        feedbackDiv.innerHTML = `
+            <p>Was this answer helpful?</p>
+            <button class="btn btn-sm btn-outline-success" onclick="provideAnswerFeedback('${escapedQuestionId}', '${encodeURIComponent(escapedOriginalQuestion)}', '${encodeURIComponent(escapedAnswer)}', true)">Yes</button>
+            <button class="btn btn-sm btn-outline-danger" onclick="provideAnswerFeedback('${escapedQuestionId}', '${encodeURIComponent(escapedOriginalQuestion)}', '${encodeURIComponent(escapedAnswer)}', false)">No</button>
+        `;
+        messageElement.appendChild(feedbackDiv);
     } else {
         const span = document.createElement('span');
         span.textContent = message;
@@ -94,7 +106,6 @@ function appendMessage(sender, message, data = null) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// Handle the API response
 async function sendMessage(question) {
     if (!chatContainer || !userInput) {
         console.error('Chat not properly initialized. Cannot send message.');
@@ -107,7 +118,7 @@ async function sendMessage(question) {
     appendMessage('User', userMessage);
     userInput.value = '';
 
-    const loader = appendLoader(); // Start the loader
+    const loader = appendLoader();
 
     try {
         const response = await fetch('/api/chat', {
@@ -118,7 +129,7 @@ async function sendMessage(question) {
             body: JSON.stringify({ question: userMessage })
         });
 
-        removeLoader(loader); // Remove the loader
+        removeLoader(loader);
 
         if (!response.ok) {
             const errorMessage = await response.text();
@@ -133,49 +144,33 @@ async function sendMessage(question) {
 
         console.log('Received data:', data);
         if (data.answer) {
-            appendMessage('Assistant', data.answer, data);
+            appendMessage('Assistant', data.answer, {
+                ...data,
+                question_id: data.question_id || '',
+                original_question: userMessage  // Use the original user message here
+            });
         } else if (data.potential_answer) {
-            appendMessage('Assistant', data.potential_answer, data);
+            appendMessage('Assistant', data.potential_answer, {
+                ...data,
+                question_id: '',  // No question_id for potential answers
+                original_question: userMessage
+            });
         } else {
             appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
         }
     } catch (error) {
         console.error('Error:', error);
-        removeLoader(loader); // Remove the loader in case of error
+        removeLoader(loader);
         appendMessage('Assistant', `Error: ${error.message}`);
     }
 }
 
-// Ensure `marked` is correctly loaded
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('Marked library loaded:', typeof marked);
-    console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
-});
-
-// Strip HTML tags from a string
 function stripHtml(html) {
     let tmp = document.createElement("DIV");
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || "";
 }
 
-// // Append a loader to the chat container
-// function appendLoader() {
-//     const loaderElement = document.createElement('div');
-//     loaderElement.classList.add('loader');
-//     chatContainer.appendChild(loaderElement);
-//     chatContainer.scrollTop = chatContainer.scrollHeight;
-//     return loaderElement;
-// }
-
-// // Remove the loader from the chat container
-// function removeLoader(loaderElement) {
-//     if (loaderElement && loaderElement.parentNode === chatContainer) {
-//         chatContainer.removeChild(loaderElement);
-//     }
-// }
-
-// Append a full-screen loader overlay
 function appendLoader() {
     const loaderOverlay = document.createElement('div');
     loaderOverlay.classList.add('loader-overlay');
@@ -188,14 +183,12 @@ function appendLoader() {
     return loaderOverlay;
 }
 
-// Remove the full-screen loader overlay
 function removeLoader(loaderOverlay) {
     if (loaderOverlay) {
         document.body.removeChild(loaderOverlay);
     }
 }
 
-// Append debug information to the chat container
 function appendDebugInfo(title, debugInfo) {
     const debugElement = document.createElement('details');
     debugElement.innerHTML = `<summary>${title}</summary><pre>${JSON.stringify(debugInfo, null, 2)}</pre>`;
@@ -205,7 +198,59 @@ function appendDebugInfo(title, debugInfo) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-// Event listener for admin form submission
+async function provideAnswerFeedback(questionId, originalQuestion, proposedAnswer, isPositive) {
+    if (!questionId && !originalQuestion) {
+        console.error('Both questionId and originalQuestion are missing. Cannot provide feedback.');
+        alert('Unable to submit feedback due to missing question information.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/answer_feedback', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ 
+                question_id: questionId || null, 
+                original_question: decodeURIComponent(originalQuestion || ''),
+                proposed_answer: decodeURIComponent(proposedAnswer),
+                is_positive: isPositive 
+            })
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const result = await response.json();
+        alert(result.message);
+    } catch (error) {
+        console.error('Error providing answer feedback:', error);
+        alert('Failed to submit answer feedback. Please try again.');
+    }
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    const userInput = document.getElementById('user-input');
+    if (userInput) {
+        userInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+                sendMessage();
+            }
+        });
+    }
+    if (!initChat()) {
+        console.error('Failed to initialize chat. Some features may not work correctly.');
+    }
+});
+
+// Ensure `marked` is correctly loaded
+document.addEventListener('DOMContentLoaded', () => {
+    console.log('Marked library loaded:', typeof marked);
+    console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
+});
+
 if (adminForm) {
     adminForm.addEventListener('submit', async (e) => {
         e.preventDefault();
@@ -227,7 +272,6 @@ if (adminForm) {
 
             const result = await response.json();
             
-            // Display debug info for admin form submission
             if (result.debug_info) {
                 appendDebugInfo('Admin Debug Information', result.debug_info);
             }
@@ -241,20 +285,18 @@ if (adminForm) {
     });
 }
 
-// Event listener for Enter key press to send a message
-document.addEventListener('DOMContentLoaded', function() {
-    const userInput = document.getElementById('user-input');
-    if (userInput) {
-        userInput.addEventListener('keypress', function (event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        });
-    }
-    if (!initChat()) {
-        console.error('Failed to initialize chat. Some features may not work correctly.');
-    }
-});
+function escapeSpecialChars(str) {
+    return str.replace(/[&<>"']/g, function(m) {
+        return {
+            '&': '&amp;',
+            '<': '&lt;',
+            '>': '&gt;',
+            '"': '&quot;',
+            "'": '&#39;'
+        }[m];
+    });
+}
 
 window.handleSampleQuestion = handleSampleQuestion;
 window.sendMessage = sendMessage;
+window.provideAnswerFeedback = provideAnswerFeedback;

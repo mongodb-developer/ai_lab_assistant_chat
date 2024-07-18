@@ -119,6 +119,21 @@ body {
     font-weight: bold; /* Bold font for active state */
 }
 
+.sidebar button {
+    display: block;
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 5px;
+    text-align: left;
+    background-color: #f8f9fa;
+    border: none;
+    border-radius: 5px;
+    cursor: pointer;
+}
+
+.sidebar button:hover {
+    background-color: #e9ecef;
+}
 
 /* Main content styles */
 .main-content {
