@@ -49,9 +49,9 @@
             </ul>
             <ul class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
-                <!-- User greeting and logout -->
+                <!-- User greeting and profile link -->
                 <li class="nav-item">
-                    <span class="nav-link">Welcome, {{ current_user.name }}!</span>
+                    <span class="nav-link">Welcome, <a href="{{ url_for('main.profile') }}">{{ current_user.name }}</a>!</span>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>

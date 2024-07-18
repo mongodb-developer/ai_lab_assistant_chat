@@ -3,6 +3,10 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchUnansweredQuestions();
     fetchUsers();
     showQuestions();
+    const generateAnswerBtn = document.getElementById('generate-answer-btn');
+    if (generateAnswerBtn) {
+        generateAnswerBtn.addEventListener('click', generateAnswer);
+    }
 });
 
 // Fetch and display questions
@@ -84,6 +88,39 @@ async function fetchUnansweredQuestions() {
         populateUnansweredQuestionsTable(unansweredQuestions);
     } catch (error) {
         console.error('Error fetching unanswered questions:', error);
+    }
+}
+// Add this function to your admin.js file
+async function generateAnswer() {
+    const question = document.getElementById('question-input').value;
+    if (!question) {
+        alert('Please enter a question first.');
+        return;
+    }
+
+    try {
+        const response = await fetch('/api/generate_answer', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ question }),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+
+        document.getElementById('title-input').value = data.title;
+        document.getElementById('summary-input').value = data.summary;
+        document.getElementById('main-answer-input').value = data.answer;
+        document.getElementById('references-input').value = data.references;
+
+    } catch (error) {
+        console.error('Error generating answer:', error);
+        alert('An error occurred while generating the answer. Please try again.');
     }
 }
 
@@ -386,6 +423,11 @@ async function fetchUsers() {
         populateUsersTable(users);
     } catch (error) {
         console.error('Error fetching users:', error);
+        // Display error message to the user
+        const usersTableBody = document.getElementById('users-table-body');
+        if (usersTableBody) {
+            usersTableBody.innerHTML = `<tr><td colspan="4">Error loading users: ${error.message}</td></tr>`;
+        }
     }
 }
 
@@ -526,11 +568,17 @@ function showUsers() {
                         </tr>
                     </thead>
                     <tbody id="users-table-body">
-                        <!-- User data will be populated here -->
+                        <tr><td colspan="4">Loading users...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     `;
-    fetchUsers();
+    fetchUsers().catch(error => {
+        console.error('Error in showUsers:', error);
+        const usersTableBody = document.getElementById('users-table-body');
+        if (usersTableBody) {
+            usersTableBody.innerHTML = `<tr><td colspan="4">Error loading users: ${error.message}</td></tr>`;
+        }
+    });
 }

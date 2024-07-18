@@ -5,6 +5,7 @@ from app.utils import get_db_connection
 from config import Config
 from bson import ObjectId
 import time
+from datetime import datetime
 import logging
 
 auth = Blueprint('auth', __name__)
@@ -24,22 +25,38 @@ def init_oauth(app):
 login_manager = LoginManager()
 
 class User(UserMixin):
-    def __init__(self, id, email, name, is_admin=False):
+    def __init__(self, id, email, name, picture=None, is_admin=False, last_login=None):
         self.id = id
         self.email = email
         self.is_admin = is_admin
         self.name = name
+        self.picture = picture
+        self.last_login = last_login
 
     def get_id(self):
         return str(self.id)
+
+    @property
+    def is_authenticated(self):
+        return True
+
+    @property
+    def is_active(self):
+        return True
+
+    @property
+    def is_anonymous(self):
+        return False
 
 @login_manager.user_loader
 def load_user(user_id):
     db = get_db_connection()
     user_data = db.users.find_one({'_id': ObjectId(user_id)})
     if user_data:
-        name = user_data.get('name', 'Unknown User')  # Use 'Unknown User' as fallback if name is not present
-        return User(str(user_data['_id']), user_data['email'], name, user_data.get('isAdmin', False))
+        name = user_data.get('name', 'Unknown User')
+        picture = user_data.get('picture')
+        last_login = user_data.get('last_login')
+        return User(str(user_data['_id']), user_data['email'], name, picture, user_data.get('isAdmin', False), last_login)
     return None
 
 @auth.route('/login')
@@ -68,21 +85,35 @@ def authorized():
         
         email = user_info['email']
         name = user_info['name']
+        picture = user_info.get('picture')
+        current_time = datetime.now()
 
         db = get_db_connection()
         user_data = db.users.find_one({'email': email})
         if user_data is None:
-            user_data = {'email': email, 'name': name, 'isAdmin': False}
+            user_data = {
+                'email': email, 
+                'name': name, 
+                'isAdmin': False,
+                'picture': picture,
+                'last_login': current_time
+            }
             result = db.users.insert_one(user_data)
             user_data['_id'] = result.inserted_id
             current_app.logger.debug(f"New user created: {user_data}")
         else:
             current_app.logger.debug(f"Existing user found: {user_data}")
-            # Update the user's name if it has changed
-            if user_data.get('name') != name:
-                db.users.update_one({'_id': user_data['_id']}, {'$set': {'name': name}})
+            db.users.update_one(
+                {'_id': user_data['_id']}, 
+                {'$set': {
+                    'name': name, 
+                    'picture': picture,
+                    'last_login': current_time
+                }}
+            )
+            user_data['last_login'] = current_time
 
-        user = User(str(user_data['_id']), email, name, user_data.get('isAdmin', False))
+        user = User(str(user_data['_id']), email, name, picture, user_data.get('isAdmin', False), current_time)
         login_user(user)
         current_app.logger.info(f"User logged in: {email}")
         

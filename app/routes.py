@@ -22,6 +22,7 @@ from app.utils import (
     generate_summary,
     get_user_conversations,
     get_conversation_messages,
+    generate_potential_answer,
     start_new_conversation,  # Ensure this is imported
     add_unanswered_question  # Ensure this is imported
 )
@@ -418,3 +419,23 @@ def changelog():
         current_app.logger.error(f"Error reading CHANGELOG.md: {str(e)}")
         return jsonify({'error': 'An internal error occurred while reading the changelog.'}), 500
 
+@main.route('/profile')
+@login_required
+def profile():
+    return render_template('profile.html', user=current_user)
+
+@main.route('/api/generate_answer', methods=['POST'])
+@login_required
+def generate_answer():
+    data = request.json
+    question = data.get('question')
+
+    if not question:
+        return jsonify({'error': 'Question is required.'}), 400
+
+    try:
+        answer_data = generate_potential_answer(question)
+        return jsonify(answer_data), 200
+    except Exception as e:
+        current_app.logger.error(f"Error generating answer: {str(e)}")
+        return jsonify({'error': 'An error occurred while generating the answer.'}), 500

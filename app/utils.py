@@ -317,6 +317,31 @@ def get_conversation_messages(conversation_id):
 
     __all__ = ['get_db_connection', 'generate_embedding', 'add_question_answer', 'add_unanswered_question','search_similar_questions', 'json_serialize']
 
+def generate_potential_answer(question):
+    context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
+    prompt = f"{context}\n\nPlease provide a detailed answer for the following question:\n\n{question}"
+    
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are an assistant that provides detailed answers."},
+            {"role": "user", "content": prompt}
+        ]
+    )
+    answer = response['choices'][0]['message']['content'].strip()
+
+    # Generate title, summary, and references
+    title = generate_title(answer)
+    summary = generate_summary(answer)
+    references = generate_references(answer)
+
+    return {
+        'title': title,
+        'summary': summary,
+        'answer': answer,
+        'references': references
+    }
+
 def generate_title(answer):
     context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
     prompt = f"{context}\n\nPlease provide a concise and descriptive title for the following answer:\n\n{answer}"
