@@ -121,7 +121,7 @@ def authorized():
         session.modified = True
         current_app.logger.debug(f"Session after login: {session}")
         
-        return redirect(url_for('main.index'))
+        return redirect(url_for('main.chat'))
     except Exception as e:
         current_app.logger.error(f"Error in authorized route: {str(e)}")
         return redirect(url_for('main.index'))

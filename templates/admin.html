@@ -6,6 +6,8 @@
     <title>Admin - AI Lab Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
+
     <!-- Include EasyMDE CSS and JS -->
     <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
     <script src="https://unpkg.com/easymde/dist/easymde.min.js"></script>
@@ -15,79 +17,130 @@
 <body>
     <!-- Include the navigation bar -->
     {% include 'navbar.html' %}
-
-    <div class="container-fluid">
-        <!-- Sidebar -->
-        <div class="sidebar">
-            <button onclick="showQuestions()">Questions</button>
-            <button onclick="showUnansweredQuestions()">Unanswered Questions</button>
-            <button onclick="showUsers()">User Management</button>
-            <button onclick="showAnswerFeedbackStats()">Answer Statistics</button>
-            
-        </div>
+        <div class="container-fluid">
+            <div class="row flex-nowrap">
+              <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+                <div class="position-sticky">
+                  <ul class="nav flex-column">
+                    <li class="nav-item">
+                      <a class="nav-link active" href="#questions" data-bs-toggle="tab" onclick="showQuestions()">
+                        Questions
+                      </a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link" href="#unanswered-questions" data-bs-toggle="tab" onclick="showUnansweredQuestions()">
+                        Unanswered Questions
+                      </a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link" href="#users" data-bs-toggle="tab" onclick="showUsers()">
+                        User Management
+                      </a>
+                    </li>
+                    <li class="nav-item">
+                      <a class="nav-link" href="#statistics" data-bs-toggle="tab" onclick="showAnswerFeedbackStats()">
+                        Answer Statistics
+                      </a>
+                    </li>
+                  </ul>
+                </div>
+              </nav>
 
         <!-- Content -->
-        <div class="main-content" id="content">
-            <!-- Default content (Questions) will be loaded here -->
-            <div class="tab-content" id="admin-tabs-content">
-                <!-- Questions tab -->
-                <div class="tab-pane fade show active" id="questions" role="tabpanel" aria-labelledby="questions-tab">
+        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+            <div id="main-content">
+
+                <div class="tab-content" id="admin-tabs-content">
+                <div class="tab-pane fade show active" id="questions" role="tabpanel">
+                    <h2>Questions</h2>
                     <div class="table-responsive mt-3">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Question</th>
-                                    <th>Answer</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="questions-table-body">
-                                <!-- Questions will be populated here -->
-                            </tbody>
-                        </table>
+                    <table class="table table-striped table-sm">
+                        <thead>
+                        <tr>
+                            <th>Question</th>
+                            <th>Answer</th>
+                            <th>Actions</th>
+                        </tr>
+                        </thead>
+                                <tbody id="questions-table-body">
+                                    <!-- Questions will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                        <button class="btn btn-primary" onclick="showAddQuestionForm()">Add Question</button>
                     </div>
-                    <button class="btn btn-primary" onclick="showAddQuestionForm()">Add Question</button>
-                </div>
-                <!-- Unanswered Questions tab -->
-                <div class="tab-pane fade" id="unanswered-questions" role="tabpanel" aria-labelledby="unanswered-questions-tab">
-                    <div class="table-responsive mt-3">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Question</th>
-                                    <th>User</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="unanswered-questions-table-body">
-                                <!-- Unanswered questions will be populated here -->
-                            </tbody>
-                        </table>
+                    <!-- Unanswered Questions tab -->
+                    <div class="tab-pane fade" id="unanswered-questions" role="tabpanel" aria-labelledby="unanswered-questions-tab">
+                        <h2>Unanswered Questions</h2>
+                        <div class="table-responsive mt-3">
+                            <table class="table table-striped table-sm">
+                                <thead>
+                                    <tr>
+                                        <th>Question</th>
+                                        <th>User</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="unanswered-questions-table-body">
+                                    <!-- Unanswered questions will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
-                </div>
-                <!-- Users tab -->
-                <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
-                    <div class="table-responsive mt-3">
-                        <table class="table">
-                            <thead>
-                                <tr>
-                                    <th>Name</th>
-                                    <th>Email</th>
-                                    <th>Admin</th>
-                                    <th>Actions</th>
-                                </tr>
-                            </thead>
-                            <tbody id="users-table-body">
-                                <!-- Users will be populated here -->
-                            </tbody>
-                        </table>
+                    <!-- Users tab -->
+                    <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+                        <h2>User Management</h2>
+                        <div class="table-responsive">
+                            <table class="table table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Name</th>
+                                        <th>Email</th>
+                                        <th>Admin</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="users-table-body">
+                                    <!-- Users will be populated here -->
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    <div id="statistics" class="tab-pane fade" role="tabpanel" aria-labelledby="statistics-tab">
+                        <h2>Statistics</h2>
+                        <div class="row mt-4">
+                            <div class="col-md-12">
+                                <div class="card">
+                                    <div class="card-body">
+                                        <h5 class="card-title">Answer Feedback Statistics</h5>
+                                        <div class="table-responsive">
+                                            <table class="table table-bordered">
+                                                <thead>
+                                                    <tr>
+                                                        <th>Matched Question</th>
+                                                        <th>Original Questions</th>
+                                                        <th>Total Feedback</th>
+                                                        <th>Positive Feedback</th>
+                                                        <th>Effectiveness</th>
+                                                        <th>Actions</th>
+                                                    </tr>
+                                                </thead>
+                                                <tbody id="statistics-table-body">
+                                                    <tr><td colspan="6">Loading statistics...</td></tr>
+                                                </tbody>
+                                            </table>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Modal for adding and editing questions -->
+    !-- Modal for adding and editing questions -->
 <div class="modal fade" id="question-modal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
@@ -102,6 +155,7 @@
                         <div class="input-group">
                             <input type="text" class="form-control" id="question-input" required>
                             <button class="btn btn-outline-secondary" type="button" id="generate-answer-btn">Generate</button>
+                            <div id="generate-loader" class="loader" style="display: none;">Loading...</div>
                         </div>
                     </div>
                     <div class="mb-3">
@@ -113,8 +167,8 @@
                         <textarea class="form-control" id="summary-input" rows="2" required></textarea>
                     </div>
                     <div class="mb-3">
-                        <label for="main-answer-input" class="form-label">Main Answer</label>
-                        <textarea class="form-control" id="main-answer-input" rows="5" required></textarea>
+                        <label for="answer-input" class="form-label">Answer</label>
+                        <textarea class="form-control" id="answer-input" rows="5" required></textarea>
                     </div>
                     <div class="mb-3">
                         <label for="references-input" class="form-label">References</label>
@@ -123,7 +177,7 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary">Save changes</button>
+                    <button type="submit" class="btn btn-primary" id="save-question">Save changes</button>
                 </div>
             </form>
         </div>

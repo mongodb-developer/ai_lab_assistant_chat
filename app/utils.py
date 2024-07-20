@@ -7,6 +7,8 @@ from datetime import datetime
 from bson import ObjectId, json_util
 import traceback
 import requests
+from typing import Any, Dict, List, Tuple, Union
+
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -53,8 +55,17 @@ openai.api_key = Config.OPENAI_API_KEY
 
 def generate_embedding(text):
     debug_info = {}
+    if isinstance(text, dict):
+        text = str(text)
+    elif isinstance(text, list):
+        text = ' '.join(map(str, text))
+    elif not isinstance(text, str):
+        text = str(text)
+    
+    logger.debug(f"Generating embedding for text: {text[:50]}...")
+
     try:
-        logger.debug(f"Generating embedding for text: {text[:50]}...")
+        logger.debug(f"Generating embedding for text: {text if isinstance(text, str) else str(text)[:50]}...")
         debug_info['openai_request'] = {
             'model': "text-embedding-ada-002",
             'input': text

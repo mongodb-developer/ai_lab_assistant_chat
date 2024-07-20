@@ -43,6 +43,10 @@ unanswered_collection = db['unanswered_questions']
 users_collection = db['users']
 SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is float
 
+# Route: Index
+# Description: Renders the main page of the application
+# Parameters: None
+# Returns: Rendered index.html template
 @main.route('/')
 def index():
     try:
@@ -78,6 +82,10 @@ def index():
         current_app.logger.error(f"Error in index route: {str(e)}")
         return jsonify({"error": "An internal error occurred"}), 500
 
+# Route: Chat
+# Description: Renders the chat page of the application
+# Parameters: None
+# Returns: Rendered index.html template with is_chat=True
 @main.route('/chat')
 @login_required
 def chat():
@@ -88,11 +96,17 @@ def chat():
     except Exception as e:
         current_app.logger.error(f"Error in chat route: {str(e)}")
         return jsonify({"error": "An internal error occurred"}), 500
-
+    
+# Route: Chat API
+# Description: Handles chat messages, processes them, and returns responses
+# Parameters: None (expects JSON payload in request)
+# Returns: JSON response with answer or error message
 @main.route('/api/chat', methods=['POST'])
 @login_required
 def chat_api():
     debug_info = {}
+    data = request.json
+    user_question = data.get('question', '')
     try:
         debug_info['request'] = {
             'method': request.method,
@@ -117,6 +131,9 @@ def chat_api():
 
         # Generate the question embedding
         question_embedding, embed_debug = generate_embedding(user_question)
+        if not question_embedding:
+            raise ValueError("Failed to generate embedding")
+        
         debug_info['embedding'] = embed_debug
 
         # Search for similar questions
@@ -162,11 +179,24 @@ def chat_api():
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 400, {'Content-Type': 'application/json'}
     except Exception as e:
         logger.error(f"Error in chat route: {str(e)}")
-        debug_info['error'] = str(e)
-        debug_info['traceback'] = traceback.format_exc()
-        return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
+        return jsonify({
+            "error": str(e),
+            "debug_info": {
+                "request": {
+                    "method": request.method,
+                    "headers": dict(request.headers),
+                    "json": request.json
+                },
+                "error": str(e),
+                "traceback": traceback.format_exc()
+            }
+        }), 500
 
-
+# Function: generate_potential_answer
+# Description: Generates a potential answer for a given question using OpenAI's GPT model
+# Parameters:
+#   - question: str, the user's question
+# Returns: dict containing title, summary, answer, and references
 def generate_potential_answer(question):
     context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
     prompt = f"{context}\n\nPlease provide a detailed answer for the following question:\n\n{question}"
@@ -192,6 +222,10 @@ def generate_potential_answer(question):
         'references': references
     }
 
+# Route: Get Questions
+# Description: Retrieves all questions from the database
+# Parameters: None
+# Returns: JSON array of questions
 @main.route('/api/questions', methods=['GET'])
 @login_required
 def get_questions():
@@ -532,3 +566,36 @@ def get_answer_feedback_stats():
     except Exception as e:
         current_app.logger.error(f"Error fetching answer feedback stats: {str(e)}")
         return jsonify({'error': 'An error occurred while fetching answer feedback stats'}), 500
+    
+@main.route('/statistics')
+def statistics():
+    # Get total users
+    total_users = db.users.count_documents({})
+
+    # Get total questions
+    total_questions = db.questions.count_documents({})
+
+    # Get answered questions
+    answered_questions = db.questions.count_documents({"status": "answered"})
+
+    # Get unanswered questions
+    unanswered_questions = db.questions.count_documents({"status": "unanswered"})
+
+    # Get top 5 categories
+    pipeline = [
+        {"$group": {"_id": "$category", "count": {"$sum": 1}}},
+        {"$sort": {"count": -1}},
+        {"$limit": 5}
+    ]
+    top_categories = list(db.questions.aggregate(pipeline))
+
+    # Prepare data for the template
+    stats = {
+        "total_users": total_users,
+        "total_questions": total_questions,
+        "answered_questions": answered_questions,
+        "unanswered_questions": unanswered_questions,
+        "top_categories": top_categories
+    }
+
+    return render_template('statistics.html', stats=stats)

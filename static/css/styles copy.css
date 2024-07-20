@@ -284,7 +284,6 @@ body {
     display: flex;
     max-width: 800px;
     margin: 0 auto;
-
 }
 
 #user-input {
@@ -454,7 +453,7 @@ body {
 .modal {
     display: none;
     position: fixed;
-    z-index: 1050 !important;
+    z-index: 1000;
     left: 0;
     top: 0;
     width: 100%;
@@ -474,13 +473,6 @@ body {
 
 .modal-header {
     background-color: #f8f9fa;
-}
-
-.modal-backdrop {
-    z-index: 1040 !important;
-}
-.modal-dialog {
-    z-index: 1060 !important;
 }
 
 .modal-title {
@@ -579,14 +571,11 @@ body {
 
 .loader {
     border: 4px solid #f3f3f3;
-    border-top: 4px solid #3498db;
     border-radius: 50%;
-    width: 30px;
-    height: 30px;
-    animation: spin 1s linear infinite;
-    display: inline-block;
-    margin-left: 10px;
-    vertical-align: middle;
+    border-top: 4px solid #48765e;
+    width: 40px;
+    height: 40px;
+    animation: spin 2s linear infinite;
 }
 
 @keyframes spin {
@@ -671,9 +660,7 @@ body {
     }
 
     .input-group {
-        display: flex;
-        max-width: 576px;
-        margin: 0 auto;
+        flex-direction: column;
     }
 
     #user-input {
@@ -681,4 +668,8 @@ body {
         margin-bottom: 10px;
     }
 
+    .input-group .btn {
+        border-radius: 20px;
+        width: 100%;
+    }
 }

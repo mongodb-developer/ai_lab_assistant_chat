@@ -12,11 +12,11 @@ console.log('userInput:', userInput);
 console.log('adminForm:', adminForm);
 
 function initChat() {
-    chatContainer = document.querySelector('.chat-container-wrapper .chat-container');
+    chatContainer = document.getElementById('chat-container');
     userInput = document.getElementById('user-input');
-
+    
     if (!chatContainer) {
-        console.error('Chat container not found. Make sure there is an element with class "chat-container" inside an element with class "chat-container-wrapper" in your HTML.');
+        console.error('Chat container not found. Make sure there is an element with id "chat-container" in your HTML.');
         return false;
     }
 
@@ -68,10 +68,10 @@ function appendMessage(sender, message, data = null) {
         const { title, summary, answer, references, question_id, original_question } = data;
 
         let structuredMessage = '';
-        if (title) structuredMessage += `<h3>${title}</h3>`;
-        if (summary) structuredMessage += `<p><strong>Summary:</strong> ${summary}</p>`;
-        if (answer) structuredMessage += `<p>${marked.parse(answer)}</p>`;
-        if (references) structuredMessage += `<p><strong>References:</strong> ${marked.parse(references)}</p>`;
+        if (title) structuredMessage += `<h3>${escapeSpecialChars(title)}</h3>`;
+        if (summary) structuredMessage += `<p><strong>Summary:</strong> ${escapeSpecialChars(summary)}</p>`;
+        if (answer) structuredMessage += `<p>${marked.parse(escapeSpecialChars(answer))}</p>`;
+        if (references) structuredMessage += `<p><strong>References:</strong> ${marked.parse(escapeSpecialChars(references))}</p>`;
 
         // Use DOMPurify to sanitize the HTML produced by marked
         if (typeof DOMPurify !== 'undefined') {
@@ -98,7 +98,7 @@ function appendMessage(sender, message, data = null) {
         messageElement.appendChild(feedbackDiv);
     } else {
         const span = document.createElement('span');
-        span.textContent = message;
+        span.textContent = escapeSpecialChars(message);
         messageElement.appendChild(span);
     }
 
@@ -106,13 +106,24 @@ function appendMessage(sender, message, data = null) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
-async function sendMessage(question) {
+async function sendMessage(event) {
     if (!chatContainer || !userInput) {
         console.error('Chat not properly initialized. Cannot send message.');
         return;
     }
     
-    const userMessage = question || userInput.value.trim();
+    let userMessage;
+    if (event instanceof PointerEvent) {
+        // If called from a button click
+        userMessage = userInput.value.trim();
+    } else if (typeof event === 'string') {
+        // If called with a string argument (e.g., from sample questions)
+        userMessage = event;
+    } else {
+        console.error('Invalid input to sendMessage');
+        return;
+    }
+
     if (!userMessage) return;
 
     appendMessage('User', userMessage);
@@ -128,8 +139,6 @@ async function sendMessage(question) {
             },
             body: JSON.stringify({ question: userMessage })
         });
-
-        removeLoader(loader);
 
         if (!response.ok) {
             const errorMessage = await response.text();
@@ -147,12 +156,12 @@ async function sendMessage(question) {
             appendMessage('Assistant', data.answer, {
                 ...data,
                 question_id: data.question_id || '',
-                original_question: userMessage  // Use the original user message here
+                original_question: userMessage
             });
         } else if (data.potential_answer) {
             appendMessage('Assistant', data.potential_answer, {
                 ...data,
-                question_id: '',  // No question_id for potential answers
+                question_id: '',
                 original_question: userMessage
             });
         } else {
@@ -160,8 +169,9 @@ async function sendMessage(question) {
         }
     } catch (error) {
         console.error('Error:', error);
-        removeLoader(loader);
         appendMessage('Assistant', `Error: ${error.message}`);
+    } finally {
+        removeLoader(loader);
     }
 }
 
@@ -184,8 +194,8 @@ function appendLoader() {
 }
 
 function removeLoader(loaderOverlay) {
-    if (loaderOverlay) {
-        document.body.removeChild(loaderOverlay);
+    if (loaderOverlay && loaderOverlay.parentNode) {
+        loaderOverlay.parentNode.removeChild(loaderOverlay);
     }
 }
 
@@ -232,17 +242,49 @@ async function provideAnswerFeedback(questionId, originalQuestion, proposedAnswe
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    const userInput = document.getElementById('user-input');
-    if (userInput) {
-        userInput.addEventListener('keypress', function (event) {
-            if (event.key === 'Enter') {
-                sendMessage();
-            }
-        });
-    }
     if (!initChat()) {
         console.error('Failed to initialize chat. Some features may not work correctly.');
     }
+    
+    const fab = document.getElementById('sample-questions-fab');
+    const modal = document.getElementById('sample-questions-modal');
+    const sampleQuestions = document.querySelectorAll('.sample-question');
+    const sendButton = document.getElementById('send-button');
+
+    if (fab) {
+        fab.addEventListener('click', function() {
+            modal.style.display = 'block';
+        });
+    }
+
+    if (sendButton) {
+        sendButton.addEventListener('click', sendMessage);
+    }
+
+    if (userInput) {
+        userInput.addEventListener('keypress', function(event) {
+            if (event.key === 'Enter') {
+                sendMessage(event);
+            }
+        });
+    }
+
+    window.addEventListener('click', function(event) {
+        if (event.target === modal) {
+            modal.style.display = 'none';
+        }
+    });
+
+    sampleQuestions.forEach(question => {
+        question.addEventListener('click', function() {
+            const questionText = this.textContent;
+            if (userInput) {
+                userInput.value = questionText;
+            }
+            modal.style.display = 'none';
+            sendMessage(questionText);
+        });
+    });
 });
 
 // Ensure `marked` is correctly loaded
@@ -285,8 +327,12 @@ if (adminForm) {
     });
 }
 
-function escapeSpecialChars(str) {
-    return str.replace(/[&<>"']/g, function(m) {
+function escapeSpecialChars(input) {
+    if (typeof input !== 'string') {
+        console.warn(`escapeSpecialChars received non-string input: ${typeof input}`);
+        return String(input); // Convert to string if it's not already
+    }
+    return input.replace(/[&<>"']/g, function(m) {
         return {
             '&': '&amp;',
             '<': '&lt;',

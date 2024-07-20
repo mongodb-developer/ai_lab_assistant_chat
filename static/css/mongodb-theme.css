@@ -1,0 +1,145 @@
+:root {
+    --mongodb-green: #00a35c;
+    --mongodb-dark-blue: #001E2B;
+    --mongodb-light-blue: #00684A;
+    --mongodb-gray: #E8EDEB;
+}
+
+/* Primary buttons */
+.btn-primary {
+    background-color: var(--mongodb-green);
+    border-color: var(--mongodb-green);
+    color: var(--mongodb-dark-blue);
+}
+
+.btn-primary:hover,
+.btn-primary:focus,
+.btn-primary:active {
+    background-color: #00C454 !important;
+    border-color: #00C454 !important;
+    color: var(--mongodb-dark-blue) !important;
+}
+
+/* Secondary buttons */
+.btn-secondary {
+    background-color: var(--mongodb-light-blue);
+    border-color: var(--mongodb-light-blue);
+    color: white;
+}
+
+.btn-secondary:hover,
+.btn-secondary:focus,
+.btn-secondary:active {
+    background-color: #005A3E !important;
+    border-color: #005A3E !important;
+    color: white !important;
+}
+
+/* Outline buttons */
+.btn-outline-primary {
+    color: var(--mongodb-green);
+    border-color: var(--mongodb-green);
+}
+
+.btn-outline-primary:hover,
+.btn-outline-primary:focus,
+.btn-outline-primary:active {
+    background-color: var(--mongodb-green) !important;
+    color: var(--mongodb-dark-blue) !important;
+}
+
+/* Navbar */
+.navbar-brand:hover,
+.navbar-nav .nav-link:hover,
+.nav-link.active-page {
+    color: #00a35c;
+}
+
+.navbar-nav .nav-link {
+    color: #333;
+    padding: 10px 15px;
+}
+
+.nav-link.active-page {
+    font-weight: bold;
+}
+
+.navbar-toggler {
+    border: none;
+}
+
+.navbar-toggler-icon {
+    color: #333;
+}
+
+.navbar-collapse,
+.collapse,
+.navbar-nav .nav-item {
+    background-color: #f7f8f9;
+}
+
+.navbar-nav .nav-item {
+    margin: 0 5px;
+}
+
+/* Table */
+.table thead th {
+    background-color: var(--mongodb-light-blue);
+    color: white;
+}
+
+/* Form controls */
+.form-control:focus {
+    border-color: var(--mongodb-green);
+    box-shadow: 0 0 0 0.2rem rgba(0, 237, 100, 0.25);
+}
+
+/* Custom checkbox */
+.custom-control-input:checked~.custom-control-label::before {
+    background-color: var(--mongodb-green);
+    border-color: var(--mongodb-green);
+}
+
+/* Modals */
+.modal-header {
+    background-color: var(--mongodb-green);
+    color: var(--mongodb-green);
+}
+
+/* Alerts */
+.alert-primary {
+    background-color: var(--mongodb-gray);
+    border-color: var(--mongodb-light-blue);
+    color: var(--mongodb-dark-blue);
+}
+
+/* Badges */
+.badge-primary {
+    background-color: var(--mongodb-green);
+    color: var(--mongodb-dark-blue);
+}
+
+/* Pagination */
+.page-item.active .page-link {
+    background-color: var(--mongodb-green);
+    border-color: var(--mongodb-green);
+    color: var(--mongodb-dark-blue);
+}
+
+.page-link {
+    color: var(--mongodb-light-blue);
+}
+
+.page-link:hover {
+    color: var(--mongodb-dark-blue);
+}
+
+/* Custom styles */
+.mongodb-bg-dark {
+    background-color: var(--mongodb-dark-blue);
+    color: white;
+}
+
+.mongodb-text-green {
+    color: var(--mongodb-green);
+}

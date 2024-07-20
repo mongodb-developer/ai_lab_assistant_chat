@@ -1,0 +1,129 @@
+{% include 'navbar.html' %}
+
+<div class="container-fluid">
+    <div class="sidebar">
+        <button class="nav-link active" id="questions-tab" data-bs-toggle="tab" data-bs-target="#questions" type="button">Questions</button>
+        <button class="nav-link" id="unanswered-questions-tab" data-bs-toggle="tab" data-bs-target="#unanswered-questions" type="button">Unanswered Questions</button>
+        <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button">User Management</button>
+        <button class="nav-link" id="statistics-tab" data-bs-toggle="tab" data-bs-target="#statistics" type="button">Statistics</button>
+    </div>
+
+    <div id="content" class="main-content">
+        <div id="admin-tabs-content" class="tab-content">
+            <!-- Existing tabs content -->
+            
+            <!-- New Statistics Tab -->
+            <div id="statistics" class="tab-pane fade" role="tabpanel" aria-labelledby="statistics-tab">
+                <h1 class="mb-4">Statistics</h1>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">User Statistics</h5>
+                                <p class="card-text">Total Users: {{ stats.total_users }}</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card mb-4">
+                            <div class="card-body">
+                                <h5 class="card-title">Question Statistics</h5>
+                                <p class="card-text">Total Questions: {{ stats.total_questions }}</p>
+                                <p class="card-text">Answered Questions: {{ stats.answered_questions }}</p>
+                                <p class="card-text">Unanswered Questions: {{ stats.unanswered_questions }}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Top 5 Categories</h5>
+                                <canvas id="categoryChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="row mt-4">
+                    <div class="col-md-12">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Answer Feedback Statistics</h5>
+                                <div class="table-responsive">
+                                    <table class="table table-bordered">
+                                        <thead>
+                                            <tr>
+                                                <th>Matched Question</th>
+                                                <th>Original Questions</th>
+                                                <th>Total Feedback</th>
+                                                <th>Positive Feedback</th>
+                                                <th>Effectiveness</th>
+                                                <th>Actions</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="statistics-table-body">
+                                            <tr><td colspan="6">Loading statistics...</td></tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Existing modals -->
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        var ctx = document.getElementById('categoryChart').getContext('2d');
+        var categoryData = {{ stats.top_categories | tojson }};
+        
+        var labels = categoryData.map(item => item._id);
+        var data = categoryData.map(item => item.count);
+        
+        new Chart(ctx, {
+            type: 'bar',
+            data: {
+                labels: labels,
+                datasets: [{
+                    label: 'Number of Questions',
+                    data: data,
+                    backgroundColor: 'rgba(75, 192, 192, 0.6)',
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true,
+                        title: {
+                            display: true,
+                            text: 'Number of Questions'
+                        }
+                    },
+                    x: {
+                        title: {
+                            display: true,
+                            text: 'Categories'
+                        }
+                    }
+                },
+                plugins: {
+                    title: {
+                        display: true,
+                        text: 'Top 5 Question Categories'
+                    }
+                }
+            }
+        });
+    });
+</script>

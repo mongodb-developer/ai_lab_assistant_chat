@@ -1,3 +1,5 @@
+# Simple example of importing questions from a csv
+
 import openai
 import pymongo
 import os
