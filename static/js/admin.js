@@ -951,8 +951,20 @@ async function updateQuestion(event) {
             console.error('Server response:', errorText);
             throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
-        const result = await response.json();
-        console.log('Update result:', result);
+        const responseData = await response.json();
+
+        if (!response.ok) {
+            console.error('Server response:', responseData);
+            throw new Error(`HTTP error! status: ${response.status}, message: ${responseData.error}`);
+        }
+
+        console.log('Update result:', responseData);
+
+        if (responseData.new_id) {
+            console.log('Question moved to answered collection with new ID:', responseData.new_id);
+            // You might want to update the UI or perform additional actions here
+        }
+
 
         // Close the modal
         const modalElement = document.getElementById('question-modal');

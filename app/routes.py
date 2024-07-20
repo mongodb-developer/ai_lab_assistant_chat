@@ -286,7 +286,6 @@ def get_question(question_id):
         current_app.logger.error(f"Error fetching question: {str(e)}")
         return jsonify({'error': 'An internal error occurred'}), 500
 
-
 @main.route('/api/questions/<string:question_id>', methods=['PUT'])
 @login_required
 def update_question(question_id):
@@ -324,7 +323,7 @@ def update_question(question_id):
             answer_embedding, answer_debug = generate_embedding(answer)
 
             # Add the answered question to the documents collection
-            documents_collection.insert_one({
+            new_document = {
                 'question': unanswered_question['question'],
                 'question_embedding': question_embedding,
                 'answer': answer,
@@ -332,17 +331,33 @@ def update_question(question_id):
                 'summary': summary,
                 'references': references,
                 'answer_embedding': answer_embedding,
-                'created_at': unanswered_question.get('created_at', datetime.now()),  # Default to now if not present
+                'created_at': unanswered_question.get('created_at', datetime.now()),
                 'updated_at': datetime.now()
-            })
+            }
+            insert_result = documents_collection.insert_one(new_document)
+            
             current_app.logger.info("Question updated in unanswered_questions and moved to documents collection with embeddings")
-
-            return jsonify({'message': 'Question updated successfully'}), 200
+            return jsonify({'message': 'Question updated successfully', 'new_id': str(insert_result.inserted_id)}), 200
 
         # If the question_id is not in the unanswered_collection, check the documents_collection
+        update_data = {
+            'question': question,
+            'answer': answer,
+            'title': title,
+            'summary': summary,
+            'references': references,
+            'updated_at': datetime.now()
+        }
+        
+        # Generate new embeddings
+        question_embedding, _ = generate_embedding(question)
+        answer_embedding, _ = generate_embedding(answer)
+        update_data['question_embedding'] = question_embedding
+        update_data['answer_embedding'] = answer_embedding
+
         result = documents_collection.update_one(
             {'_id': ObjectId(question_id)},
-            {'$set': {'question': question, 'answer': answer, 'updated_at': datetime.now()}}
+            {'$set': update_data}
         )
 
         if result.matched_count == 0:
@@ -354,7 +369,7 @@ def update_question(question_id):
 
     except Exception as e:
         current_app.logger.error(f"Error updating question: {str(e)}")
-        return jsonify({'error': 'An internal error occurred'}), 500
+        return jsonify({'error': f'An internal error occurred: {str(e)}'}), 500
 
 @main.route('/api/questions/<string:question_id>', methods=['DELETE'])
 @login_required
