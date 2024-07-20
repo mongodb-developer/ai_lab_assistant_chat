@@ -70,17 +70,17 @@ flask run
 
 ## Project Structure
 - app/: Contains the Flask application
-- a__init__.py: Initializes the Flask app
-- aroutes.py: Defines the routes for the application
-- autils.py: Contains utility functions for database interactions and AI processing
-- atemplates/: HTML templates for the application
-- aindex.html: Main user interface
-- aadmin.html: Admin interface
-- astatic/: Static files (CSS, JS)
-- astyles.css: Custom styles for the application
-- achat.js: JavaScript for handling chat functionality
-- aconfig.py: Configuration file for environment variables
-- arun.py: Entry point for the Flask application
+- __init__.py: Initializes the Flask app
+- routes.py: Defines the routes for the application
+- utils.py: Contains utility functions for database interactions and AI processing
+- templates/: HTML templates for the application
+- index.html: Main user interface
+- admin.html: Admin interface
+- static/: Static files (CSS, JS)
+- styles.css: Custom styles for the application
+- chat.js: JavaScript for handling chat functionality
+- config.py: Configuration file for environment variables
+- run.py: Entry point for the Flask application
 
 ## Usage
 ### User Interface
@@ -102,7 +102,6 @@ flask run
 Fork the repository:
 
 ```bash
-Copy code
 git clone https://github.com/yourusername/ai-lab-assistant-chat.git
 cd ai-lab-assistant-chat
 ```
