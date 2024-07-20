@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -15,188 +16,200 @@
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
 
 </head>
+
 <body>
     <!-- Include the navigation bar -->
     {% include 'navbar.html' %}
-        <div class="container-fluid">
-            <div class="row flex-nowrap">
-              <nav class="col-md-3 col-lg-2 d-md-block bg-light sidebar">
+    <div class="container-fluid">
+        <div class="row flex-nowrap">
+            <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">
                 <div class="position-sticky">
-                  <ul class="nav flex-column">
-                    <li class="nav-item">
-                      <a class="nav-link active" href="#questions" data-bs-toggle="tab" onclick="showQuestions()">
-                        Questions
-                      </a>
-                    </li>
-                    <li class="nav-item">
-                      <a class="nav-link" href="#unanswered-questions" data-bs-toggle="tab" onclick="showUnansweredQuestions()">
-                        Unanswered Questions
-                      </a>
-                    </li>
-                    <li class="nav-item">
-                      <a class="nav-link" href="#users" data-bs-toggle="tab" onclick="showUsers()">
-                        User Management
-                      </a>
-                    </li>
-                    <li class="nav-item">
-                      <a class="nav-link" href="#statistics" data-bs-toggle="tab" onclick="showAnswerFeedbackStats()">
-                        Answer Statistics
-                      </a>
-                    </li>
-                  </ul>
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="#questions" data-bs-toggle="tab" onclick="showQuestions()">
+                                Questions
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#unanswered-questions" data-bs-toggle="tab"
+                                onclick="showUnansweredQuestions()">
+                                Unanswered Questions
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#users" data-bs-toggle="tab" onclick="showUsers()">
+                                User Management
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#statistics" data-bs-toggle="tab"
+                                onclick="showAnswerFeedbackStats()">
+                                Answer Statistics
+                            </a>
+                        </li>
+                    </ul>
                 </div>
-              </nav>
+            </nav>
 
-        <!-- Content -->
-        <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-            <div id="main-content">
+            <!-- Content -->
+            <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
+                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                    <h1 class="h2">Dashboard</h1>
+                    <button class="btn btn-primary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar">
+                        Toggle Sidebar
+                    </button>
+                </div>
+                <div id="main-content">
+                    <div class="tab-content" id="admin-tabs-content">
+                        <div class="tab-pane fade show active" id="questions" role="tabpanel">
+                            <h2>Questions</h2>
+                            <div class="table-responsive mt-3">
+                                <table class="table table-striped table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Question</th>
+                                            <th>Answer</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="questions-table-body">
+                                        <!-- Questions will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
+                            <div id="questions-pagination"></div>
 
-                <div class="tab-content" id="admin-tabs-content">
-                <div class="tab-pane fade show active" id="questions" role="tabpanel">
-                    <h2>Questions</h2>
-                    <div class="table-responsive mt-3">
-                    <table class="table table-striped table-sm">
-                        <thead>
-                        <tr>
-                            <th>Question</th>
-                            <th>Answer</th>
-                            <th>Actions</th>
-                        </tr>
-                        </thead>
-                                <tbody id="questions-table-body">
-                                    <!-- Questions will be populated here -->
-                                </tbody>
-                            </table>
+                            <button class="btn btn-primary" onclick="showAddQuestionForm()">Add Question</button>
                         </div>
-                        <div id="questions-pagination"></div>
-
-                        <button class="btn btn-primary" onclick="showAddQuestionForm()">Add Question</button>
-                    </div>
-                    <!-- Unanswered Questions tab -->
-                    <div class="tab-pane fade" id="unanswered-questions" role="tabpanel" aria-labelledby="unanswered-questions-tab">
-                        <h2>Unanswered Questions</h2>
-                        <div class="table-responsive mt-3">
-                            <table class="table table-striped table-sm">
-                                <thead>
-                                    <tr>
-                                        <th>Question</th>
-                                        <th>User</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="unanswered-questions-table-body">
-                                    <!-- Unanswered questions will be populated here -->
-                                </tbody>
-                            </table>
+                        <!-- Unanswered Questions tab -->
+                        <div class="tab-pane fade" id="unanswered-questions" role="tabpanel"
+                            aria-labelledby="unanswered-questions-tab">
+                            <h2>Unanswered Questions</h2>
+                            <div class="table-responsive mt-3">
+                                <table class="table table-striped table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>Question</th>
+                                            <th>User</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="unanswered-questions-table-body">
+                                        <!-- Unanswered questions will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
-                    <!-- Users tab -->
-                    <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
-                        <h2>User Management</h2>
-                        <div class="table-responsive">
-                            <table class="table table-bordered">
-                                <thead>
-                                    <tr>
-                                        <th>Name</th>
-                                        <th>Email</th>
-                                        <th>Admin</th>
-                                        <th>Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody id="users-table-body">
-                                    <!-- Users will be populated here -->
-                                </tbody>
-                            </table>
+                        <!-- Users tab -->
+                        <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+                            <h2>User Management</h2>
+                            <div class="table-responsive">
+                                <table class="table table-bordered">
+                                    <thead>
+                                        <tr>
+                                            <th>Name</th>
+                                            <th>Email</th>
+                                            <th>Admin</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="users-table-body">
+                                        <!-- Users will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
-                    </div>
-                    <div id="statistics" class="tab-pane fade" role="tabpanel" aria-labelledby="statistics-tab">
-                        <h2>Statistics</h2>
-                        <div class="row mt-4 mb-4">
-                            <div class="col-md-12">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Overall Statistics</h5>
-                                        <div id="overall-stats" class="row">
-                                            <!-- Overall stats will be inserted here -->
+                        <div id="statistics" class="tab-pane fade" role="tabpanel" aria-labelledby="statistics-tab">
+                            <h2>Statistics</h2>
+                            <div class="row mt-4 mb-4">
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Overall Statistics</h5>
+                                            <div id="overall-stats" class="row">
+                                                <!-- Overall stats will be inserted here -->
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-4">
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">Answer Feedback Statistics</h5>
+                                            <div class="table-responsive">
+                                                <table class="table table-bordered">
+                                                    <thead>
+                                                        <tr>
+                                                            <th>Matched Question</th>
+                                                            <th>Original Questions</th>
+                                                            <th>Total Feedback</th>
+                                                            <th>Positive Feedback</th>
+                                                            <th>Effectiveness</th>
+                                                            <th>Actions</th>
+                                                        </tr>
+                                                    </thead>
+                                                    <tbody id="statistics-table-body">
+                                                        <tr>
+                                                            <td colspan="6">Loading statistics...</td>
+                                                        </tr>
+                                                    </tbody>
+                                                </table>
+                                            </div>
                                         </div>
                                     </div>
                                 </div>
                             </div>
                         </div>
-                       <div class="row mt-4">
-                            <div class="col-md-12">
-                                <div class="card">
-                                    <div class="card-body">
-                                        <h5 class="card-title">Answer Feedback Statistics</h5>
-                                        <div class="table-responsive">
-                                            <table class="table table-bordered">
-                                                <thead>
-                                                    <tr>
-                                                        <th>Matched Question</th>
-                                                        <th>Original Questions</th>
-                                                        <th>Total Feedback</th>
-                                                        <th>Positive Feedback</th>
-                                                        <th>Effectiveness</th>
-                                                        <th>Actions</th>
-                                                    </tr>
-                                                </thead>
-                                                <tbody id="statistics-table-body">
-                                                    <tr><td colspan="6">Loading statistics...</td></tr>
-                                                </tbody>
-                                            </table>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
                     </div>
                 </div>
-            </div>
         </div>
     </div>
 
-<div class="modal fade" id="question-modal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title" id="questionModalLabel"></h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <form id="question-form" onsubmit="updateQuestion(event)">
-                <div class="modal-body">
-                    <div class="mb-3">
-                        <label for="question-input" class="form-label">Question</label>
-                        <div class="input-group">
-                            <input type="text" class="form-control" id="question-input" required>
-                            <button class="btn btn-outline-secondary" type="button" id="generate-answer-btn">Generate</button>
-                            <div id="generate-loader" class="loader" style="display: none;">Loading...</div>
+    <div class="modal fade" id="question-modal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="questionModalLabel"></h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <form id="question-form" onsubmit="updateQuestion(event)">
+                    <div class="modal-body">
+                        <div class="mb-3">
+                            <label for="question-input" class="form-label">Question</label>
+                            <div class="input-group">
+                                <input type="text" class="form-control" id="question-input" required>
+                                <button class="btn btn-outline-secondary" type="button"
+                                    id="generate-answer-btn">Generate</button>
+                                <div id="generate-loader" class="loader" style="display: none;">Loading...</div>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <label for="title-input" class="form-label">Title</label>
+                            <input type="text" class="form-control" id="title-input" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="summary-input" class="form-label">Summary</label>
+                            <textarea class="form-control" id="summary-input" rows="2" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="answer-input" class="form-label">Answer</label>
+                            <textarea class="form-control" id="answer-input" rows="5" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="references-input" class="form-label">References</label>
+                            <textarea class="form-control" id="references-input" rows="2"></textarea>
                         </div>
                     </div>
-                    <div class="mb-3">
-                        <label for="title-input" class="form-label">Title</label>
-                        <input type="text" class="form-control" id="title-input" required>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                        <button type="submit" class="btn btn-primary" id="save-question">Save changes</button>
                     </div>
-                    <div class="mb-3">
-                        <label for="summary-input" class="form-label">Summary</label>
-                        <textarea class="form-control" id="summary-input" rows="2" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="answer-input" class="form-label">Answer</label>
-                        <textarea class="form-control" id="answer-input" rows="5" required></textarea>
-                    </div>
-                    <div class="mb-3">
-                        <label for="references-input" class="form-label">References</label>
-                        <textarea class="form-control" id="references-input" rows="2"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="submit" class="btn btn-primary" id="save-question">Save changes</button>
-                </div>
-            </form>
+                </form>
+            </div>
         </div>
     </div>
-</div>
 
 
     <!-- Modal for editing user -->
@@ -224,4 +237,5 @@
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 </body>
+
 </html>
