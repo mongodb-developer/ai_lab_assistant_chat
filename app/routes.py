@@ -585,7 +585,8 @@ def get_overall_statistics():
 
         # Calculate average feedback rating
         feedback_pipeline = [
-            {"$group": {"_id": None, "avg_rating": {"$avg": "$rating"}}}
+            {"$match": {"rating": {"$exists": True, "$ne": None}}},
+            {"$group": {"_id": None, "avg_rating": {"$avg": "$rating"}, "count": {"$sum": 1}}}
         ]
         feedback_result = list(feedback_collection.aggregate(feedback_pipeline))
         avg_rating = feedback_result[0]['avg_rating'] if feedback_result else None
