@@ -15,15 +15,20 @@ document.addEventListener('DOMContentLoaded', () => {
     if (usersTab) {
         usersTab.addEventListener('click', showUsers);
     }
-    const statsTab = document.querySelector('[onclick="showAnswerFeedbackStats()"]');
-    if (statsTab) {
-        statsTab.addEventListener('click', showStatistics);
+    // Try to find the statistics tab button in multiple ways
+    const statisticsTab = document.querySelector('[onclick="showAnswerFeedbackStats()"]');
+    if (statisticsTab) {
+        statisticsTab.removeAttribute('onclick');
+        statisticsTab.addEventListener('click', showStatistics);
+    } else {
+        console.error('Statistics tab not found');
     }
     document.getElementById('question-form').addEventListener('submit', updateQuestion);
     const generateBtn = document.getElementById('generate-answer-btn');
     if (generateBtn) {
         generateBtn.addEventListener('click', generateAnswer);
     }
+    
 });
 
 var triggerTabList = [].slice.call(document.querySelectorAll('#myTab a'))
@@ -264,6 +269,10 @@ function showAddQuestionForm() {
 // Show edit question form
 async function showEditQuestionForm(button) {
     const id = button.getAttribute('data-id');
+    if (!id) {
+        console.error('No question ID found');
+        return;
+    }
     let question = button.getAttribute('data-question');
     let title = button.getAttribute('data-title');
     let summary = button.getAttribute('data-summary');
@@ -299,6 +308,7 @@ async function showEditQuestionForm(button) {
     document.getElementById('references-input').value = references || '';
 
     const form = document.getElementById('question-form');
+    form.setAttribute('data-question-id', id);  // Set the ID as a data attribute
     form.onsubmit = async (event) => {
         event.preventDefault();
         await updateQuestion(id);
@@ -424,36 +434,60 @@ async function addQuestion() {
 }
 
 // Update an existing question
-async function updateQuestion(id) {
-    const question = document.getElementById('question-input').value;
-    const answer = document.getElementById('answer-input').value;
-    const title = document.getElementById('title-input').value;
-    const summary = document.getElementById('summary-input').value;
-    const references = document.getElementById('references-input').value;
+async function updateQuestion(event) {
+    event.preventDefault();
+
+    const form = event.target;
+    const questionId = form.getAttribute('data-question-id');
+
+    if (!questionId) {
+        console.error('No question ID found');
+        alert('Error: Question ID not found. Please try again.');
+        return;
+    }
+
+    const questionData = {
+        question: document.getElementById('question-input').value,
+        title: document.getElementById('title-input').value,
+        summary: document.getElementById('summary-input').value,
+        answer: document.getElementById('answer-input').value,
+        references: document.getElementById('references-input').value
+    };
+
     try {
-        const response = await fetch(`/api/questions/${id}`, {
+        const response = await fetch(`/api/questions/${questionId}`, {
             method: 'PUT',
             headers: {
                 'Content-Type': 'application/json',
             },
-            body: JSON.stringify({ question, answer, title, summary, references }),
+            body: JSON.stringify(questionData),
         });
+
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            console.error('Server response:', errorText);
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
-        
-        // Check which view we're in and refresh accordingly
+
+        const result = await response.json();
+        console.log('Update result:', result);
+
+        // Close the modal
+        const modalElement = document.getElementById('question-modal');
+        const modal = bootstrap.Modal.getInstance(modalElement);
+        modal.hide();
+
+        // Refresh the questions or statistics table
         if (document.querySelector('table th').textContent.includes('Effectiveness')) {
             showAnswerFeedbackStats();
         } else {
             fetchQuestions();
         }
-        
-        const modal = bootstrap.Modal.getInstance(document.getElementById('question-modal'));
-        modal.hide();
+
+        alert('Question updated successfully!');
     } catch (error) {
         console.error('Error updating question:', error);
-        alert('Failed to update question. Please try again.');
+        alert('Failed to update question. Please check the console for more details.');
     }
 }
 
@@ -708,62 +742,158 @@ async function showAnswerFeedbackStats() {
         }
         const stats = await response.json();
         
-        const statsTableBody = document.getElementById('statistics-table-body');
+        const statsTableBody = document.getElementById('answer-feedback-stats-body');
         if (!statsTableBody) {
-            console.error('statistics-table-body element not found');
+            console.error('answer-feedback-stats-body element not found');
             return;
         }
-        statsTableBody.innerHTML = stats.map(stat => `
-            <tr>
-                <td>${escapeHTML(stat.matched_question)}</td>
-                <td>${escapeHTML(stat.original_questions)}</td>
-                <td>${stat.total_feedback}</td>
-                <td>${stat.positive_feedback}</td>
-                <td>${stat.effectiveness.toFixed(2)}%</td>
-                <td>
-                    <button class="btn btn-sm btn-primary" 
-                        data-id="${stat._id}" 
-                        data-question="${escapeHTML(stat.matched_question)}" 
-                        onclick="showEditQuestionForm(this)">Edit</button>
-                </td>
-            </tr>
-        `).join('');
+        
+        if (stats.length === 0) {
+            statsTableBody.innerHTML = '<tr><td colspan="6" class="text-center">No answer feedback statistics available.</td></tr>';
+        } else {
+            statsTableBody.innerHTML = stats.map(stat => `
+                <tr>
+                    <td>${escapeHTML(stat.matched_question)}</td>
+                    <td>${escapeHTML(stat.original_questions)}</td>
+                    <td class="text-center">${stat.total_feedback}</td>
+                    <td class="text-center">${stat.positive_feedback}</td>
+                    <td class="text-center">
+                        <span class="badge bg-${getEffectivenessBadgeColor(stat.effectiveness)}">${stat.effectiveness.toFixed(2)}%</span>
+                    </td>
+                    <td class="text-center">
+                        <button class="btn btn-sm btn-outline-primary" 
+                            data-id="${stat._id}" 
+                            data-question="${escapeHTML(stat.matched_question)}" 
+                            onclick="showEditQuestionForm(this)">
+                            <i class="fas fa-edit"></i> Edit
+                        </button>
+                    </td>
+                </tr>
+            `).join('');
+        }
     } catch (error) {
         console.error('Error fetching answer feedback stats:', error);
-        const statsTableBody = document.getElementById('statistics-table-body');
+        const statsTableBody = document.getElementById('answer-feedback-stats-body');
         if (statsTableBody) {
-            statsTableBody.innerHTML = `<tr><td colspan="6">Error loading answer feedback statistics: ${error.message}</td></tr>`;
+            statsTableBody.innerHTML = `<tr><td colspan="6" class="text-center text-danger">Error loading answer feedback statistics: ${error.message}</td></tr>`;
         }
-   }
+    }
 }
 
-function showStatistics() {
-    const content = document.getElementById('main-content');
-    if (!content) {
-        console.error('Content element not found');
+function getEffectivenessBadgeColor(effectiveness) {
+    if (effectiveness >= 80) return 'success';
+    if (effectiveness >= 60) return 'info';
+    if (effectiveness >= 40) return 'warning';
+    return 'danger';
+}
+
+async function fetchAndDisplayStatistics() {
+    try {
+        console.log('Fetching overall statistics...');
+        const overallResponse = await fetch('/api/overall_statistics');
+        if (!overallResponse.ok) {
+            throw new Error(`HTTP error! status: ${overallResponse.status}`);
+        }
+        const overallStats = await overallResponse.json();
+        console.log('Overall statistics fetched:', overallStats);
+
+        console.log('Displaying overall statistics...');
+        displayOverallStats(overallStats);
+
+        console.log('Fetching and displaying answer feedback statistics...');
+        await showAnswerFeedbackStats();
+    } catch (error) {
+        console.error('Error fetching statistics:', error);
+        alert('An error occurred while fetching statistics. Please try again.');
+    }
+}
+
+async function showStatistics() {
+    console.log('showStatistics called');
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) {
+        console.error('Main content element not found');
         return;
     }
-    
-    content.innerHTML = `
-        <h2>Answer Feedback Statistics</h2>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Matched Question</th>
-                    <th>Original Questions</th>
-                    <th>Total Feedback</th>
-                    <th>Positive Feedback</th>
-                    <th>Effectiveness</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody id="statistics-table-body">
-                <tr><td colspan="6">Loading statistics...</td></tr>
-            </tbody>
-        </table>
+
+    // Create the statistics content
+    mainContent.innerHTML = `
+        <h2>Statistics</h2>
+        <div id="overall-stats"></div>
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
+                <h5 class="card-title text-primary">Answer Feedback Statistics</h5>
+                <div class="table-responsive">
+                    <table class="table table-hover table-striped table-bordered">
+                        <thead class="table-primary">
+                            <tr>
+                                <th>Matched Question</th>
+                                <th>Original Questions</th>
+                                <th>Total Feedback</th>
+                                <th>Positive Feedback</th>
+                                <th>Effectiveness</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="answer-feedback-stats-body">
+                            <tr><td colspan="6" class="text-center">Loading answer feedback statistics...</td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
     `;
-    
-    showAnswerFeedbackStats();
+
+    // Now fetch and display the statistics
+    await fetchAndDisplayStatistics();
+}
+
+function displayOverallStats(stats) {
+    const overallStatsContainer = document.getElementById('overall-stats');
+    if (!overallStatsContainer) {
+        console.error('Overall stats container not found');
+        return;
+    }
+
+    overallStatsContainer.innerHTML = `
+        <div class="card mb-4 shadow-sm">
+            <div class="card-body">
+                <h5 class="card-title mongodb-text">Overall Statistics</h5>
+                <div class="row">
+                    <div class="col-md-4 col-lg-2 mb-3">
+                        <div class="stat-item">
+                            <div class="stat-label">Total Users</div>
+                            <div class="stat-value">${stats.total_users}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-lg-2 mb-3">
+                        <div class="stat-item">
+                            <div class="stat-label">Total Questions</div>
+                            <div class="stat-value">${stats.total_questions}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-lg-2 mb-3">
+                        <div class="stat-item">
+                            <div class="stat-label">Answered Questions</div>
+                            <div class="stat-value">${stats.answered_questions}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3 mb-3">
+                        <div class="stat-item">
+                            <div class="stat-label">Unanswered Questions</div>
+                            <div class="stat-value">${stats.unanswered_questions}</div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 col-lg-3 mb-3">
+                        <div class="stat-item">
+                            <div class="stat-label">Average Feedback Rating</div>
+                            <div class="stat-value">${stats.average_rating}</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
 }
 
 function editQuestion(questionId) {

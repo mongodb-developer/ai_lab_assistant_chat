@@ -41,6 +41,7 @@ conversation_collection = db['conversations']
 documents_collection = db['documents']
 unanswered_collection = db['unanswered_questions']
 users_collection = db['users']
+feedback_collection = db['feedback']
 SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is float
 
 # Route: Index
@@ -566,7 +567,43 @@ def get_answer_feedback_stats():
     except Exception as e:
         current_app.logger.error(f"Error fetching answer feedback stats: {str(e)}")
         return jsonify({'error': 'An error occurred while fetching answer feedback stats'}), 500
-    
+@main.route('/api/overall_statistics', methods=['GET'])
+@login_required
+def get_overall_statistics():
+    try:
+        # Get database collections
+        users_collection = db.users
+        questions_collection = db.questions
+        unquestions_collection = db.unanswered_questions
+        feedback_collection = db.feedback
+
+        # Calculate statistics
+        total_users = users_collection.count_documents({})
+        total_questions = questions_collection.count_documents({})
+        answered_questions = questions_collection.count_documents({"answer": {"$exists": True, "$ne": ""}})
+        unanswered_questions = unquestions_collection.count_documents({})
+
+        # Calculate average feedback rating
+        feedback_pipeline = [
+            {"$group": {"_id": None, "avg_rating": {"$avg": "$rating"}}}
+        ]
+        feedback_result = list(feedback_collection.aggregate(feedback_pipeline))
+        avg_rating = feedback_result[0]['avg_rating'] if feedback_result else None
+
+        # Prepare statistics object
+        statistics = {
+            "total_users": total_users,
+            "total_questions": total_questions,
+            "answered_questions": answered_questions,
+            "unanswered_questions": unanswered_questions,
+            "average_rating": round(avg_rating, 2) if avg_rating is not None else "No ratings yet"
+        }
+
+        return jsonify(statistics), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching overall statistics: {str(e)}")
+        return jsonify({"error": "An error occurred while fetching statistics"}), 500
+        
 @main.route('/statistics')
 def statistics():
     # Get total users

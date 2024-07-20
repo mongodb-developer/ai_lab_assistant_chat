@@ -143,3 +143,11 @@
 .mongodb-text-green {
     color: var(--mongodb-green);
 }
+
+.mongodb-text {
+    color: var(--mongodb-dark-blue);
+}
+
+.card-title {
+    font-weight: bold;
+}
