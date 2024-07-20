@@ -100,16 +100,20 @@ function populateQuestionsTable(questions) {
             <td>${escapeHTML(question.question)}</td>
             <td>${escapeHTML(summary)}</td>
             <td>${escapeHTML(mainAnswer.split('\n').slice(0, 3).join('\n'))}</td>
-            <td>
-                <button class="btn btn-sm btn-primary" 
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary me-2" 
                     data-id="${question._id}" 
                     data-question="${escapeHTML(question.question)}" 
                     data-title="${escapeHTML(title)}" 
                     data-summary="${escapeHTML(summary)}" 
-                    data-answer="${escapeHTML(answer)}" 
+                    data-answer="${escapeHTML(mainAnswer)}" 
                     data-references="${escapeHTML(references)}" 
-                    onclick="showEditQuestionForm(this)">Edit</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteQuestion('${question._id}')">Delete</button>
+                    onclick="showEditQuestionForm(this)">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteQuestion('${question._id}')">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
             </td>
         `;
         tableBody.appendChild(row);
@@ -268,8 +272,12 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
                 <button class="btn btn-sm btn-primary" 
                     data-id="${question._id}" 
                     data-question="${escapeHTML(questionText)}" 
-                    onclick="showAnswerQuestionForm(this)">Answer</button>
-                <button class="btn btn-sm btn-danger" onclick="deleteUnansweredQuestion('${question._id}')">Delete</button>
+                    onclick="showAnswerQuestionForm(this)">
+                    <i class="fas fa-edit"></i> Answer
+                </button>
+                <button class="btn btn-sm btn-danger" onclick="deleteUnansweredQuestion('${question._id}')">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
             </td>
         `;
         tableBody.appendChild(row);
@@ -806,7 +814,7 @@ async function showAnswerFeedbackStats() {
                         <span class="badge bg-${getEffectivenessBadgeColor(stat.effectiveness)}">${stat.effectiveness.toFixed(2)}%</span>
                     </td>
                     <td class="text-center">
-                        <button class="btn btn-sm btn-outline-primary" 
+                        <button class="btn btn-sm btn-outline-primary me-2" 
                             data-id="${stat._id}" 
                             data-question="${escapeHTML(stat.matched_question)}" 
                             onclick="showEditQuestionForm(this)">
