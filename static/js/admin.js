@@ -28,8 +28,19 @@ document.addEventListener('DOMContentLoaded', () => {
     if (generateBtn) {
         generateBtn.addEventListener('click', generateAnswer);
     }
-    
+    const questionsTab = document.querySelector('[onclick="showQuestions()"]');
+    if (questionsTab) {
+        questionsTab.addEventListener('click', showQuestions);
+    }
+
+    // Initial load of questions if we're on the questions tab
+    if (window.location.hash === '#questions' || !window.location.hash) {
+        showQuestions();
+    }
 });
+
+let currentPage = 1;
+const perPage = 10;
 
 var triggerTabList = [].slice.call(document.querySelectorAll('#myTab a'))
 triggerTabList.forEach(function (triggerEl) {
@@ -46,26 +57,25 @@ if (generateAnswerBtn) {
 }
 
 // Fetch and display questions
-async function fetchQuestions() {
+async function fetchQuestions(page = 1) {
     try {
-        const response = await fetch('/api/questions');
-        console.log('Fetch response:', response);
-
+        const response = await fetch(`/api/questions?page=${page}&per_page=${perPage}`);
         if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Error response text:', errorText);
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
+            throw new Error(`HTTP error! status: ${response.status}`);
         }
-
-        const questions = await response.json();
-        console.log('Fetched questions:', questions);
-        populateQuestionsTable(questions);
+        const data = await response.json();
+        
+        const tableBody = document.getElementById('questions-table-body');
+        if (!tableBody) {
+            console.error('Questions table body not found');
+            return;
+        }
+        
+        populateQuestionsTable(data.questions);
+        updatePagination(data);
     } catch (error) {
         console.error('Error fetching questions:', error);
-        const content = document.getElementById('main-content');
-        if (content) {
-            content.innerHTML += `<p class="error-message">Error loading questions: ${error.message}</p>`;
-        }
+        alert('Failed to fetch questions. Please try again.');
     }
 }
 
@@ -106,6 +116,39 @@ function populateQuestionsTable(questions) {
     });
 }
 
+function updatePagination(data) {
+    const paginationElement = document.getElementById('questions-pagination');
+    if (!paginationElement) {
+        console.error('Pagination element not found');
+        return;
+    }
+
+    const totalPages = data.total_pages;
+    currentPage = data.page;
+
+    let paginationHTML = '';
+    for (let i = 1; i <= totalPages; i++) {
+        paginationHTML += `<li class="page-item ${i === currentPage ? 'active' : ''}">
+            <a class="page-link" href="#" onclick="fetchQuestions(${i}); return false;">${i}</a>
+        </li>`;
+    }
+
+    paginationHTML = `
+        <nav aria-label="Questions pagination">
+            <ul class="pagination justify-content-center">
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="fetchQuestions(${currentPage - 1}); return false;">Previous</a>
+                </li>
+                ${paginationHTML}
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link" href="#" onclick="fetchQuestions(${currentPage + 1}); return false;">Next</a>
+                </li>
+            </ul>
+        </nav>
+    `;
+
+    paginationElement.innerHTML = paginationHTML;
+}
 // Toggle admin status for a user
 async function toggleAdminStatus(button) {
     const id = button.getAttribute('data-id');
@@ -648,6 +691,7 @@ function showQuestions() {
             <h2>Questions</h2>
             <button class="btn btn-primary mb-3" onclick="showAddQuestionForm()">Add Question</button>
             <div class="table-responsive">
+                <div id="questions-pagination"></div>
                 <table class="table table-bordered">
                     <thead>
                         <tr>
@@ -663,6 +707,7 @@ function showQuestions() {
                     </tbody>
                 </table>
             </div>
+            <div id="questions-pagination"></div>
         </div>
     `;
     fetchQuestions();

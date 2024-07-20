@@ -231,11 +231,25 @@ def generate_potential_answer(question):
 @login_required
 def get_questions():
     try:
-        questions = list(documents_collection.find())
+        page = int(request.args.get('page', 1))
+        per_page = int(request.args.get('per_page', 10))  # Number of items per page
+
+        total = documents_collection.count_documents({})
+        
+        questions = list(documents_collection.find()
+                         .skip((page - 1) * per_page)
+                         .limit(per_page))
+
         for question in questions:
             question['_id'] = str(question['_id'])
-        current_app.logger.info(f"Fetched {len(questions)} questions")
-        return jsonify(questions), 200
+
+        return jsonify({
+            'questions': questions,
+            'total': total,
+            'page': page,
+            'per_page': per_page,
+            'total_pages': (total + per_page - 1) // per_page
+        }), 200
     except Exception as e:
         current_app.logger.error(f"Error fetching questions: {str(e)}")
         return jsonify({'error': 'An internal error occurred'}), 500
