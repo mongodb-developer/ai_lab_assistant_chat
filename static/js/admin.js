@@ -47,13 +47,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Add event listener for the view conversations link
     const viewConversationsLink = document.getElementById('view-conversations-link');
     if (viewConversationsLink) {
-        viewConversationsLink.addEventListener('click', function(e) {
+        viewConversationsLink.addEventListener('click', function (e) {
             e.preventDefault();
             showConversations();
         });
     } else {
         console.error('View conversations link not found');
     }
+    createUserGrowthChart();
+
 });
 
 let currentPage = 1;
@@ -921,6 +923,12 @@ async function showStatistics() {
         <div id="overall-stats"></div>
         <div class="card shadow-sm mt-4">
             <div class="card-body">
+                <h5 class="card-title">User Growth</h5>
+                <canvas id="userGrowthChart"></canvas>
+            </div>
+        </div>
+        <div class="card shadow-sm mt-4">
+            <div class="card-body">
                 <h5 class="card-title mongodb-text">Answer Feedback Statistics</h5>
                 <div class="table-responsive">
                     <table class="table table-hover table-striped table">
@@ -955,19 +963,10 @@ async function showStatistics() {
             </div>
         </div>
     </div>
-    <div class="row mt-4">
-        <div class="col-md-12">
-            <div class="card">
-                <div class="card-body">
-                    <h5 class="card-title mongodb-text">MongoDB Atlas Chart</h5>
-                    <div class="chart-container" style="position: relative; height: 60vh; width: 100%;">
-                        <iframe 
-                            style="background: #F1F5F4;border: none;border-radius: 2px;box-shadow: 0 2px 10px 0 rgba(70, 76, 79, .2);width: 100%;height: 100%;"  
-                            src="https://charts.mongodb.com/charts-project-phoenix-vhiiqby/embed/dashboards?id=669cb164-d284-46aa-8de1-c28e4647aa37&theme=light&autoRefresh=true&maxDataAge=3600&showTitleAndDesc=false&scalingWidth=fixed&scalingHeight=fixed">
-                        </iframe>
-                    </div>
-                </div>
-            </div>
+    <div class="card shadow-sm mt-4">
+        <div class="card-body">
+            <h5 class="card-title">User Growth</h5>
+            <canvas id="userGrowthChart"></canvas>
         </div>
     </div>
     <div class="row mt-4">
@@ -1003,6 +1002,10 @@ async function showStatistics() {
 
     // Now fetch and display the statistics
     await fetchAndDisplayStatistics();
+    // Use setTimeout to ensure the DOM has updated
+    setTimeout(() => {
+        createUserGrowthChart();
+    }, 0);
 }
 
 function displayOverallStats(stats) {
@@ -1057,6 +1060,74 @@ function displayOverallStats(stats) {
             </div>
         </div>
     `;
+}
+
+function createUserGrowthChart() {
+    const canvas = document.getElementById('userGrowthChart');
+    if (!canvas) {
+        console.error('User growth chart canvas not found');
+        return;
+    }
+
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        console.error('Could not get 2D context for canvas');
+        return;
+    }
+
+    fetch('/api/user_growth')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            if (!data || !Array.isArray(data) || data.length === 0) {
+                console.error('Invalid or empty data received for user growth chart');
+                return;
+            }
+
+            const validData = data.filter(item => item._id && item.count);
+
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: validData.map(item => new Date(item._id)),
+                    datasets: [{
+                        label: 'New Users',
+                        data: validData.map(item => ({ x: new Date(item._id), y: item.count })),
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'time',
+                            time: {
+                                unit: 'day'
+                            },
+                            title: {
+                                display: true,
+                                text: 'Date'
+                            }
+                        },
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Number of New Users'
+                            }
+                        }
+                    }
+                }
+            });
+        })
+        .catch(error => {
+            console.error('Error creating user growth chart:', error);
+        });
 }
 
 function editQuestion(questionId) {

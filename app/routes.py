@@ -745,3 +745,35 @@ def get_conversation(conversation_id):
         return jsonify(serialized_conv)
     else:
         return jsonify({'error': 'Conversation not found'}), 404
+    
+@main.route('/api/user_growth', methods=['GET'])
+@login_required
+def get_user_growth():
+    pipeline = [
+        {
+            '$group': {
+                '_id': {'$dateToString': {'format': '%Y-%m-%d', 'date': '$created_at'}},
+                'count': {'$sum': 1}
+            }
+        },
+        {'$sort': {'_id': 1}}
+    ]
+    result = list(db.users.aggregate(pipeline))
+    
+    # Convert string dates to ISO format, handle None values
+    formatted_result = []
+    for item in result:
+        if item['_id'] is not None:
+            try:
+                date = datetime.strptime(item['_id'], '%Y-%m-%d').isoformat()
+                formatted_result.append({
+                    '_id': date,
+                    'count': item['count']
+                })
+            except ValueError:
+                print(f"Invalid date format: {item['_id']}")
+        else:
+            print("Encountered a None _id value")
+    
+    print("User growth data:", formatted_result)  # Add this line for debugging
+    return jsonify(formatted_result)

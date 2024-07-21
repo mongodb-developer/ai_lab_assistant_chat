@@ -9,6 +9,10 @@
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
+
+
 
     <!-- Include EasyMDE CSS and JS -->
     <link rel="stylesheet" href="https://unpkg.com/easymde/dist/easymde.min.css">
@@ -44,7 +48,7 @@
                         <li class="nav-item">
                             <a class="nav-link" href="#statistics" data-bs-toggle="tab"
                                 onclick="showAnswerFeedbackStats()">
-                                Answer Statistics
+                                Statistics
                             </a>
                         </li>
                         <li class="nav-item">
@@ -134,6 +138,22 @@
                                             <div id="overall-stats" class="row">
                                                 <!-- Overall stats will be inserted here -->
                                             </div>
+                                            <div class="card shadow-sm mt-4">
+                                                <div class="card-body">
+                                                    <h5 class="card-title">User Growth</h5>
+                                                    <canvas id="userGrowthChart"></canvas>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="row mt-4 mb-4">
+                                <div class="col-md-12">
+                                    <div class="card">
+                                        <div class="card-body">
+                                            <h5 class="card-title">User Growth</h5>
+                                            <canvas id="userGrowthChart"></canvas>
                                         </div>
                                     </div>
                                 </div>
