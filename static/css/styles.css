@@ -815,3 +815,16 @@ body {
     background-color: var(--mongodb-light-blue);
     color: white;
 }
+
+.flow-diagram-container {
+    margin-top: 2rem;
+    margin-bottom: 2rem;
+    text-align: center;
+}
+
+.flow-diagram-container img {
+    max-width: 100%;
+    height: auto;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+    border-radius: 8px;
+}
