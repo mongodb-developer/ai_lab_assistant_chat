@@ -1,0 +1,21 @@
+[User] --> (1. Ask Question) --> [Web Interface]
+[Web Interface] --> (2. Send Question) --> [Server]
+[Server] --> (3. Generate Embedding) --> [Embedding Model]
+[Embedding Model] --> (4. Return Embedding) --> [Server]
+[Server] --> (5. Search Similar Questions) --> [MongoDB Vector Search]
+[MongoDB Vector Search] --> (6. Return Similar Questions) --> [Server]
+
+[Server] --> (7. If Similar Question Found) --> [Return Existing Answer]
+[Return Existing Answer] --> [Web Interface]
+[Web Interface] --> (Display Answer) --> [User]
+
+[Server] --> (8. If No Similar Question) --> [Query LLM]
+[Query LLM] --> (9. Generate Answer) --> [Server]
+[Server] --> (10. Store New Q&A) --> [MongoDB]
+[Server] --> (11. Return New Answer) --> [Web Interface]
+[Web Interface] --> (Display New Answer) --> [User]
+
+[Administrator] --> (12. Update/Answer Questions) --> [Admin Interface]
+[Admin Interface] --> (13. Store Updates) --> [MongoDB]
+[Admin Interface] --> (14. Regenerate Embeddings) --> [Embedding Model]
+[Embedding Model] --> (15. Update Vector Search Index) --> [MongoDB Vector Search]
