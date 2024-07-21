@@ -47,6 +47,10 @@
                                 Answer Statistics
                             </a>
                         </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" href="#users" data-bs-toggle="tab"class="nav-link" href="#conversations" data-bs-toggle="tab" id="view-conversations-link">View Conversations</a>
+
+                        </li>
                     </ul>
                 </div>
             </nav>
@@ -162,6 +166,25 @@
                                     </div>
                                 </div>
                             </div>
+                        </div>
+                        <div class="tab-pane fade" id="conversations">
+                            <h2>Conversations</h2>
+                            <table class="table">
+                                <thead>
+                                    <tr>
+                                        <th>User ID</th>
+                                        <th>Last Updated</th>
+                                        <th>Preview</th>
+                                        <th>Actions</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="conversations-body">
+                                </tbody>
+                            </table>
+                            <nav aria-label="Conversations pagination">
+                                <ul class="pagination" id="conversations-pagination">
+                                </ul>
+                            </nav>
                         </div>
                     </div>
                 </div>

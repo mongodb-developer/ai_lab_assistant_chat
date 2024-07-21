@@ -22,7 +22,8 @@ from app.utils import (
     generate_summary,
     get_user_conversations,
     get_conversation_messages,
-    generate_potential_answer,
+    get_conversation_context,
+    generate_potential_answer_v2,
     start_new_conversation,  # Ensure this is imported
     add_unanswered_question  # Ensure this is imported
 )
@@ -108,76 +109,67 @@ def chat_api():
     debug_info = {}
     data = request.json
     user_question = data.get('question', '')
+    conversation_id = data.get('conversation_id')
+    
     try:
-        debug_info['request'] = {
-            'method': request.method,
-            'headers': dict(request.headers),
-            'json': request.json
-        }
-        if 'question' not in request.json:
-            raise ValueError("Missing 'question' in request payload")
-
-        user_question = request.json['question']
         user_id = current_user.get_id()
         user_name = current_user.name
 
-        # Generate a title for the conversation
-        # title = user_question[:50]  # Use the first 50 characters of the question as the title
-        title = user_question  # Use the first 50 characters of the question as the title
+        # Get or create a conversation
+        if not conversation_id:
+            conversation_id = start_new_conversation(user_id, user_question[:50])
         
-        # Start a new conversation if no active conversation exists
-        conversation_id = start_new_conversation(user_id, title)
-        
+        # Store the user's message
         store_message(user_id, user_question, 'User', conversation_id)
+
+        # Get conversation context
+        context, last_assistant_message = get_conversation_context(conversation_id)
 
         # Generate the question embedding
         question_embedding, embed_debug = generate_embedding(user_question)
-        if not question_embedding:
-            raise ValueError("Failed to generate embedding")
-        
         debug_info['embedding'] = embed_debug
 
-        # Search for similar questions
+        # Search for similar questions in the documents collection
         similar_questions, search_debug = search_similar_questions(question_embedding)
         debug_info['search'] = search_debug
 
-        response_data = {}
-        
         if similar_questions and similar_questions[0]['score'] > SIMILARITY_THRESHOLD:
-            response_message = similar_questions[0]['answer']
+            # Use the existing answer from the documents collection
+            best_match = similar_questions[0]
+            response_message = best_match['answer']
             response_data = {
-                'question_id': str(similar_questions[0]['_id']),  # Include this
-                'question': similar_questions[0]['question'],
+                'question_id': str(best_match['_id']),
+                'question': best_match['question'],
                 'answer': response_message,
-                'score': similar_questions[0]['score'],
-                'title': similar_questions[0].get('title', ''),
-                'summary': similar_questions[0].get('summary', ''),
-                'references': similar_questions[0].get('references', ''),
-                'usage_count': similar_questions[0].get('usage_count', 0) + 1,
+                'score': best_match['score'],
+                'title': best_match.get('title', ''),
+                'summary': best_match.get('summary', ''),
+                'references': best_match.get('references', ''),
+                'usage_count': best_match.get('usage_count', 0) + 1,
                 'debug_info': debug_info
             }
         else:
-            # Add the unanswered question to the unanswered_questions collection
-            response_message = 'This question has not been specifically answered for MongoDB Developer Days. However, here is some information I found that may assist you.'
-            potential_answer_data = generate_potential_answer(user_question)
-
+            # Generate a potential answer using the context
+            question_with_context = f"Context: {context}\n\nQuestion: {user_question}"
+            potential_answer_data = generate_potential_answer_v2(question_with_context, last_assistant_message)
+            
+            response_message = potential_answer_data['answer']
             response_data = {
-                'error': response_message,
-                'potential_answer': potential_answer_data.get('answer'),
-                'answer': potential_answer_data['answer'],
-                'title': response_message + "<br>\n" + potential_answer_data.get('title', ''),
+                'answer': response_message,
+                'title': potential_answer_data.get('title', ''),
                 'summary': potential_answer_data.get('summary', ''),
                 'references': potential_answer_data.get('references', ''),
                 'debug_info': debug_info
             }
+            # Add the question to the unanswered_questions collection
             add_unanswered_question(user_id, user_name, user_question, response_data)
-    
+        
+        # Store the assistant's response
         store_message(user_id, response_message, 'Assistant', conversation_id)
-        return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
-    except ValueError as e:
-        logger.error(f"Value error in chat route: {str(e)}")
-        debug_info['error'] = str(e)
-        return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 400, {'Content-Type': 'application/json'}
+
+        response_data['conversation_id'] = str(conversation_id)
+        return jsonify(response_data), 200
+
     except Exception as e:
         logger.error(f"Error in chat route: {str(e)}")
         return jsonify({
@@ -192,36 +184,6 @@ def chat_api():
                 "traceback": traceback.format_exc()
             }
         }), 500
-
-# Function: generate_potential_answer
-# Description: Generates a potential answer for a given question using OpenAI's GPT model
-# Parameters:
-#   - question: str, the user's question
-# Returns: dict containing title, summary, answer, and references
-def generate_potential_answer(question):
-    context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
-    prompt = f"{context}\n\nPlease provide a detailed answer for the following question:\n\n{question}"
-    
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo",
-        messages=[
-            {"role": "system", "content": "You are an assistant that provides detailed answers."},
-            {"role": "user", "content": prompt}
-        ]
-    )
-    answer = response['choices'][0]['message']['content'].strip()
-
-    # Generate title, summary, and references
-    title = generate_title(answer)
-    summary = generate_summary(answer)
-    references = generate_references(answer)
-
-    return {
-        'title': title,
-        'summary': summary,
-        'answer': answer,
-        'references': references
-    }
 
 # Route: Get Questions
 # Description: Retrieves all questions from the database
@@ -504,12 +466,20 @@ def profile():
 def generate_answer():
     data = request.json
     question = data.get('question')
+    conversation_id = data.get('conversation_id')
 
     if not question:
         return jsonify({'error': 'Question is required.'}), 400
 
     try:
-        answer_data = generate_potential_answer(question)
+        # Get conversation context
+        context, last_assistant_message = get_conversation_context(conversation_id) if conversation_id else ("", "")
+        
+        # Generate the question with context
+        question_with_context = f"Context: {context}\n\nQuestion: {question}"
+        
+        # Generate the answer
+        answer_data = generate_potential_answer_v2(question_with_context, last_assistant_message)
         return jsonify(answer_data), 200
     except Exception as e:
         current_app.logger.error(f"Error generating answer: {str(e)}")
@@ -722,3 +692,56 @@ def statistics():
     }
 
     return render_template('statistics.html', stats=stats)
+
+@main.route('/api/conversations', methods=['GET'])
+@login_required
+def get_conversations():
+    page = int(request.args.get('page', 1))
+    per_page = int(request.args.get('per_page', 10))
+    
+    total = conversation_collection.count_documents({})
+    
+    conversations = list(conversation_collection.find()
+                         .sort('last_updated', -1)
+                         .skip((page - 1) * per_page)
+                         .limit(per_page))
+    
+    serialized_conversations = []
+    for conv in conversations:
+        serialized_conv = {
+            '_id': str(conv['_id']),
+            'user_name': conv.get('user_name', 'Unknown User'),  # Assuming user_name is stored in the conversation document
+            'last_updated': conv.get('last_updated', 'Unknown').isoformat() if isinstance(conv.get('last_updated'), datetime) else 'Unknown',
+            'preview': [msg.get('content', '')[:50] + '...' for msg in conv.get('messages', [])[:2]]
+        }
+        serialized_conversations.append(serialized_conv)
+    
+    return jsonify({
+        'conversations': serialized_conversations,
+        'total': total,
+        'page': page,
+        'per_page': per_page,
+        'total_pages': (total + per_page - 1) // per_page
+    })
+
+@main.route('/api/conversations/<conversation_id>', methods=['GET'])
+@login_required
+def get_conversation(conversation_id):
+    conversation = conversation_collection.find_one({'_id': ObjectId(conversation_id)})
+    if conversation:
+        serialized_conv = {
+            '_id': str(conversation['_id']),
+            'user_name': conversation.get('user_name', 'Unknown User'),
+            'last_updated': conversation.get('last_updated', 'Unknown').isoformat() if isinstance(conversation.get('last_updated'), datetime) else 'Unknown',
+            'messages': [
+                {
+                    'role': msg.get('role'),
+                    'content': msg.get('content'),
+                    'timestamp': msg.get('timestamp').isoformat() if isinstance(msg.get('timestamp'), datetime) else 'Unknown'
+                }
+                for msg in conversation.get('messages', [])
+            ]
+        }
+        return jsonify(serialized_conv)
+    else:
+        return jsonify({'error': 'Conversation not found'}), 404

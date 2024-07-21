@@ -4,6 +4,7 @@ const adminForm = document.getElementById('admin-form');
 
 let chatContainer;
 let userInput;
+let currentConversationId = null;
 
 // Verify if the elements are correctly referenced
 console.log('conversationList:', conversationList);
@@ -64,45 +65,15 @@ function appendMessage(sender, message, data = null) {
     const messageElement = document.createElement('div');
     messageElement.classList.add('chat-bubble', sender.toLowerCase());
 
-    if (sender.toLowerCase() === 'assistant' && data) {
-        const { title, summary, answer, references, question_id, original_question } = data;
-
-        let structuredMessage = '';
-        if (title) structuredMessage += `<h3>${escapeSpecialChars(title)}</h3>`;
-        if (summary) structuredMessage += `<p><strong>Summary:</strong> ${escapeSpecialChars(summary)}</p>`;
-        if (answer) structuredMessage += `<p>${marked.parse(escapeSpecialChars(answer))}</p>`;
-        if (references) structuredMessage += `<p><strong>References:</strong> ${marked.parse(escapeSpecialChars(references))}</p>`;
-
-        // Use DOMPurify to sanitize the HTML produced by marked
-        if (typeof DOMPurify !== 'undefined') {
-            structuredMessage = DOMPurify.sanitize(structuredMessage);
-        } else {
-            console.warn('DOMPurify is not available. Skipping sanitization.');
-        }
-
-        messageElement.innerHTML = structuredMessage;
-
-        // Add feedback buttons
-        const feedbackDiv = document.createElement('div');
-        feedbackDiv.classList.add('feedback-buttons');
-        
-        const escapedQuestionId = escapeSpecialChars(question_id || '');
-        const escapedOriginalQuestion = escapeSpecialChars(original_question || '');
-        const escapedAnswer = escapeSpecialChars(answer || '');
-
-        feedbackDiv.innerHTML = `
-            <p>Was this answer helpful?</p>
-            <button class="btn btn-sm btn-outline-success" onclick="provideAnswerFeedback('${escapedQuestionId}', '${encodeURIComponent(escapedOriginalQuestion)}', '${encodeURIComponent(escapedAnswer)}', true)">Yes</button>
-            <button class="btn btn-sm btn-outline-danger" onclick="provideAnswerFeedback('${escapedQuestionId}', '${encodeURIComponent(escapedOriginalQuestion)}', '${encodeURIComponent(escapedAnswer)}', false)">No</button>
-        `;
-        messageElement.appendChild(feedbackDiv);
+    if (sender.toLowerCase() === 'assistant') {
+        messageElement.innerHTML = marked.parse(escapeSpecialChars(message));
     } else {
         const span = document.createElement('span');
         span.textContent = escapeSpecialChars(message);
         messageElement.appendChild(span);
     }
 
-    chatContainer.insertBefore(messageElement, chatContainer.lastElementChild);
+    chatContainer.appendChild(messageElement);
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
@@ -137,8 +108,12 @@ async function sendMessage(event) {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ question: userMessage })
+            body: JSON.stringify({ 
+                question: userMessage,
+                conversation_id: currentConversationId
+            })
         });
+
 
         if (!response.ok) {
             const errorMessage = await response.text();
@@ -149,6 +124,10 @@ async function sendMessage(event) {
                        
         if (data.debug_info) {
             appendDebugInfo('Debug Information', data.debug_info);
+        }
+
+        if (data.conversation_id) {
+            currentConversationId = data.conversation_id;
         }
 
         console.log('Received data:', data);
@@ -173,6 +152,11 @@ async function sendMessage(event) {
     } finally {
         removeLoader(loader);
     }
+}
+
+function startNewConversation() {
+    currentConversationId = null;
+    clearChatContainer();
 }
 
 function stripHtml(html) {
@@ -291,6 +275,20 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Marked library loaded:', typeof marked);
     console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
+    document.getElementById('conversations-pagination').addEventListener('click', function(e) {
+        if (e.target.tagName === 'A') {
+            e.preventDefault();
+            const page = parseInt(e.target.getAttribute('data-page'));
+            loadConversations(page);
+        }
+    });
+
+    document.getElementById('conversations-body').addEventListener('click', function(e) {
+        if (e.target.classList.contains('view-conversation')) {
+            const conversationId = e.target.getAttribute('data-id');
+            viewConversation(conversationId);
+        }
+    });
 });
 
 if (adminForm) {
@@ -342,6 +340,9 @@ function escapeSpecialChars(input) {
         }[m];
     });
 }
+
+
+
 
 window.handleSampleQuestion = handleSampleQuestion;
 window.sendMessage = sendMessage;

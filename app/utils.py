@@ -1,13 +1,27 @@
 import openai
-from pymongo import MongoClient
+from pymongo import MongoClient, ASCENDING
+from pymongo.operations import IndexModel
 from config import Config
 import json
 import logging
 from datetime import datetime
 from bson import ObjectId, json_util
+from flask_login import login_required, current_user
 import traceback
 import requests
 from typing import Any, Dict, List, Tuple, Union
+import re
+from collections import Counter
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import nltk
+
+# Download necessary NLTK data
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('maxent_ne_chunker')
+nltk.download('words')
 
 
 # Set up logging
@@ -246,12 +260,11 @@ def get_collection_stats():
         return None
 
 def json_serialize(obj):
-    """
-    JSON serializer for objects not serializable by default json code
-    """
+    if isinstance(obj, ObjectId):
+        return str(obj)
     if isinstance(obj, datetime):
         return obj.isoformat()
-    return json_util.default(obj)
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
 def get_collection_stats():
     try:
@@ -269,20 +282,148 @@ def get_collection_stats():
     
 def store_message(user_id, message, sender, conversation_id=None):
     if not conversation_id:
-        conversation_id = get_current_conversation(user_id)
-    
-    # If there's an active conversation, end it before starting a new one
-    if sender == 'User' and not conversation_id:
-        conversation_id = start_new_conversation(user_id, generate_title(message))
+        conversation_id = get_or_create_conversation(user_id)
     
     message_entry = {
-        'conversation_id': conversation_id,
-        'sender': sender,
-        'message': message,
-        'timestamp': datetime.now()
+        'role': sender,
+        'content': message,
+        'timestamp': datetime.utcnow()
     }
-    conversation_collection.insert_one(message_entry)
+    
+    update_data = {
+        '$push': {'messages': message_entry},
+        '$set': {'last_updated': datetime.utcnow()},
+        '$inc': {'context.last_n_messages': 1}
+    }
+    
+    if sender == 'User':
+        # Assuming current_user.name is available
+        update_data['$set']['user_name'] = current_user.name
+    
+    conversation_collection.update_one(
+        {'_id': ObjectId(conversation_id)},
+        update_data
+    )
+    
+    update_conversation_context(conversation_id)
+    
+    return conversation_id
 
+def get_or_create_conversation(user_id):
+    active_conversation = conversation_collection.find_one(
+        {'user_id': user_id, 'status': 'active'},
+        sort=[('last_updated', -1)]
+    )
+    
+    if active_conversation:
+        return str(active_conversation['_id'])
+    
+    new_conversation = {
+        'user_id': user_id,
+        'title': 'New Conversation',
+        'status': 'active',
+        'messages': [],
+        'context_summary': '',
+        'context': {
+            'topics': [],
+            'entities': [],
+            'last_n_messages': 0
+        },
+        'metadata': {
+            'source': 'chat',
+            'tags': [],
+            'custom_fields': {}
+        },
+        'created_at': datetime.utcnow(),
+        'last_updated': datetime.utcnow()
+    }
+    
+    result = conversation_collection.insert_one(new_conversation)
+    return str(result.inserted_id)
+
+import re
+from collections import Counter
+from nltk.corpus import stopwords
+from nltk.tokenize import word_tokenize
+import nltk
+
+# Download necessary NLTK data
+nltk.download('punkt')
+nltk.download('stopwords')
+nltk.download('averaged_perceptron_tagger')
+nltk.download('maxent_ne_chunker')
+nltk.download('words')
+
+def extract_topics(text, top_n=5):
+    # Tokenize the text
+    tokens = word_tokenize(text.lower())
+    
+    # Remove stopwords and non-alphabetic tokens
+    stop_words = set(stopwords.words('english'))
+    tokens = [token for token in tokens if token.isalpha() and token not in stop_words]
+    
+    # Count the frequency of each token
+    word_freq = Counter(tokens)
+    
+    # Get the top N most common words as topics
+    topics = [word for word, _ in word_freq.most_common(top_n)]
+    
+    return topics
+
+def extract_entities(text):
+    # Tokenize and tag the text
+    tokens = word_tokenize(text)
+    tagged = nltk.pos_tag(tokens)
+    
+    # Use NLTK's named entity recognition
+    entities = nltk.chunk.ne_chunk(tagged)
+    
+    # Extract named entities
+    named_entities = []
+    for subtree in entities:
+        if isinstance(subtree, nltk.Tree):
+            entity_type = subtree.label()
+            entity_value = ' '.join([leaf[0] for leaf in subtree.leaves()])
+            named_entities.append((entity_type, entity_value))
+    
+    return named_entities
+
+def generate_context_summary(context_text, max_length=200):
+    # This is a very basic summary generation.
+    # For better results, consider using an AI model or a more sophisticated summarization algorithm.
+    sentences = re.split(r'(?<=[.!?])\s+', context_text)
+    summary = ' '.join(sentences[:3])  # Take first 3 sentences
+    if len(summary) > max_length:
+        summary = summary[:max_length] + '...'
+    return summary
+
+# Update the update_conversation_context function
+def update_conversation_context(conversation_id):
+    conversation = conversation_collection.find_one({'_id': ObjectId(conversation_id)})
+    
+    if not conversation:
+        return
+    
+    last_n_messages = conversation['messages'][-5:]  # Consider last 5 messages
+    context_text = " ".join([msg['content'] for msg in last_n_messages])
+    
+    context_summary = generate_context_summary(context_text)
+    topics = extract_topics(context_text)
+    entities = extract_entities(context_text)
+    
+    conversation_embedding = generate_embedding(context_text)
+    
+    conversation_collection.update_one(
+        {'_id': ObjectId(conversation_id)},
+        {
+            '$set': {
+                'context_summary': context_summary,
+                'context.topics': topics,
+                'context.entities': entities,
+                'embedding': conversation_embedding
+            }
+        }
+    )
 
 def get_current_conversation(user_id):
     conversation = conversation_collection.find_one(
@@ -321,6 +462,30 @@ def get_user_conversations(user_id):
         })
     return formatted_conversations
 
+def get_conversation_context(conversation_id):
+    conversation = conversation_collection.find_one({'_id': ObjectId(conversation_id)})
+    if not conversation:
+        return "", ""
+    
+    context_summary = conversation.get('context_summary', '')
+    topics = conversation.get('context', {}).get('topics', [])
+    entities = conversation.get('context', {}).get('entities', [])
+    
+    context = f"Summary: {context_summary}\n"
+    context += f"Topics: {', '.join(topics)}\n"
+    context += f"Entities: {', '.join([f'{e[1]}' for e in entities])}\n"
+    
+    # Get the last few messages for immediate context
+    last_messages = conversation.get('messages', [])[-5:]  # Get last 5 messages
+    context += "Recent messages:\n"
+    last_assistant_message = ""
+    for msg in last_messages:
+        context += f"{msg['role']}: {msg['content']}\n"
+        if msg['role'] == 'Assistant':
+            last_assistant_message = msg['content']
+    
+    return context, last_assistant_message
+
 def get_conversation_messages(conversation_id):
     return conversation_collection.find(
         {'conversation_id': conversation_id}
@@ -328,14 +493,25 @@ def get_conversation_messages(conversation_id):
 
     __all__ = ['get_db_connection', 'generate_embedding', 'add_question_answer', 'add_unanswered_question','search_similar_questions', 'json_serialize']
 
-def generate_potential_answer(question):
+def generate_potential_answer_v2(question_with_context, last_assistant_message=""):
+    print(f"Debug - Question with context: {question_with_context[:100]}...")  # Print first 100 chars
+    print(f"Debug - Last assistant message: {last_assistant_message[:100]}...")  # Print first 100 chars
+    
     context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
-    prompt = f"{context}\n\nPlease provide a detailed answer for the following question:\n\n{question}"
+    prompt = f"""
+    Previous assistant message: {last_assistant_message}
+
+    New question with context: {question_with_context}
+
+    {context}
+
+    Please provide a detailed answer for the new question, taking into account the previous assistant message and the provided context. Ensure your response is consistent with the ongoing conversation and relates to MongoDB topics.
+    """
     
     response = openai.ChatCompletion.create(
         model="gpt-3.5-turbo",
         messages=[
-            {"role": "system", "content": "You are an assistant that provides detailed answers."},
+            {"role": "system", "content": "You are an assistant that provides detailed answers about MongoDB, maintaining context throughout the conversation."},
             {"role": "user", "content": prompt}
         ]
     )
@@ -410,3 +586,55 @@ def fetch_changelog(repo_owner, repo_name, access_token=None):
         return response.text
     else:
         raise Exception(f"Failed to fetch changelog: {response.status_code} {response.text}")
+    
+def setup_database():
+    conversation_collection.create_indexes([
+        IndexModel([("user_id", ASCENDING)]),
+        IndexModel([("status", ASCENDING)]),
+        IndexModel([("last_updated", ASCENDING)]),
+        IndexModel([("embedding", ASCENDING)], sparse=True)
+    ])
+setup_database()
+
+def extract_topics(text, top_n=5):
+    # Tokenize the text
+    tokens = word_tokenize(text.lower())
+    
+    # Remove stopwords and non-alphabetic tokens
+    stop_words = set(stopwords.words('english'))
+    tokens = [token for token in tokens if token.isalpha() and token not in stop_words]
+    
+    # Count the frequency of each token
+    word_freq = Counter(tokens)
+    
+    # Get the top N most common words as topics
+    topics = [word for word, _ in word_freq.most_common(top_n)]
+    
+    return topics
+
+def extract_entities(text):
+    # Tokenize and tag the text
+    tokens = word_tokenize(text)
+    tagged = nltk.pos_tag(tokens)
+    
+    # Use NLTK's named entity recognition
+    entities = nltk.chunk.ne_chunk(tagged)
+    
+    # Extract named entities
+    named_entities = []
+    for subtree in entities:
+        if isinstance(subtree, nltk.Tree):
+            entity_type = subtree.label()
+            entity_value = ' '.join([leaf[0] for leaf in subtree.leaves()])
+            named_entities.append((entity_type, entity_value))
+    
+    return named_entities
+
+def generate_context_summary(context_text, max_length=200):
+    # This is a very basic summary generation.
+    # For better results, consider using an AI model or a more sophisticated summarization algorithm.
+    sentences = re.split(r'(?<=[.!?])\s+', context_text)
+    summary = ' '.join(sentences[:3])  # Take first 3 sentences
+    if len(summary) > max_length:
+        summary = summary[:max_length] + '...'
+    return summary

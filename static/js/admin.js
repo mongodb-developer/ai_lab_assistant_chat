@@ -37,10 +37,44 @@ document.addEventListener('DOMContentLoaded', () => {
     if (window.location.hash === '#questions' || !window.location.hash) {
         showQuestions();
     }
+    const mainContent = document.getElementById('main-content');
+    if (mainContent) {
+        mainContent.addEventListener('click', handleMainContentClick);
+    } else {
+        console.error('Main content element not found');
+    }
+
+    // Add event listener for the view conversations link
+    const viewConversationsLink = document.getElementById('view-conversations-link');
+    if (viewConversationsLink) {
+        viewConversationsLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            showConversations();
+        });
+    } else {
+        console.error('View conversations link not found');
+    }
 });
 
 let currentPage = 1;
 const perPage = 10;
+
+function isValidObjectId(id) {
+    return /^[0-9a-fA-F]{24}$/.test(id);
+}
+
+function handleMainContentClick(e) {
+    if (e.target.closest('#conversations-pagination')) {
+        e.preventDefault();
+        if (e.target.tagName === 'A') {
+            const page = parseInt(e.target.getAttribute('data-page'));
+            loadConversations(page);
+        }
+    } else if (e.target.classList.contains('view-conversation')) {
+        const conversationId = e.target.getAttribute('data-id');
+        viewConversation(conversationId);
+    }
+}
 
 var triggerTabList = [].slice.call(document.querySelectorAll('#myTab a'))
 triggerTabList.forEach(function (triggerEl) {
@@ -64,13 +98,13 @@ async function fetchQuestions(page = 1) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const data = await response.json();
-        
+
         const tableBody = document.getElementById('questions-table-body');
         if (!tableBody) {
             console.error('Questions table body not found');
             return;
         }
-        
+
         populateQuestionsTable(data.questions);
         updatePagination(data);
     } catch (error) {
@@ -263,7 +297,7 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
     unansweredQuestions.forEach(question => {
         const questionText = question.question || 'No question provided';
         const userName = question.user_name || 'No user name provided';
-        
+
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${escapeHTML(questionText)}</td>
@@ -375,7 +409,7 @@ async function showEditQuestionForm(button) {
         modalElement.style.display = 'block';
         modalElement.classList.add('show');
         document.body.classList.add('modal-open');
-        
+
         const inputs = modalElement.querySelectorAll('input, textarea');
         inputs.forEach(input => {
             input.readOnly = false;
@@ -574,6 +608,12 @@ async function answerQuestion(id) {
 
 // Delete a question
 async function deleteQuestion(id) {
+    if (!isValidObjectId(id)) {
+        console.error('Invalid ObjectId:', id);
+        alert('Invalid question ID. Please try again.');
+        return;
+    }
+
     try {
         const response = await fetch(`/api/questions/${id}`, {
             method: 'DELETE',
@@ -641,7 +681,7 @@ async function fetchUsers() {
 }
 
 // Populate users table with data
-function populateUsersTable(users) {    
+function populateUsersTable(users) {
     const tableBody = document.getElementById('users-table-body');
     if (!tableBody) {
         console.error('Could not find users-table-body element.');
@@ -705,7 +745,7 @@ function showQuestions() {
             <button class="btn btn-primary mb-3" onclick="showAddQuestionForm()">Add Question</button>
             <div class="table-responsive">
                 <div id="questions-pagination"></div>
-                <table class="table table-bordered">
+                <table class="table table">
                     <thead>
                         <tr>
                             <th>Title</th>
@@ -738,7 +778,7 @@ function showUnansweredQuestions() {
         <div id="unanswered-questions-content">
             <h2>Unanswered Questions</h2>
             <div class="table-responsive">
-                <table class="table table-bordered">
+                <table class="table table">
                     <thead>
                         <tr>
                             <th>Question</th>
@@ -767,7 +807,7 @@ function showUsers() {
         <div id="users-content">
             <h2>User Management</h2>
             <div class="table-responsive">
-                <table class="table table-bordered">
+                <table class="table table">
                     <thead>
                         <tr>
                             <th>Name</th>
@@ -800,13 +840,13 @@ async function showAnswerFeedbackStats() {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
         const stats = await response.json();
-        
+
         const statsTableBody = document.getElementById('answer-feedback-stats-body');
         if (!statsTableBody) {
             console.error('answer-feedback-stats-body element not found');
             return;
         }
-        
+
         if (stats.length === 0) {
             statsTableBody.innerHTML = '<tr><td colspan="6" class="text-center">No answer feedback statistics available.</td></tr>';
         } else {
@@ -883,7 +923,7 @@ async function showStatistics() {
             <div class="card-body">
                 <h5 class="card-title mongodb-text">Answer Feedback Statistics</h5>
                 <div class="table-responsive">
-                    <table class="table table-hover table-striped table-bordered">
+                    <table class="table table-hover table-striped table">
                         <thead class="table-primary">
                             <tr>
                                 <th>Matched Question</th>
@@ -936,7 +976,7 @@ async function showStatistics() {
                 <div class="card-body">
                     <h5 class="card-title mongodb-text">Answer Feedback Statistics</h5>
                     <div class="table-responsive">
-                        <table class="table table-bordered">
+                        <table class="table table">
                             <thead>
                                 <tr>
                                     <th>Matched Question</th>
@@ -1052,6 +1092,12 @@ async function updateQuestion(event) {
     const form = event.target;
     const questionId = form.dataset.questionId;
 
+    if (!isValidObjectId(questionId)) {
+        console.error('Invalid ObjectId:', questionId);
+        alert('Invalid question ID. Please try again.');
+        return;
+    }
+
     const questionData = {
         question: document.getElementById('question-input').value,
         title: document.getElementById('title-input').value,
@@ -1088,7 +1134,6 @@ async function updateQuestion(event) {
             // You might want to update the UI or perform additional actions here
         }
 
-
         // Close the modal
         const modalElement = document.getElementById('question-modal');
         const modal = bootstrap.Modal.getInstance(modalElement);
@@ -1107,3 +1152,166 @@ async function updateQuestion(event) {
         alert('Failed to update question. Please try again.');
     }
 }
+
+function showConversations() {
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) {
+        console.error('Main content element not found');
+        return;
+    }
+
+    // Clear existing content
+    mainContent.innerHTML = '';
+
+    // Create conversations container
+    const conversationsContainer = document.createElement('div');
+    conversationsContainer.id = 'conversations';
+    conversationsContainer.innerHTML = `
+        <h2>Conversations</h2>
+        <div id="conversations-table" class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>User</th>
+                        <th>Last Updated</th>
+                        <th>Preview</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="conversations-body">
+                </tbody>
+            </table>
+        </div>
+        <nav aria-label="Conversations pagination">
+            <ul class="pagination" id="conversations-pagination">
+            </ul>
+        </nav>
+    `;
+
+    mainContent.appendChild(conversationsContainer);
+
+    // Load the first page of conversations
+    loadConversations(1);
+}
+
+function loadConversations(page) {
+    fetch(`/api/conversations?page=${page}&per_page=10`)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            const tableBody = document.getElementById('conversations-body');
+            if (!tableBody) {
+                console.error('Conversations table body not found');
+                return;
+            }
+            tableBody.innerHTML = '';
+
+            data.conversations.forEach(conv => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${escapeHTML(conv.user_name)}</td>
+                    <td>${conv.last_updated === 'Unknown' ? 'Unknown' : new Date(conv.last_updated).toLocaleString()}</td>
+                    <td>${conv.preview.map(escapeHTML).join('<br>')}</td>
+                    <td>
+                        <button class="btn btn-sm btn-primary view-conversation" data-id="${conv._id}">View</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+
+            updateConversationPagination(data.page, data.total_pages);
+        })
+        .catch(error => {
+            console.error('Error loading conversations:', error);
+            const tableBody = document.getElementById('conversations-body');
+            if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="4">Error loading conversations: ${escapeHTML(error.message)}</td></tr>`;
+            }
+        });
+}
+
+function updateConversationPagination(currentPage, totalPages) {
+    const pagination = document.getElementById('conversations-pagination');
+    pagination.innerHTML = '';
+
+    for (let i = 1; i <= totalPages; i++) {
+        const li = document.createElement('li');
+        li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+        li.innerHTML = `<a class="page-link" href="#" data-page="${i}">${i}</a>`;
+        pagination.appendChild(li);
+    }
+}
+
+function viewConversation(conversationId) {
+    fetch(`/api/conversations/${conversationId}`)
+        .then(response => response.json())
+        .then(data => {
+            const modalContent = `
+                <div class="modal-header">
+                    <h5 class="modal-title">Conversation Details</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>User Name:</strong> ${escapeHTML(data.user_name)}</p>
+                    <p><strong>Last Updated:</strong> ${data.last_updated === 'Unknown' ? 'Unknown' : new Date(data.last_updated).toLocaleString()}</p>
+                    <h6>Messages:</h6>
+                    <ul>
+                        ${data.messages.map(msg => `<li><strong>${escapeHTML(msg.role)}:</strong> ${escapeHTML(msg.content)}</li>`).join('')}
+                    </ul>
+                </div>
+            `;
+
+            const modalElement = document.getElementById('conversationModal') || createConversationModal();
+            modalElement.querySelector('.modal-content').innerHTML = modalContent;
+
+            const modal = new bootstrap.Modal(modalElement);
+            modal.show();
+        })
+        .catch(error => {
+            console.error('Error viewing conversation:', error);
+            alert('Failed to load conversation details. Please try again.');
+        });
+}
+function createConversationModal() {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'conversationModal';
+    modal.setAttribute('tabindex', '-1');
+    modal.innerHTML = '<div class="modal-dialog modal-lg"><div class="modal-content"></div></div>';
+    document.body.appendChild(modal);
+    return modal;
+}
+
+// Update the event listener for viewing conversations
+document.getElementById('conversations-body').addEventListener('click', function (e) {
+    if (e.target.classList.contains('view-conversation')) {
+        const conversationId = e.target.getAttribute('data-id');
+        viewConversation(conversationId);
+    }
+});
+
+document.getElementById('view-conversations-link').addEventListener('click', function (e) {
+    e.preventDefault();
+    document.getElementById('conversations-table').style.display = 'block';
+    loadConversations(1);
+});
+
+document.getElementById('conversations-pagination').addEventListener('click', function (e) {
+    if (e.target.tagName === 'A') {
+        e.preventDefault();
+        const page = parseInt(e.target.getAttribute('data-page'));
+        loadConversations(page);
+    }
+});
+
+document.getElementById('conversations-body').addEventListener('click', function (e) {
+    if (e.target.classList.contains('view-conversation')) {
+        const conversationId = e.target.getAttribute('data-id');
+        // Implement viewing individual conversation here
+        console.log('View conversation:', conversationId);
+    }
+});
