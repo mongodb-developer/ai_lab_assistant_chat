@@ -1,5 +1,47 @@
 # Changelog
 
+## 2024-07-21
+- Add mongodb chart (43f1f17)
+
+## 2024-07-20
+- Style edit and delete and answer buttons (ba1245d)
+
+## 2024-07-20
+- collapse sidebar on mobile devices (3e1376e)
+
+## 2024-07-20
+- Add pagination for questions table (685b4b8)
+
+## 2024-07-20
+- Fix problem with question editing. (9ea3775)
+
+## 2024-07-20
+- fix error html message (d605825)
+
+## 2024-07-20
+- Add statistics (047d7c9)
+
+## 2024-07-20
+- Update README (67f2475)
+
+## 2024-07-20
+- Fix styling, chat layout and theme (bf6f49c)
+
+## 2024-07-18
+- Add answer feedback and editing for admins (9a51ced)
+
+## 2024-07-18
+- - Add user profile image, and profile page - Add automated generation of answers in admin (71c9c14)
+
+## 2024-07-17
+- Fix mobile responsiveness (0d042d7)
+
+## 2024-07-17
+- Update changelog (58f9f7e)
+
+## 2024-07-16
+- Fix README (4332857)
+
 ## 2024-07-16
 - automate answering questions from potential answers via LLM (e27228f)
 
