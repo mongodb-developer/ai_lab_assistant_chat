@@ -271,6 +271,10 @@ function populateUnansweredQuestionsTable(unansweredQuestions) {
             <td>
                 <button class="btn btn-sm btn-primary" 
                     data-id="${question._id}" 
+                    data-answer="${question.answer}" 
+                    data-title="${question.title}" 
+                    data-summary="${question.summary}" 
+                    data-references="${question.references}" 
                     data-question="${escapeHTML(questionText)}" 
                     onclick="showAnswerQuestionForm(this)">
                     <i class="fas fa-edit"></i> Answer
@@ -342,7 +346,7 @@ async function showEditQuestionForm(button) {
             question = data.question;
             title = data.title;
             summary = data.summary;
-            mainAnswer = data.answer;
+            answer = data.answer;
             references = data.references;
         } catch (error) {
             console.error('Error fetching question details:', error);
@@ -649,6 +653,7 @@ function populateUsersTable(users) {
         row.innerHTML = `
             <td>${user.name}</td>
             <td>${user.email}</td>
+            <td>${user.last_login}</td>
             <td>${user.isAdmin ? 'Yes' : 'No'}</td>
             <td>
                 <button class="btn btn-sm btn-primary" data-id="${user._id}" data-is-admin="${user.isAdmin}" onclick="toggleAdminStatus(this)">Toggle Admin</button>
@@ -767,6 +772,7 @@ function showUsers() {
                         <tr>
                             <th>Name</th>
                             <th>Email</th>
+                            <th>Last Seen</th>
                             <th>Admin</th>
                             <th>Actions</th>
                         </tr>
@@ -875,7 +881,7 @@ async function showStatistics() {
         <div id="overall-stats"></div>
         <div class="card shadow-sm mt-4">
             <div class="card-body">
-                <h5 class="card-title text-primary">Answer Feedback Statistics</h5>
+                <h5 class="card-title mongodb-text">Answer Feedback Statistics</h5>
                 <div class="table-responsive">
                     <table class="table table-hover table-striped table-bordered">
                         <thead class="table-primary">
@@ -895,6 +901,64 @@ async function showStatistics() {
                 </div>
             </div>
         </div>
+        <div id="statistics" class="tab-pane fade" role="tabpanel" aria-labelledby="statistics-tab">
+    <h2>Statistics</h2>
+    <div class="row mt-4 mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title">Overall Statistics</h5>
+                    <div id="overall-stats" class="row">
+                        <!-- Overall stats will be inserted here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mongodb-text">MongoDB Atlas Chart</h5>
+                    <div class="chart-container" style="position: relative; height: 60vh; width: 100%;">
+                        <iframe 
+                            style="background: #F1F5F4;border: none;border-radius: 2px;box-shadow: 0 2px 10px 0 rgba(70, 76, 79, .2);width: 100%;height: 100%;"  
+                            src="https://charts.mongodb.com/charts-project-phoenix-vhiiqby/embed/dashboards?id=669cb164-d284-46aa-8de1-c28e4647aa37&theme=light&autoRefresh=true&maxDataAge=3600&showTitleAndDesc=false&scalingWidth=fixed&scalingHeight=fixed">
+                        </iframe>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-body">
+                    <h5 class="card-title mongodb-text">Answer Feedback Statistics</h5>
+                    <div class="table-responsive">
+                        <table class="table table-bordered">
+                            <thead>
+                                <tr>
+                                    <th>Matched Question</th>
+                                    <th>Original Questions</th>
+                                    <th>Total Feedback</th>
+                                    <th>Positive Feedback</th>
+                                    <th>Effectiveness</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody id="statistics-table-body">
+                                <tr>
+                                    <td colspan="6">Loading statistics...</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
     `;
 
     // Now fetch and display the statistics
@@ -911,7 +975,7 @@ function displayOverallStats(stats) {
     overallStatsContainer.innerHTML = `
         <div class="card mb-4 shadow-sm">
             <div class="card-body">
-                <h5 class="card-title mongodb-text">Overall Statistics</h5>
+                <h5 class="card-title">Overall Statistics</h5>
                 <div class="row">
                     <div class="col-md-4 col-lg-2 mb-3">
                         <div class="stat-item">
@@ -931,16 +995,22 @@ function displayOverallStats(stats) {
                             <div class="stat-value">${stats.answered_questions}</div>
                         </div>
                     </div>
-                    <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="col-md-4 col-lg-2 mb-3">
                         <div class="stat-item">
                             <div class="stat-label">Unanswered Questions</div>
                             <div class="stat-value">${stats.unanswered_questions}</div>
                         </div>
                     </div>
-                    <div class="col-md-6 col-lg-3 mb-3">
+                    <div class="col-md-4 col-lg-2 mb-3">
                         <div class="stat-item">
                             <div class="stat-label">Average Feedback Rating</div>
-                            <div class="stat-value">${stats.average_rating}</div>
+                            <div class="stat-value">${stats.average_rating} (${stats.rating_count} ratings)</div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 col-lg-2 mb-3">
+                        <div class="stat-item">
+                            <div class="stat-label">Positive Answer Feedback</div>
+                            <div class="stat-value">${stats.positive_feedback_percentage}%</div>
                         </div>
                     </div>
                 </div>

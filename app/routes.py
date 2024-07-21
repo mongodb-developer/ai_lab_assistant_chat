@@ -603,30 +603,86 @@ def get_overall_statistics():
         # Get database collections
         users_collection = db.users
         questions_collection = db.questions
-        unquestions_collection = db.unanswered_questions
+        unanswered_collection = db.unanswered_questions
         feedback_collection = db.feedback
+        answer_feedback_collection = db.answer_feedback
 
         # Calculate statistics
         total_users = users_collection.count_documents({})
         total_questions = questions_collection.count_documents({})
-        answered_questions = questions_collection.count_documents({"answer": {"$exists": True, "$ne": ""}})
-        unanswered_questions = unquestions_collection.count_documents({})
+        
+        # Count answered questions from unanswered_collection
+        answered_questions = unanswered_collection.count_documents({"answered": True})
+        
+        # Count total questions in unanswered_collection
+        total_unanswered = unanswered_collection.count_documents({})
+        
+        # Calculate unanswered questions
+        unanswered_questions = total_unanswered - answered_questions
 
         # Calculate average feedback rating
         feedback_pipeline = [
-            {"$match": {"rating": {"$exists": True, "$ne": None}}},
-            {"$group": {"_id": None, "avg_rating": {"$avg": "$rating"}, "count": {"$sum": 1}}}
+            {
+                "$match": {
+                    "rating": {"$exists": True, "$ne": None},
+                    "$expr": {"$ne": [{"$type": "$rating"}, "string"]}  # Exclude string ratings
+                }
+            },
+            {
+                "$group": {
+                    "_id": None,
+                    "avg_rating": {"$avg": {"$toInt": "$rating"}},
+                    "count": {"$sum": 1}
+                }
+            }
         ]
         feedback_result = list(feedback_collection.aggregate(feedback_pipeline))
-        avg_rating = feedback_result[0]['avg_rating'] if feedback_result else None
+        
+        if feedback_result:
+            avg_rating = round(feedback_result[0]['avg_rating'], 2)
+            rating_count = feedback_result[0]['count']
+        else:
+            avg_rating = "N/A"
+            rating_count = 0
+
+        # Calculate percentage of positive answer feedback
+        answer_feedback_pipeline = [
+            {
+                "$group": {
+                    "_id": None,
+                    "total_count": {"$sum": 1},
+                    "positive_count": {
+                        "$sum": {"$cond": [{"$eq": ["$is_positive", True]}, 1, 0]}
+                    }
+                }
+            },
+            {
+                "$project": {
+                    "positive_percentage": {
+                        "$multiply": [
+                            {"$divide": ["$positive_count", "$total_count"]},
+                            100
+                        ]
+                    }
+                }
+            }
+        ]
+        answer_feedback_result = list(answer_feedback_collection.aggregate(answer_feedback_pipeline))
+        
+        if answer_feedback_result:
+            positive_feedback_percentage = round(answer_feedback_result[0]['positive_percentage'], 2)
+        else:
+            positive_feedback_percentage = "N/A"
 
         # Prepare statistics object
         statistics = {
             "total_users": total_users,
-            "total_questions": total_questions,
-            "answered_questions": answered_questions,
+            "total_questions": total_questions + total_unanswered,  # Include both collections
+            "answered_questions": answered_questions + total_questions,  # Include answered from both collections
             "unanswered_questions": unanswered_questions,
-            "average_rating": round(avg_rating, 2) if avg_rating is not None else "No ratings yet"
+            "average_rating": avg_rating,
+            "rating_count": rating_count,
+            "positive_feedback_percentage": positive_feedback_percentage
         }
 
         return jsonify(statistics), 200

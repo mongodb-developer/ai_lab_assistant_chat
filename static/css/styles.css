@@ -617,7 +617,10 @@ body {
     color: #333;
     font-weight: bold;
 }
-
+.card-body .card-title .h5 {
+    color: #333;
+    font-weight: bold;
+}
 .h5 {
     color: #333
 }
