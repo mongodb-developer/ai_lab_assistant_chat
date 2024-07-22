@@ -8,6 +8,7 @@ from bson import ObjectId
 from pymongo import MongoClient
 from config import Config
 from datetime import datetime
+import markdown2
 from app.utils import (
     generate_embedding,
     search_similar_questions,
@@ -219,34 +220,43 @@ def get_questions():
 @main.route('/api/questions', methods=['POST'])
 @login_required
 def add_question():
-    debug_info = {}
     try:
-        current_app.logger.info(f"Received request data: {request.data}")
-        current_app.logger.info(f"Received JSON: {request.json}")
-        
         data = request.json
-        if not data:
-            raise ValueError("No JSON data received in the request")
-
-        if 'question' not in data or 'answer' not in data:
-            raise ValueError(f"Missing 'question' or 'answer' in request payload. Received keys: {', '.join(data.keys())}")
+        if not data or 'question' not in data or 'answer' not in data:
+            return jsonify({'error': 'Invalid request data'}), 400
 
         question = data['question']
         answer = data['answer']
-        
-        # ... rest of the function ...
+        title = data.get('title', '')
+        summary = data.get('summary', '')
+        references = data.get('references', '')
 
-    except ValueError as e:
-        current_app.logger.error(f"Value error in add_question route: {str(e)}")
-        return jsonify({'error': str(e)}), 400
+        # Generate embeddings and add the question to the database
+        question_id, debug_info = add_question_answer(question, answer, title, summary, references)
+
+        return jsonify({
+            'message': 'Question added successfully',
+            'question_id': str(question_id),
+            'debug_info': debug_info
+        }), 201
     except Exception as e:
-        current_app.logger.error(f"Error in add_question route: {str(e)}")
-        return jsonify({'error': 'An internal error occurred'}), 500
+        current_app.logger.error(f"Error adding question: {str(e)}\n{traceback.format_exc()}")
+        return jsonify({'error': str(e)}), 500
 
 @main.route('/favicon.ico')
 def favicon():
     return send_from_directory(os.path.join(current_app.root_path, 'static'), 'favicon.ico')
 
+# Add a general error handler for the blueprint
+@main.errorhandler(Exception)
+def handle_exception(e):
+    # Pass through HTTP errors
+    if isinstance(e, HTTPException):
+        return e
+
+    # Now you're handling non-HTTP exceptions only
+    current_app.logger.error(f"Unhandled exception: {str(e)}\n{traceback.format_exc()}")
+    return jsonify({"error": "An unexpected error occurred"}), 500
 
 @main.route('/api/questions/<string:question_id>', methods=['GET'])
 @login_required
@@ -435,11 +445,11 @@ def receive_feedback():
 @main.route('/about')
 def about():
     try:
-        # Adjust path if CHANGELOG.md is in the root directory
         changelog_path = os.path.join(current_app.root_path, '..', 'CHANGELOG.md')
         with open(changelog_path, 'r') as file:
             changelog_content = file.read()
-        return render_template('about.html', changelog_content=changelog_content)
+        changelog_html = markdown2.markdown(changelog_content)
+        return render_template('about.html', changelog_content=changelog_html)
     except Exception as e:
         current_app.logger.error(f"Error reading CHANGELOG.md: {str(e)}")
         return jsonify({'error': 'An internal error occurred while reading the changelog.'}), 500

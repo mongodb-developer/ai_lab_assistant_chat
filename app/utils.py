@@ -15,6 +15,8 @@ from collections import Counter
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
+nltk.data.path.append('/tmp/nltk_data')
+
 
 # Download necessary NLTK data
 nltk.download('punkt')

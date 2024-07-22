@@ -1,0 +1,12 @@
+blinker
+click
+Flask
+Flask-Cors
+itsdangerous
+Jinja2
+MarkupSafe
+numpy
+scipy
+setuptools
+Werkzeug
+wheel

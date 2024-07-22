@@ -1,3 +1,21 @@
+/**
+ * admin.js - Administration Panel JavaScript
+ * 
+ * This file contains the core functionality for the admin panel of the application.
+ * It handles user interactions, data fetching, and dynamic content updates for various
+ * administrative tasks such as managing questions, users, and viewing statistics.
+ *
+ * @module admin
+ */
+
+/**
+ * Initializes the admin panel functionality when the DOM is fully loaded.
+ * Sets up event listeners and loads initial data.
+ *
+ * @function
+ * @name initAdminPanel
+ * @listens DOMContentLoaded
+ */
 document.addEventListener('DOMContentLoaded', () => {
     fetchQuestions();
     fetchUnansweredQuestions();
@@ -54,12 +72,28 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.error('View conversations link not found');
     }
+    document.getElementById('conversations-pagination').addEventListener('click', function(e) {
+        if (e.target.tagName === 'A') {
+            e.preventDefault();
+            const page = parseInt(e.target.getAttribute('data-page'));
+            loadConversations(page);
+        }
+    });
+
+    document.getElementById('conversations-body').addEventListener('click', function(e) {
+        if (e.target.classList.contains('view-conversation')) {
+            const conversationId = e.target.getAttribute('data-id');
+            viewConversation(conversationId);
+        }
+    });
     createUserGrowthChart();
 
 });
 
 let currentPage = 1;
 const perPage = 10;
+const conversationList = document.getElementById('conversation-list');
+const adminForm = document.getElementById('admin-form');
 
 function isValidObjectId(id) {
     return /^[0-9a-fA-F]{24}$/.test(id);
@@ -92,7 +126,14 @@ if (generateAnswerBtn) {
     generateAnswerBtn.addEventListener('click', generateAnswer);
 }
 
-// Fetch and display questions
+/**
+ * Fetches and displays questions with pagination.
+ *
+ * @async
+ * @function fetchQuestions
+ * @param {number} [page=1] - The page number to fetch
+ * @throws {Error} If there's an issue fetching the questions
+ */
 async function fetchQuestions(page = 1) {
     try {
         const response = await fetch(`/api/questions?page=${page}&per_page=${perPage}`);
@@ -115,7 +156,12 @@ async function fetchQuestions(page = 1) {
     }
 }
 
-// Populate questions table with data
+/**
+ * Populates the questions table with fetched data.
+ *
+ * @function populateQuestionsTable
+ * @param {Array} questions - An array of question objects
+ */
 function populateQuestionsTable(questions) {
     const tableBody = document.getElementById('questions-table-body');
     if (!tableBody) {
@@ -156,6 +202,12 @@ function populateQuestionsTable(questions) {
     });
 }
 
+/**
+ * Updates the pagination controls for questions.
+ *
+ * @function updatePagination
+ * @param {Object} data - Pagination data including total pages and current page
+ */
 function updatePagination(data) {
     const paginationElement = document.getElementById('questions-pagination');
     if (!paginationElement) {
@@ -189,7 +241,14 @@ function updatePagination(data) {
 
     paginationElement.innerHTML = paginationHTML;
 }
-// Toggle admin status for a user
+
+/**
+ * Toggles the admin status of a user.
+ *
+ * @async
+ * @function toggleAdminStatus
+ * @param {HTMLElement} button - The button element that triggered the action
+ */
 async function toggleAdminStatus(button) {
     const id = button.getAttribute('data-id');
     const isAdmin = button.getAttribute('data-is-admin') === 'true';
@@ -210,7 +269,13 @@ async function toggleAdminStatus(button) {
     }
 }
 
-// Fetch and display unanswered questions
+/**
+ * Fetches and displays unanswered questions.
+ *
+ * @async
+ * @function fetchUnansweredQuestions
+ * @throws {Error} If there's an issue fetching the unanswered questions
+ */
 async function fetchUnansweredQuestions() {
     try {
         const response = await fetch('/api/unanswered_questions');
@@ -229,7 +294,14 @@ async function fetchUnansweredQuestions() {
         }
     }
 }
-// Add this function to your admin.js file
+
+/**
+ * Generates an answer for a given question using AI.
+ *
+ * @async
+ * @function generateAnswer
+ * @throws {Error} If there's an issue generating the answer
+ */
 async function generateAnswer() {
     const question = document.getElementById('question-input').value;
     if (!question) {
@@ -343,7 +415,13 @@ async function deleteUnansweredQuestion(id) {
     }
 }
 
-// Show add question form
+/**
+ * Adds a new question to the database.
+ *
+ * @async
+ * @function addQuestion
+ * @throws {Error} If there's an issue adding the question
+ */
 function showAddQuestionForm() {
     document.getElementById('questionModalLabel').innerText = 'Add Question';
     document.getElementById('question-input').value = '';
@@ -357,7 +435,13 @@ function showAddQuestionForm() {
     modal.show();
 }
 
-// Show edit question form
+/**
+ * Displays the form for editing an existing question.
+ *
+ * @async
+ * @function showEditQuestionForm
+ * @param {HTMLElement} button - The button element that triggered the action
+ */
 async function showEditQuestionForm(button) {
     const id = button.getAttribute('data-id');
     if (!id) {
@@ -509,8 +593,15 @@ async function addQuestion() {
         });
 
         if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error}`);
+            let errorMessage;
+            try {
+                const errorData = await response.json();
+                errorMessage = errorData.error || 'An unknown error occurred';
+            } catch (jsonError) {
+                // If the response is not JSON, use the status text
+                errorMessage = response.statusText || 'An unknown error occurred';
+            }
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
         }
 
         const result = await response.json();
@@ -518,13 +609,21 @@ async function addQuestion() {
         fetchQuestions();
         const modal = bootstrap.Modal.getInstance(document.getElementById('question-modal'));
         modal.hide();
+        alert('Question added successfully!');
     } catch (error) {
         console.error('Error adding question:', error);
         alert(`Failed to add question: ${error.message}`);
     }
 }
 
-// Update an existing question
+/**
+ * Updates an existing question in the database.
+ *
+ * @async
+ * @function updateQuestion
+ * @param {Event} event - The form submission event
+ * @throws {Error} If there's an issue updating the question
+ */
 async function updateQuestion(event) {
     event.preventDefault();
 
@@ -608,7 +707,14 @@ async function answerQuestion(id) {
     }
 }
 
-// Delete a question
+/**
+ * Deletes a question from the database.
+ *
+ * @async
+ * @function deleteQuestion
+ * @param {string} id - The ID of the question to delete
+ * @throws {Error} If there's an issue deleting the question
+ */
 async function deleteQuestion(id) {
     if (!isValidObjectId(id)) {
         console.error('Invalid ObjectId:', id);
@@ -798,7 +904,11 @@ function showUnansweredQuestions() {
     fetchUnansweredQuestions();
 }
 
-// Display users tab
+/**
+ * Displays user management interface and fetches user data.
+ *
+ * @function showUsers
+ */
 function showUsers() {
     const contentElement = document.getElementById('main-content');
     if (!contentElement) {
@@ -835,6 +945,13 @@ function showUsers() {
     });
 }
 
+/**
+ * Fetches and displays answer feedback statistics.
+ *
+ * @async
+ * @function showAnswerFeedbackStats
+ * @throws {Error} If there's an issue fetching the statistics
+ */
 async function showAnswerFeedbackStats() {
     try {
         const response = await fetch('/api/answer_feedback_stats');
@@ -909,6 +1026,12 @@ async function fetchAndDisplayStatistics() {
     }
 }
 
+/**
+ * Displays overall statistics and charts.
+ *
+ * @async
+ * @function showStatistics
+ */
 async function showStatistics() {
     console.log('showStatistics called');
     const mainContent = document.getElementById('main-content');
@@ -1062,6 +1185,12 @@ function displayOverallStats(stats) {
     `;
 }
 
+/**
+ * Creates and displays the user growth chart.
+ *
+ * @function createUserGrowthChart
+ * @throws {Error} If there's an issue creating the chart
+ */
 function createUserGrowthChart() {
     const canvas = document.getElementById('userGrowthChart');
     if (!canvas) {
@@ -1157,73 +1286,11 @@ function editQuestion(questionId) {
         });
 }
 
-async function updateQuestion(event) {
-    event.preventDefault(); // Prevent form submission
-
-    const form = event.target;
-    const questionId = form.dataset.questionId;
-
-    if (!isValidObjectId(questionId)) {
-        console.error('Invalid ObjectId:', questionId);
-        alert('Invalid question ID. Please try again.');
-        return;
-    }
-
-    const questionData = {
-        question: document.getElementById('question-input').value,
-        title: document.getElementById('title-input').value,
-        summary: document.getElementById('summary-input').value,
-        answer: document.getElementById('answer-input').value,
-        references: document.getElementById('references-input').value
-    };
-
-    try {
-        const response = await fetch(`/api/questions/${questionId}`, {
-            method: 'PUT',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(questionData),
-        });
-
-        if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Server response:', errorText);
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
-        }
-        const responseData = await response.json();
-
-        if (!response.ok) {
-            console.error('Server response:', responseData);
-            throw new Error(`HTTP error! status: ${response.status}, message: ${responseData.error}`);
-        }
-
-        console.log('Update result:', responseData);
-
-        if (responseData.new_id) {
-            console.log('Question moved to answered collection with new ID:', responseData.new_id);
-            // You might want to update the UI or perform additional actions here
-        }
-
-        // Close the modal
-        const modalElement = document.getElementById('question-modal');
-        const modal = bootstrap.Modal.getInstance(modalElement);
-        modal.hide();
-
-        // Refresh the questions or statistics table
-        if (document.querySelector('table th').textContent.includes('Effectiveness')) {
-            showAnswerFeedbackStats();
-        } else {
-            fetchQuestions();
-        }
-
-        alert('Question updated successfully!');
-    } catch (error) {
-        console.error('Error updating question:', error);
-        alert('Failed to update question. Please try again.');
-    }
-}
-
+/**
+ * Displays a list of conversations and handles pagination.
+ *
+ * @function showConversations
+ */
 function showConversations() {
     const mainContent = document.getElementById('main-content');
     if (!mainContent) {
@@ -1265,6 +1332,12 @@ function showConversations() {
     loadConversations(1);
 }
 
+/**
+ * Loads a specific page of conversations.
+ *
+ * @function loadConversations
+ * @param {number} page - The page number to load
+ */
 function loadConversations(page) {
     fetch(`/api/conversations?page=${page}&per_page=10`)
         .then(response => {
@@ -1317,6 +1390,12 @@ function updateConversationPagination(currentPage, totalPages) {
     }
 }
 
+/**
+ * Displays details of a specific conversation.
+ *
+ * @function viewConversation
+ * @param {string} conversationId - The ID of the conversation to view
+ */
 function viewConversation(conversationId) {
     fetch(`/api/conversations/${conversationId}`)
         .then(response => response.json())

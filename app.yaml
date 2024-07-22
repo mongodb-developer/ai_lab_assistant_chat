@@ -5,3 +5,6 @@ entrypoint: gunicorn -b :$PORT run:app
 handlers:
 - url: /.*
   script: auto
+
+env_variables:
+  NLTK_DATA: "/tmp/nltk_data"

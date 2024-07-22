@@ -1,17 +1,26 @@
-// Define references to HTML elements
-const conversationList = document.getElementById('conversation-list');
-const adminForm = document.getElementById('admin-form');
+/**
+ * chat.js - Chat Functionality Module
+ * 
+ * This module handles the core chat functionality for the application.
+ * It manages user interactions, message sending and receiving, and
+ * various UI elements related to the chat interface.
+ *
+ * @module chat
+ */
+
+
 
 let chatContainer;
 let userInput;
 let currentConversationId = null;
 
-// Verify if the elements are correctly referenced
-console.log('conversationList:', conversationList);
-console.log('chatContainer:', chatContainer);
-console.log('userInput:', userInput);
-console.log('adminForm:', adminForm);
-
+/**
+ * Initializes the chat functionality.
+ * 
+ * @function
+ * @name initChat
+ * @returns {boolean} True if initialization was successful, false otherwise.
+ */
 function initChat() {
     chatContainer = document.getElementById('chat-container');
     userInput = document.getElementById('user-input');
@@ -36,6 +45,13 @@ function initChat() {
     return true;
 }
 
+/**
+ * Displays a system message in the chat container.
+ * 
+ * @function
+ * @name displaySystemMessage
+ * @param {string} message - The system message to display.
+ */
 function displaySystemMessage(message) {
     const systemMessage = document.createElement('div');
     systemMessage.classList.add('message', 'system');
@@ -44,6 +60,13 @@ function displaySystemMessage(message) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
+/**
+ * Handles a sample question by populating the input field and sending the message.
+ * 
+ * @function
+ * @name handleSampleQuestion
+ * @param {string} question - The sample question to handle.
+ */
 function handleSampleQuestion(question) {
     if (!chatContainer || !userInput) {
         console.error('Chat not properly initialized. Cannot handle sample question.');
@@ -54,6 +77,15 @@ function handleSampleQuestion(question) {
     sendMessage(question);
 }
 
+/**
+ * Appends a message to the chat container.
+ * 
+ * @function
+ * @name appendMessage
+ * @param {string} sender - The sender of the message ('User' or 'Assistant').
+ * @param {string} message - The message content.
+ * @param {Object} [data=null] - Additional data associated with the message.
+ */
 function appendMessage(sender, message, data = null) {
     if (!chatContainer) {
         console.error('Chat container not available. Message not appended.');
@@ -77,6 +109,14 @@ function appendMessage(sender, message, data = null) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
+/**
+ * Sends a user message to the server and handles the response.
+ * 
+ * @async
+ * @function
+ * @name sendMessage
+ * @param {Event|string} event - The event object from a button click or a string message.
+ */
 async function sendMessage(event) {
     if (!chatContainer || !userInput) {
         console.error('Chat not properly initialized. Cannot send message.');
@@ -154,17 +194,38 @@ async function sendMessage(event) {
     }
 }
 
+/**
+ * Starts a new conversation by resetting the conversation ID and clearing the chat container.
+ * 
+ * @function
+ * @name startNewConversation
+ */
 function startNewConversation() {
     currentConversationId = null;
     clearChatContainer();
 }
 
+/**
+ * Strips HTML tags from a given string.
+ * 
+ * @function
+ * @name stripHtml
+ * @param {string} html - The HTML string to strip.
+ * @returns {string} The text content without HTML tags.
+ */
 function stripHtml(html) {
     let tmp = document.createElement("DIV");
     tmp.innerHTML = html;
     return tmp.textContent || tmp.innerText || "";
 }
 
+/**
+ * Appends a loader overlay to the document body.
+ * 
+ * @function
+ * @name appendLoader
+ * @returns {HTMLElement} The created loader overlay element.
+ */
 function appendLoader() {
     const loaderOverlay = document.createElement('div');
     loaderOverlay.classList.add('loader-overlay');
@@ -177,12 +238,27 @@ function appendLoader() {
     return loaderOverlay;
 }
 
+/**
+ * Removes the loader overlay from the document.
+ * 
+ * @function
+ * @name removeLoader
+ * @param {HTMLElement} loaderOverlay - The loader overlay element to remove.
+ */
 function removeLoader(loaderOverlay) {
     if (loaderOverlay && loaderOverlay.parentNode) {
         loaderOverlay.parentNode.removeChild(loaderOverlay);
     }
 }
 
+/**
+ * Appends debug information to the chat container.
+ * 
+ * @function
+ * @name appendDebugInfo
+ * @param {string} title - The title for the debug information.
+ * @param {Object} debugInfo - The debug information to display.
+ */
 function appendDebugInfo(title, debugInfo) {
     const debugElement = document.createElement('details');
     debugElement.innerHTML = `<summary>${title}</summary><pre>${JSON.stringify(debugInfo, null, 2)}</pre>`;
@@ -192,6 +268,17 @@ function appendDebugInfo(title, debugInfo) {
     chatContainer.scrollTop = chatContainer.scrollHeight;
 }
 
+/**
+ * Provides feedback for an answer.
+ * 
+ * @async
+ * @function
+ * @name provideAnswerFeedback
+ * @param {string} questionId - The ID of the question.
+ * @param {string} originalQuestion - The original question text.
+ * @param {string} proposedAnswer - The proposed answer text.
+ * @param {boolean} isPositive - Whether the feedback is positive.
+ */
 async function provideAnswerFeedback(questionId, originalQuestion, proposedAnswer, isPositive) {
     if (!questionId && !originalQuestion) {
         console.error('Both questionId and originalQuestion are missing. Cannot provide feedback.');
@@ -269,62 +356,60 @@ document.addEventListener('DOMContentLoaded', function() {
             sendMessage(questionText);
         });
     });
+
 });
 
 // Ensure `marked` is correctly loaded
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Marked library loaded:', typeof marked);
     console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
-    document.getElementById('conversations-pagination').addEventListener('click', function(e) {
-        if (e.target.tagName === 'A') {
-            e.preventDefault();
-            const page = parseInt(e.target.getAttribute('data-page'));
-            loadConversations(page);
-        }
-    });
 
-    document.getElementById('conversations-body').addEventListener('click', function(e) {
-        if (e.target.classList.contains('view-conversation')) {
-            const conversationId = e.target.getAttribute('data-id');
-            viewConversation(conversationId);
-        }
-    });
+    
+
 });
 
-if (adminForm) {
-    adminForm.addEventListener('submit', async (e) => {
-        e.preventDefault();
-        const question = document.getElementById('question').value;
-        const answer = document.getElementById('answer').value;
+// if (adminForm) {
+//     adminForm.addEventListener('submit', async (e) => {
+//         e.preventDefault();
+//         const question = document.getElementById('question').value;
+//         const answer = document.getElementById('answer').value;
 
-        try {
-            const response = await fetch('/api/add_question', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ question, answer }),
-            });
+//         try {
+//             const response = await fetch('/api/add_question', {
+//                 method: 'POST',
+//                 headers: {
+//                     'Content-Type': 'application/json',
+//                 },
+//                 body: JSON.stringify({ question, answer }),
+//             });
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
+//             if (!response.ok) {
+//                 throw new Error(`HTTP error! status: ${response.status}`);
+//             }
 
-            const result = await response.json();
+//             const result = await response.json();
             
-            if (result.debug_info) {
-                appendDebugInfo('Admin Debug Information', result.debug_info);
-            }
+//             if (result.debug_info) {
+//                 appendDebugInfo('Admin Debug Information', result.debug_info);
+//             }
             
-            alert(result.message);
-            adminForm.reset();
-        } catch (error) {
-            console.error('Error:', error);
-            alert(`An error occurred: ${error.message}`);
-        }
-    });
-}
+//             alert(result.message);
+//             adminForm.reset();
+//         } catch (error) {
+//             console.error('Error:', error);
+//             alert(`An error occurred: ${error.message}`);
+//         }
+//     });
+// }
 
+/**
+ * Escapes special characters in a string to prevent XSS.
+ * 
+ * @function
+ * @name escapeSpecialChars
+ * @param {string} input - The input string to escape.
+ * @returns {string} The escaped string.
+ */
 function escapeSpecialChars(input) {
     if (typeof input !== 'string') {
         console.warn(`escapeSpecialChars received non-string input: ${typeof input}`);
@@ -340,9 +425,6 @@ function escapeSpecialChars(input) {
         }[m];
     });
 }
-
-
-
 
 window.handleSampleQuestion = handleSampleQuestion;
 window.sendMessage = sendMessage;
