@@ -357,6 +357,23 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
 
+    var bookReviewBtn = document.getElementById('book-review-btn');
+    var calendlyModal = new bootstrap.Modal(document.getElementById('calendlyModal'));
+
+    bookReviewBtn.addEventListener('click', function () {
+        calendlyModal.show();
+    });
+
+    // Ensure the modal is hidden completely and grey overlay is removed
+    var modalElement = document.getElementById('calendlyModal');
+    modalElement.addEventListener('hidden.bs.modal', function () {
+        document.body.classList.remove('modal-open');
+        var modalBackdrop = document.querySelector('.modal-backdrop');
+        if (modalBackdrop) {
+            modalBackdrop.remove();
+        }
+    });
+
 });
 
 // Ensure `marked` is correctly loaded
