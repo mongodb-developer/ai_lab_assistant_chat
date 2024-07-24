@@ -104,7 +104,7 @@
 /* Table */
 .table thead th {
     background-color: var(--mongodb-light-blue);
-    color: white;
+    color: var(--mongodb-gray-dark);
 }
 
 /* Form controls */

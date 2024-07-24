@@ -198,7 +198,7 @@ function populateQuestionsTable(questions) {
             <td>${escapeHTML(title)}</td>
             <td>${escapeHTML(truncateText(question.question))}</td>
             <td>${escapeHTML(summary)}</td>
-            <td>${escapeHTML(question.answer)}</td>
+            <td>${escapeHTML(answer)}</td>
             <td class="text-center">
                 <button class="btn btn-sm btn-outline-primary me-2" 
                     data-id="${question._id}" 
@@ -903,6 +903,7 @@ function debounce(func, wait) {
 async function searchQuestions() {
     const query = document.getElementById('question-search').value;
     console.log('Search query:', query);
+
     if (!query) {
         fetchQuestions();
         return;
@@ -910,10 +911,15 @@ async function searchQuestions() {
 
     try {
         const response = await fetch(`/api/admin/search_questions?query=${encodeURIComponent(query)}`);
+        console.log('Search response status:', response.status);
+        
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
+        
         const questions = await response.json();
+        console.log('Received questions:', questions);
+        
         populateQuestionsTable(questions);
         // Hide pagination for search results
         document.getElementById('questions-pagination').style.display = 'none';

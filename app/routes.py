@@ -1150,17 +1150,19 @@ def search_questions():
         return jsonify({"error": "Unauthorized access"}), 403
 
     query = request.args.get('query', '')
+    current_app.logger.info(f"Received search query: {query}")
+
     if not query:
         return jsonify({"error": "No search query provided"}), 400
 
     try:
-        result = db.questions.aggregate([
+        result = db.documents.aggregate([
             {
                 "$search": {
-                    "index": "default",  # replace with your index name if different
+                    "index": "default",  # Make sure this matches your Atlas Search index name
                     "text": {
                         "query": query,
-                        "path": ["question", "answer", "title"]  # adjust based on your schema
+                        "path": ["question", "answer", "title"]  # Adjust based on your document structure
                     }
                 }
             },
@@ -1174,11 +1176,12 @@ def search_questions():
                 }
             },
             {
-                "$limit": 10  # adjust as needed
+                "$limit": 10  # Adjust as needed
             }
         ])
 
         questions = list(result)
+        current_app.logger.info(f"Search results: {questions}")
         return jsonify(questions), 200
 
     except Exception as e:
