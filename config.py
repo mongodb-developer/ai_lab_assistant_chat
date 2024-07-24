@@ -1,6 +1,8 @@
 import os
 from dotenv import load_dotenv
 from datetime import timedelta
+from pathlib import Path
+basedir = Path(__file__).resolve().parent
 
 load_dotenv()
 
@@ -23,3 +25,7 @@ class Config:
     OAUTHLIB_INSECURE_TRANSPORT = os.environ.get('OAUTHLIB_INSECURE_TRANSPORT', '1') == '1'
     OAUTHLIB_REDIRECT_URI = os.environ.get('OAUTHLIB_REDIRECT_URI', 'https://lab-assistant.localhost.com/login/authorized')
     SIMILARITY_THRESHOLD = os.environ.get('SIMILARITY_THRESHOLD')  # Adjust this value as needed
+    GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
+    UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
+
+

@@ -342,27 +342,31 @@ body {
     align-self: flex-end;
 }
 
-.chat-bubble.assistant {
-    background-color: #f1f0f0;
-    align-self: flex-start;
+.chat-bubble.assistant table {
+    border-collapse: collapse;
+    width: 100%;
+    margin-bottom: 1em;
 }
 
-.chat-bubble.assistant h1,
-.chat-bubble.assistant h2,
-.chat-bubble.assistant h3,
-.chat-bubble.assistant h4,
-.chat-bubble.assistant h5,
-.chat-bubble.assistant h6 {
-    margin-top: 0.5em;
-    margin-bottom: 0.5em;
+.chat-bubble.assistant th,
+.chat-bubble.assistant td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
 }
 
-.chat-bubble.assistant h1 { font-size: 1.5em; }
-.chat-bubble.assistant h2 { font-size: 1.3em; }
-.chat-bubble.assistant h3,
-.chat-bubble.assistant h4,
-.chat-bubble.assistant h5,
-.chat-bubble.assistant h6 { font-size: 1.1em; }
+.chat-bubble.assistant th {
+    background-color: #f2f2f2;
+}
+
+.chat-bubble.assistant a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.chat-bubble.assistant a:hover {
+    text-decoration: underline;
+}
 
 /* Responsive adjustments */
 @media (max-width: 768px) {

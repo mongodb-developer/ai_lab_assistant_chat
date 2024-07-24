@@ -11,7 +11,7 @@
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css">
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns"></script>
-
+    <script src="https://maps.googleapis.com/maps/api/js?key={{ config['GOOGLE_MAPS_API_KEY'] }}&v=beta"></script>
 
 
     <!-- Include EasyMDE CSS and JS -->
@@ -52,8 +52,17 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a href="#" class="nav-link" href="#users" data-bs-toggle="tab"class="nav-link" href="#conversations" data-bs-toggle="tab" id="view-conversations-link">View Conversations</a>
-
+                            <a href="#" class="nav-link" href="#users" data-bs-toggle="tab" class="nav-link"
+                                href="#conversations" data-bs-toggle="tab" id="view-conversations-link">View
+                                Conversations</a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="#" data-bs-toggle="tab" onclick="showEventSettings()">
+                                Event Settings
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a href="#" class="nav-link" data-bs-toggle="tab" onclick="showQuestionSources()">Question Sources</a>
                         </li>
                     </ul>
                 </div>
@@ -61,9 +70,11 @@
 
             <!-- Content -->
             <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4">
-                <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+                <div
+                    class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
                     <h1 class="h2">Dashboard</h1>
-                    <button class="btn btn-primary d-md-none" type="button" data-bs-toggle="collapse" data-bs-target="#sidebar">
+                    <button class="btn btn-primary d-md-none" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#sidebar">
                         Toggle Sidebar
                     </button>
                 </div>
@@ -205,6 +216,27 @@
                                 <ul class="pagination" id="conversations-pagination">
                                 </ul>
                             </nav>
+                        </div>
+                        <div id="event-settings" class="tab-pane fade" role="tabpanel">
+                            <h2>Developer Day Event Settings</h2>
+                            <button class="btn btn-primary mb-3" onclick="showAddEventForm()">Add New Event</button>
+                            <div id="event-map" style="height: 400px;"></div>
+
+                            <div class="table-responsive">
+                                <table class="table">
+                                    <thead>
+                                        <tr>
+                                            <th>Title</th>
+                                            <th>Date & Time</th>
+                                            <th>Location</th>
+                                            <th>Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody id="events-table-body">
+                                        <!-- Events will be populated here -->
+                                    </tbody>
+                                </table>
+                            </div>
                         </div>
                     </div>
                 </div>

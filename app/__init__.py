@@ -1,10 +1,12 @@
 import os
 from flask import Flask
+from flask_login import login_required, current_user, user_logged_in
 from flask_cors import CORS
 from config import Config
 from .auth import auth, oauth, login_manager, init_oauth
-from .routes import main  # Ensure this import is here
+from .routes import main
 import logging
+from app.utils import update_user_login_info
 
 def create_app(config_class=Config):
     app = Flask(__name__,
@@ -28,8 +30,11 @@ def create_app(config_class=Config):
     login_manager.session_protection = "strong"
     login_manager.login_view = 'auth.login'
 
-    from app import routes
-    app.register_blueprint(routes.main)
+    app.register_blueprint(main)
     app.register_blueprint(auth)
+
+    @user_logged_in.connect_via(app)
+    def _track_logins(sender, user, **extra):
+        update_user_login_info(str(user.id))
 
     return app

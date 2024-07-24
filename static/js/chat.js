@@ -98,6 +98,7 @@ function appendMessage(sender, message, data = null) {
     messageElement.classList.add('chat-bubble', sender.toLowerCase());
 
     if (sender.toLowerCase() === 'assistant') {
+        // Use marked to render Markdown for assistant messages
         messageElement.innerHTML = marked.parse(escapeSpecialChars(message));
     } else {
         const span = document.createElement('span');
@@ -107,6 +108,37 @@ function appendMessage(sender, message, data = null) {
 
     chatContainer.appendChild(messageElement);
     chatContainer.scrollTop = chatContainer.scrollHeight;
+
+    // If it's an assistant message and we have additional data, add feedback buttons
+    if (sender.toLowerCase() === 'assistant' && data) {
+        appendFeedbackButtons(messageElement, data);
+    }
+}
+
+/**
+ * Appends a message to the chat container.
+ * 
+ * @function
+ * @name appendFeedbackButtons
+ * @param {string} messageElement
+ * @param {Object} [data=null] - Additional data associated with the message.
+ */
+function appendFeedbackButtons(messageElement, data) {
+    const feedbackContainer = document.createElement('div');
+    feedbackContainer.classList.add('feedback-container');
+
+    const positiveButton = document.createElement('button');
+    positiveButton.textContent = '👍';
+    positiveButton.onclick = () => provideAnswerFeedback(data.question_id, data.original_question, data.answer, true);
+
+    const negativeButton = document.createElement('button');
+    negativeButton.textContent = '👎';
+    negativeButton.onclick = () => provideAnswerFeedback(data.question_id, data.original_question, data.answer, false);
+
+    feedbackContainer.appendChild(positiveButton);
+    feedbackContainer.appendChild(negativeButton);
+
+    messageElement.appendChild(feedbackContainer);
 }
 
 /**
@@ -153,7 +185,6 @@ async function sendMessage(event) {
                 conversation_id: currentConversationId
             })
         });
-
 
         if (!response.ok) {
             const errorMessage = await response.text();
@@ -294,20 +325,27 @@ async function provideAnswerFeedback(questionId, originalQuestion, proposedAnswe
             },
             body: JSON.stringify({ 
                 question_id: questionId || null, 
-                original_question: decodeURIComponent(originalQuestion || ''),
-                proposed_answer: decodeURIComponent(proposedAnswer),
+                original_question: originalQuestion || '',
+                proposed_answer: proposedAnswer,
                 is_positive: isPositive 
             })
         });
 
         if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+            const errorText = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorText}`);
         }
 
         const result = await response.json();
         alert(result.message);
     } catch (error) {
         console.error('Error providing answer feedback:', error);
+        console.error('Error details:', {
+            questionId,
+            originalQuestion,
+            proposedAnswer: proposedAnswer.substring(0, 100) + '...',  // Log only the first 100 characters
+            isPositive
+        });
         alert('Failed to submit answer feedback. Please try again.');
     }
 }
@@ -373,6 +411,17 @@ document.addEventListener('DOMContentLoaded', function() {
             modalBackdrop.remove();
         }
     });
+    marked.setOptions({
+        breaks: true,
+        gfm: true,
+        tables: true,
+        sanitize: false, // Set to true if you want to sanitize HTML in the markdown
+        smartLists: true,
+        smartypants: true
+    });
+    console.log('Marked library loaded:', typeof marked);
+    console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
+
 
 });
 
@@ -380,9 +429,6 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Marked library loaded:', typeof marked);
     console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
-
-    
-
 });
 
 // if (adminForm) {

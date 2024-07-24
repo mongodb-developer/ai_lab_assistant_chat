@@ -151,3 +151,17 @@
 .card-title {
     font-weight: bold;
 }
+
+/* Add this to your styles.css */
+.dropdown-menu {
+    display: none;
+  }
+  
+  .dropdown-menu.show {
+    display: block;
+  }
+  
+  .dropdown-item:hover, .dropdown-item:focus {
+    background-color: var(--mongodb-gray);
+    color: var(--mongodb-dark-blue);
+  }

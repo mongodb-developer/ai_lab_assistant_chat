@@ -10,9 +10,12 @@ import logging
 
 auth = Blueprint('auth', __name__)
 oauth = OAuth()
+login_manager = LoginManager()
 
 def init_oauth(app):
     oauth.init_app(app)
+    login_manager.init_app(app)
+    login_manager.login_view = 'auth.login'
     oauth.register(
         name='google',
         client_id=Config.GOOGLE_CLIENT_ID,
@@ -22,42 +25,30 @@ def init_oauth(app):
         redirect_uri=Config.OAUTHLIB_REDIRECT_URI
     )
 
-login_manager = LoginManager()
-
 class User(UserMixin):
-    def __init__(self, id, email, name, picture=None, is_admin=False, last_login=None):
-        self.id = id
+    def __init__(self, user_id, email, name, profile_pic, is_admin=False, last_login=None):
+        self.id = str(user_id)
         self.email = email
-        self.is_admin = is_admin
         self.name = name
-        self.picture = picture
+        self.profile_pic = profile_pic
+        self.is_admin = is_admin
         self.last_login = last_login
-
-    def get_id(self):
-        return str(self.id)
-
-    @property
-    def is_authenticated(self):
-        return True
-
-    @property
-    def is_active(self):
-        return True
-
-    @property
-    def is_anonymous(self):
-        return False
 
 @login_manager.user_loader
 def load_user(user_id):
     db = get_db_connection()
-    user_data = db.users.find_one({'_id': ObjectId(user_id)})
-    if user_data:
-        name = user_data.get('name', 'Unknown User')
-        picture = user_data.get('picture')
-        last_login = user_data.get('last_login')
-        return User(str(user_data['_id']), user_data['email'], name, picture, user_data.get('isAdmin', False), last_login)
-    return None
+    user_data = db.users.find_one({"_id": ObjectId(user_id)})
+    if not user_data:
+        return None
+    
+    return User(
+        user_id=user_data['_id'],
+        email=user_data['email'],
+        name=user_data.get('name', ''),
+        profile_pic=user_data.get('profile_pic', ''),
+        is_admin=user_data.get('isAdmin', False),
+        last_login=user_data.get('last_login')
+    )
 
 @auth.route('/login')
 def login():

@@ -9,6 +9,12 @@ from pymongo import MongoClient
 from config import Config
 from datetime import datetime
 import markdown2
+from bs4 import BeautifulSoup
+from .question_generator import process_content, save_to_mongodb, fetch_content_from_url, extract_text_from_file
+import requests
+from werkzeug.utils import secure_filename
+import pytz
+
 from app.utils import (
     generate_embedding,
     search_similar_questions,
@@ -26,11 +32,25 @@ from app.utils import (
     get_conversation_context,
     generate_potential_answer_v2,
     start_new_conversation,  # Ensure this is imported
-    add_unanswered_question  # Ensure this is imported
+    add_unanswered_question,  # Ensure this is imported
+    is_event_related_question,
+    fetch_relevant_events, 
+    format_events_response,
+    get_db_connection,
+    update_user_login_info
+
 )
 import openai
 
+from werkzeug.exceptions import HTTPException
+
 main = Blueprint('main', __name__)
+
+def custom_json_encoder(obj):
+    if isinstance(obj, ObjectId):
+        return str(obj)
+    raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
+    
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname=s - %(message)s')
@@ -44,6 +64,16 @@ documents_collection = db['documents']
 unanswered_collection = db['unanswered_questions']
 users_collection = db['users']
 feedback_collection = db['feedback']
+events_collection = db['events']
+
+# Default sessions
+DEFAULT_SESSIONS = [
+    {"name": "Data Modeling", "instructor": ""},
+    {"name": "Intro Lab", "instructor": ""},
+    {"name": "Aggregations", "instructor": ""},
+    {"name": "Atlas Search", "instructor": ""},
+    {"name": "VectorSearch", "instructor": ""}
+]
 SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is float
 
 # Route: Index
@@ -52,10 +82,12 @@ SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is floa
 # Returns: Rendered index.html template
 @main.route('/')
 def index():
+    current_app.logger.debug("Starting index route")
+    
     try:
-        current_app.logger.debug(f"Request received for index route")
-        
-        # Debug session information
+        user_data = None
+        current_app.logger.debug("Initialized user_data to None")
+
         if session:
             current_app.logger.debug(f"Session keys: {list(session.keys())}")
             for key in session.keys():
@@ -63,26 +95,36 @@ def index():
         else:
             current_app.logger.debug("Session is empty")
 
-        # Debug current_user information
-        if current_user:
-            current_app.logger.debug(f"Current user: {current_user}")
-            current_app.logger.debug(f"User authenticated: {current_user.is_authenticated}")
-            if current_user.is_authenticated:
-                current_app.logger.debug(f"Authenticated user: {getattr(current_user, 'email', 'Email not found')}")
-            else:
-                current_app.logger.debug("User is not authenticated")
-        else:
-            current_app.logger.debug("current_user is None")
+        current_app.logger.debug(f"Current user authenticated: {current_user.is_authenticated}")
 
-        # Debug template information
+        if current_user.is_authenticated:
+            current_app.logger.debug(f"Current user: {current_user}")
+            current_app.logger.debug(f"Authenticated user email: {getattr(current_user, 'email', 'Email not found')}")
+
+            db = get_db_connection()
+            users_collection = db['users']
+            current_app.logger.debug(f"Fetching user data for id: {current_user.id}")
+            user_data = users_collection.find_one({'_id': ObjectId(current_user.id)})
+
+            if user_data:
+                current_app.logger.debug("User data found, updating login info")
+                update_user_login_info(str(current_user.id))
+            else:
+                current_app.logger.error(f"User data not found for id: {current_user.id}")
+        else:
+            current_app.logger.debug("User is not authenticated")
+
         template_folder = current_app.template_folder
         index_html_path = os.path.join(template_folder, 'index.html')
         current_app.logger.debug(f"Template folder: {template_folder}")
         current_app.logger.debug(f"index.html exists: {os.path.exists(index_html_path)}")
 
-        return render_template('index.html', is_chat=False)
+        current_app.logger.debug("Rendering template")
+        return render_template('index.html', is_chat=False, user=user_data)
+    
     except Exception as e:
         current_app.logger.error(f"Error in index route: {str(e)}")
+        current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"error": "An internal error occurred"}), 500
 
 # Route: Chat
@@ -104,88 +146,83 @@ def chat():
 # Description: Handles chat messages, processes them, and returns responses
 # Parameters: None (expects JSON payload in request)
 # Returns: JSON response with answer or error message
+# Route: Chat API
+# Description: Handles chat messages, processes them, and returns responses
+# Parameters: None (expects JSON payload in request)
+# Returns: JSON response with answer or error message
 @main.route('/api/chat', methods=['POST'])
 @login_required
 def chat_api():
     debug_info = {}
-    data = request.json
-    user_question = data.get('question', '')
-    conversation_id = data.get('conversation_id')
-    
     try:
+        debug_info['request'] = {
+            'method': request.method,
+            'headers': dict(request.headers),
+            'json': request.json
+        }
+        if 'question' not in request.json:
+            raise ValueError("Missing 'question' in request payload")
+
+        user_question = request.json['question']
         user_id = current_user.get_id()
         user_name = current_user.name
 
-        # Get or create a conversation
-        if not conversation_id:
-            conversation_id = start_new_conversation(user_id, user_question[:50])
+        # Generate a title for the conversation
+        title = user_question[:50]
         
-        # Store the user's message
+        # Start a new conversation if no active conversation exists
+        conversation_id = start_new_conversation(user_id, title)
+        
         store_message(user_id, user_question, 'User', conversation_id)
-
-        # Get conversation context
-        context, last_assistant_message = get_conversation_context(conversation_id)
 
         # Generate the question embedding
         question_embedding, embed_debug = generate_embedding(user_question)
         debug_info['embedding'] = embed_debug
 
-        # Search for similar questions in the documents collection
-        similar_questions, search_debug = search_similar_questions(question_embedding)
-        debug_info['search'] = search_debug
+        # Search for similar questions
+        similar_questions = search_similar_questions(question_embedding, user_question)
 
-        if similar_questions and similar_questions[0]['score'] > SIMILARITY_THRESHOLD:
-            # Use the existing answer from the documents collection
-            best_match = similar_questions[0]
-            response_message = best_match['answer']
+        response_data = {}
+        
+        if similar_questions and similar_questions[0]['combined_score'] > SIMILARITY_THRESHOLD:
+            response_message = similar_questions[0]['answer']
             response_data = {
-                'question_id': str(best_match['_id']),
-                'question': best_match['question'],
+                'question': similar_questions[0]['question'],
                 'answer': response_message,
-                'score': best_match['score'],
-                'title': best_match.get('title', ''),
-                'summary': best_match.get('summary', ''),
-                'references': best_match.get('references', ''),
-                'usage_count': best_match.get('usage_count', 0) + 1,
+                'score': similar_questions[0]['combined_score'],
+                'title': similar_questions[0].get('title', ''),
+                'summary': similar_questions[0].get('summary', ''),
+                'references': similar_questions[0].get('references', ''),
+                'usage_count': similar_questions[0].get('usage_count', 0) + 1,
                 'debug_info': debug_info
             }
         else:
-            # Generate a potential answer using the context
-            question_with_context = f"Context: {context}\n\nQuestion: {user_question}"
-            potential_answer_data = generate_potential_answer_v2(question_with_context, last_assistant_message)
-            
-            response_message = potential_answer_data['answer']
+            # Add the unanswered question to the unanswered_questions collection
+            response_message = 'This question has not been specifically answered for MongoDB Developer Days. However, here is some information I found that may assist you.</br>'
+            potential_answer_data = generate_potential_answer_v2(user_question)
+
             response_data = {
-                'answer': response_message,
-                'title': potential_answer_data.get('title', ''),
+                'error': response_message,
+                'answer': potential_answer_data['answer'],
+                'title': response_message + "<br>\n" + potential_answer_data.get('title', ''),
                 'summary': potential_answer_data.get('summary', ''),
                 'references': potential_answer_data.get('references', ''),
                 'debug_info': debug_info
             }
-            # Add the question to the unanswered_questions collection
             add_unanswered_question(user_id, user_name, user_question, response_data)
-        
-        # Store the assistant's response
+
+    
         store_message(user_id, response_message, 'Assistant', conversation_id)
-
-        response_data['conversation_id'] = str(conversation_id)
-        return jsonify(response_data), 200
-
+        return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
+    except ValueError as e:
+        logger.error(f"Value error in chat route: {str(e)}")
+        debug_info['error'] = str(e)
+        return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 400, {'Content-Type': 'application/json'}
     except Exception as e:
         logger.error(f"Error in chat route: {str(e)}")
-        return jsonify({
-            "error": str(e),
-            "debug_info": {
-                "request": {
-                    "method": request.method,
-                    "headers": dict(request.headers),
-                    "json": request.json
-                },
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            }
-        }), 500
-
+        debug_info['error'] = str(e)
+        debug_info['traceback'] = traceback.format_exc()
+        return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
 # Route: Get Questions
 # Description: Retrieves all questions from the database
 # Parameters: None
@@ -245,18 +282,16 @@ def add_question():
 
 @main.route('/favicon.ico')
 def favicon():
-    return send_from_directory(os.path.join(current_app.root_path, 'static'), 'favicon.ico')
+    return send_from_directory(os.path.join(main.root_path, 'static'),
+                               'favicon.ico', mimetype='image/vnd.microsoft.icon')
 
 # Add a general error handler for the blueprint
 @main.errorhandler(Exception)
 def handle_exception(e):
-    # Pass through HTTP errors
     if isinstance(e, HTTPException):
-        return e
-
-    # Now you're handling non-HTTP exceptions only
-    current_app.logger.error(f"Unhandled exception: {str(e)}\n{traceback.format_exc()}")
-    return jsonify({"error": "An unexpected error occurred"}), 500
+        return jsonify(error=str(e)), e.code
+    # Handle non-HTTP exceptions here
+    return jsonify(error="An unexpected error occurred"), 500
 
 @main.route('/api/questions/<string:question_id>', methods=['GET'])
 @login_required
@@ -426,6 +461,15 @@ def update_user(id):
     users_collection.update_one({'_id': ObjectId(id)}, {'$set': data})
     return '', 204
 
+@main.route('/feedback')
+def feedback():
+    try:
+        current_app.logger.info("Accessing feedback route")
+        return render_template('feedback.html')
+    except Exception as e:
+        current_app.logger.error(f"Error in feedback route: {str(e)}")
+        return jsonify({"error": "An internal error occurred"}), 500
+
 @main.route('/api/feedback', methods=['POST'])
 def receive_feedback():
     data = request.json
@@ -499,26 +543,35 @@ def generate_answer():
 @login_required
 def submit_answer_feedback():
     data = request.json
+    logger.debug(f"Received feedback data: {data}")  # Add this line for debugging
+
     question_id = data.get('question_id')
     original_question = data.get('original_question')
     proposed_answer = data.get('proposed_answer')
     is_positive = data.get('is_positive')
 
-    if not all([question_id, original_question, proposed_answer, is_positive is not None]):
+    if not all([original_question, proposed_answer, is_positive is not None]):
+        logger.error(f"Invalid feedback data: {data}")  # Add this line for debugging
         return jsonify({'error': 'Invalid feedback data'}), 400
 
     try:
-        db.answer_feedback.insert_one({
+        feedback_entry = {
             'user_id': ObjectId(current_user.id),
             'original_question': original_question,
-            'matched_question_id': ObjectId(question_id),
             'proposed_answer': proposed_answer,
             'is_positive': is_positive,
             'timestamp': datetime.utcnow()
-        })
+        }
+        
+        if question_id:
+            feedback_entry['matched_question_id'] = ObjectId(question_id)
+
+        db.answer_feedback.insert_one(feedback_entry)
+        
+        logger.info(f"Feedback submitted successfully: {feedback_entry}")  # Add this line for debugging
         return jsonify({'message': 'Answer feedback submitted successfully'}), 200
     except Exception as e:
-        current_app.logger.error(f"Error submitting answer feedback: {str(e)}")
+        logger.error(f"Error submitting answer feedback: {str(e)}")
         return jsonify({'error': 'An error occurred while submitting answer feedback'}), 500
 
 @main.route('/api/answer_feedback_stats', methods=['GET'])
@@ -531,12 +584,15 @@ def get_answer_feedback_stats():
         pipeline = [
             {
                 '$group': {
-                    '_id': '$matched_question_id',
+                    '_id': {
+                        '$ifNull': ['$matched_question_id', '$original_question']
+                    },
                     'total_feedback': {'$sum': 1},
                     'positive_feedback': {
                         '$sum': {'$cond': ['$is_positive', 1, 0]}
                     },
-                    'original_questions': {'$addToSet': '$original_question'}
+                    'original_questions': {'$addToSet': '$original_question'},
+                    'is_matched': {'$max': {'$cond': [{'$ifNull': ['$matched_question_id', False]}, True, False]}}
                 }
             },
             {
@@ -547,35 +603,61 @@ def get_answer_feedback_stats():
                     'as': 'question_data'
                 }
             },
-            {'$unwind': '$question_data'},
             {
                 '$project': {
-                    'matched_question': '$question_data.question',
+                    'matched_question': {
+                        '$cond': [
+                            {'$eq': ['$question_data', []]},
+                            {'$ifNull': [{'$arrayElemAt': ['$original_questions', 0]}, 'Unknown']},
+                            {'$ifNull': [{'$arrayElemAt': ['$question_data.question', 0]}, 'Unknown']}
+                        ]
+                    },
                     'original_questions': 1,
                     'total_feedback': 1,
                     'positive_feedback': 1,
                     'effectiveness': {
-                        '$multiply': [
-                            {'$divide': ['$positive_feedback', '$total_feedback']},
-                            100
+                        '$cond': [
+                            {'$eq': ['$total_feedback', 0]},
+                            0,
+                            {
+                                '$multiply': [
+                                    {'$divide': ['$positive_feedback', '$total_feedback']},
+                                    100
+                                ]
+                            }
                         ]
-                    }
+                    },
+                    'is_matched': 1
                 }
             }
         ]
         
         stats = list(db.answer_feedback.aggregate(pipeline))
         
-        # Convert ObjectId to string and join original questions
+        # Convert ObjectId to string, handle None values, and join original questions
         for stat in stats:
-            if '_id' in stat:
+            if stat['_id'] is None:
+                stat['_id'] = 'Unknown'
+            elif isinstance(stat['_id'], ObjectId):
                 stat['_id'] = str(stat['_id'])
-            stat['original_questions'] = '; '.join(set(stat['original_questions']))
+            else:
+                stat['_id'] = str(stat['_id'])  # Convert any other type to string
+            
+            stat['original_questions'] = '; '.join(set(filter(None, stat.get('original_questions', []))))
+            
+            # Ensure all fields are present
+            stat.setdefault('matched_question', 'Unknown')
+            stat.setdefault('total_feedback', 0)
+            stat.setdefault('positive_feedback', 0)
+            stat.setdefault('effectiveness', 0)
+            stat.setdefault('is_matched', False)
 
         return jsonify(stats), 200
     except Exception as e:
         current_app.logger.error(f"Error fetching answer feedback stats: {str(e)}")
         return jsonify({'error': 'An error occurred while fetching answer feedback stats'}), 500
+
+    
 @main.route('/api/overall_statistics', methods=['GET'])
 @login_required
 def get_overall_statistics():
@@ -770,20 +852,293 @@ def get_user_growth():
     ]
     result = list(db.users.aggregate(pipeline))
     
-    # Convert string dates to ISO format, handle None values
+    # Convert string dates to ISO format, handle None values, and filter out dates before 2020
     formatted_result = []
     for item in result:
         if item['_id'] is not None:
             try:
-                date = datetime.strptime(item['_id'], '%Y-%m-%d').isoformat()
-                formatted_result.append({
-                    '_id': date,
-                    'count': item['count']
-                })
+                date = datetime.strptime(item['_id'], '%Y-%m-%d')
+                if date.year >= 2020:  # Filter out dates before 2020
+                    formatted_result.append({
+                        '_id': date.isoformat(),
+                        'count': item['count']
+                    })
             except ValueError:
                 print(f"Invalid date format: {item['_id']}")
         else:
             print("Encountered a None _id value")
     
-    print("User growth data:", formatted_result)  # Add this line for debugging
+    print("User growth data:", formatted_result)
     return jsonify(formatted_result)
+
+@main.route('/api/events', methods=['GET'])
+@login_required
+def get_events():
+    try:
+        # Fetch all events from the database
+        events = list(db.events.find())
+
+        # Process each event
+        processed_events = []
+        for event in events:
+            # Convert ObjectId to string for JSON serialization
+            event['_id'] = str(event['_id'])
+
+            # Handle date_time field
+            if 'date_time' in event and event['date_time']:
+                if isinstance(event['date_time'], str):
+                    # If date_time is already a string, just use it as is
+                    date_time_str = event['date_time']
+                else:
+                    # If it's a datetime object, convert to ISO format
+                    date_time = event['date_time']
+                    if date_time.tzinfo is None or date_time.tzinfo.utcoffset(date_time) is None:
+                        date_time = pytz.utc.localize(date_time)
+                    date_time_str = date_time.isoformat()
+            else:
+                date_time_str = ''
+
+            # Ensure all fields are present, even if they're empty
+            processed_event = {
+                '_id': event['_id'],
+                'title': event.get('title', ''),
+                'date_time': date_time_str,
+                'time_zone': event.get('time_zone', ''),
+                'address1': event.get('address1', ''),
+                'address2': event.get('address2', ''),
+                'city': event.get('city', ''),
+                'state': event.get('state', ''),
+                'postal_code': event.get('postal_code', ''),
+                'country_code': event.get('country_code', ''),
+                'registration_url': event.get('registration_url', ''),
+                'feedback_url': event.get('feedback_url', ''),
+                'location': event.get('location', {})
+            }
+            processed_events.append(processed_event)
+
+        return jsonify(processed_events), 200
+    except Exception as e:
+        current_app.logger.error(f"Error fetching events: {str(e)}")
+        return jsonify({"error": "An error occurred while fetching events"}), 500
+
+@main.route('/api/events/<event_id>', methods=['GET'])
+@login_required
+def get_event(event_id):
+    try:
+        event = db.events.find_one({'_id': ObjectId(event_id)})
+        if event:
+            # Handle date_time field
+            date_time = event.get('date_time')
+            if date_time:
+                if isinstance(date_time, str):
+                    # If it's already a string, use it as is
+                    date_time_str = date_time
+                else:
+                    # If it's a datetime object, convert to ISO format
+                    if date_time.tzinfo is None or date_time.tzinfo.utcoffset(date_time) is None:
+                        date_time = pytz.utc.localize(date_time)
+                    date_time_str = date_time.isoformat()
+            else:
+                date_time_str = ''
+
+            event_data = {
+                '_id': str(event['_id']),
+                'title': event.get('title', ''),
+                'date_time': date_time_str,
+                'time_zone': event.get('time_zone', ''),
+                'address1': event.get('address1', ''),
+                'address2': event.get('address2', ''),
+                'city': event.get('city', ''),
+                'state': event.get('state', ''),
+                'postal_code': event.get('postal_code', ''),
+                'country_code': event.get('country_code', ''),
+                'registration_url': event.get('registration_url', ''),
+                'feedback_url': event.get('feedback_url', '')
+            }
+            return jsonify(event_data)
+        return jsonify({'error': 'Event not found'}), 404
+    except Exception as e:
+        current_app.logger.error(f"Error fetching event: {str(e)}")
+        return jsonify({"error": "An error occurred while fetching the event"}), 500
+
+@main.route('/api/events', methods=['POST'])
+@login_required
+def add_event():
+    event_data = request.json
+    
+    # Validate required fields
+    required_fields = ['title', 'date_time', 'time_zone', 'address1', 'city', 'state', 'postal_code', 'country_code']
+    for field in required_fields:
+        if field not in event_data or not event_data[field]:
+            return jsonify({'error': f'Missing required field: {field}'}), 400
+
+    # Geocode the address
+    location = geocode_address(
+        event_data.get('address1'),
+        event_data.get('address2'),
+        event_data.get('city'),
+        event_data.get('state'),
+        event_data.get('postal_code'),
+        event_data.get('country_code')
+    )
+
+    date_time_str = event_data.get('date_time')
+    if date_time_str:
+        try:
+            # Parse the string to a datetime object
+            date_time = datetime.fromisoformat(date_time_str.replace('Z', '+00:00'))
+            # Ensure it's in UTC
+            date_time = date_time.astimezone(pytz.utc)
+            # Store it as an ISO format string
+            event_data['date_time'] = date_time.isoformat()
+        except ValueError:
+            # If parsing fails, store the original string
+            event_data['date_time'] = date_time_str
+    else:
+        event_data['date_time'] = ''
+
+    if location:
+        event_data['location'] = location
+    
+    event_data['feedback_url'] = event_data.get('feedback_url', '')
+
+    result = db.events.insert_one(event_data)
+    event_data['_id'] = str(result.inserted_id)
+    
+    return jsonify({'message': 'Event added successfully', 'event': event_data}), 201
+
+@main.route('/api/events/<event_id>', methods=['PUT'])
+@login_required
+def update_event(event_id):
+    event_data = request.json
+    
+    required_fields = ['title', 'date_time', 'time_zone', 'address1', 'city', 'state', 'postal_code', 'country_code']
+    for field in required_fields:
+        if field not in event_data or not event_data[field]:
+            return jsonify({'error': f'Missing required field: {field}'}), 400
+
+
+    # Geocode the address
+    location = geocode_address(
+        event_data.get('address1'),
+        event_data.get('address2'),
+        event_data.get('city'),
+        event_data.get('state'),
+        event_data.get('postal_code'),
+        event_data.get('country_code')
+    )
+    
+    if location:
+        event_data['location'] = location
+    else:
+        event_data.pop('location', None)
+    
+    date_time_str = event_data.get('date_time')
+    if date_time_str:
+        try:
+            # Parse the string to a datetime object
+            date_time = datetime.fromisoformat(date_time_str.replace('Z', '+00:00'))
+            # Ensure it's in UTC
+            date_time = date_time.astimezone(pytz.utc)
+            # Store it as an ISO format string
+            event_data['date_time'] = date_time.isoformat()
+        except ValueError:
+            # If parsing fails, store the original string
+            event_data['date_time'] = date_time_str
+    else:
+        event_data['date_time'] = ''
+
+    # Update feedback_url
+    event_data['feedback_url'] = event_data.get('feedback_url', '')
+
+    result = db.events.update_one({'_id': ObjectId(event_id)}, {'$set': event_data})
+    
+    if result.modified_count:
+        updated_event = db.events.find_one({'_id': ObjectId(event_id)})
+        if updated_event:
+            updated_event['_id'] = str(updated_event['_id'])
+            return jsonify({'message': 'Event updated successfully', 'event': updated_event})
+    
+    return jsonify({'error': 'Event not found or no changes made'}), 404
+
+@main.route('/api/events/<event_id>', methods=['DELETE'])
+@login_required
+def delete_event(event_id):
+    result = db.events.delete_one({'_id': ObjectId(event_id)})
+    if result.deleted_count:
+        return jsonify({'message': 'Event deleted successfully'})
+    return jsonify({'error': 'Event not found'}), 404
+
+def geocode_address(address1, address2, city, state, postal_code, country_code):
+    if not all([address1, city, state, postal_code, country_code]):
+        return None  # Skip geocoding if essential fields are missing
+
+    api_key = Config.GOOGLE_MAPS_API_KEY
+    full_address = f"{address1}, {address2}, {city}, {state} {postal_code}, {country_code}"
+    url = f"https://maps.googleapis.com/maps/api/geocode/json?address={full_address}&key={api_key}"
+    response = requests.get(url)
+    if response.status_code == 200:
+        data = response.json()
+        if data['status'] == 'OK':
+            location = data['results'][0]['geometry']['location']
+            return {
+                "type": "Point",
+                "coordinates": [location['lng'], location['lat']]
+            }
+    return None
+
+@main.route('/api/process_files', methods=['POST'])
+def process_files():
+    if 'files' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    files = request.files.getlist('files')
+    similarity_threshold = float(request.form.get('similarity_threshold', current_app.config['SIMILARITY_THRESHOLD']))
+    
+    questions_added = 0
+    
+    for file in files:
+        if file.filename == '':
+            continue
+        
+        if file and allowed_file(file.filename):
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            
+            content = extract_text_from_file(file_path)
+            qa_pairs = process_content(content)
+            
+            for question, answer in qa_pairs:
+                if save_to_mongodb(question, answer, similarity_threshold):
+                    questions_added += 1
+            
+            os.remove(file_path)  # Remove the file after processing
+    
+    return jsonify({'questionsAdded': questions_added})
+
+@main.route('/api/process_url', methods=['POST'])
+def process_url():
+    data = request.json
+    url = data.get('url')
+    similarity_threshold = float(data.get('similarity_threshold', current_app.config['SIMILARITY_THRESHOLD']))
+    
+    if not url:
+        return jsonify({'error': 'No URL provided'}), 400
+    
+    content = fetch_content_from_url(url)
+    qa_pairs = process_content(content)
+    
+    questions_added = 0
+    for question, answer in qa_pairs:
+        if save_to_mongodb(question, answer, similarity_threshold):
+            questions_added += 1
+    
+    return jsonify({'questionsAdded': questions_added})
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in {'pptx', 'docx', 'txt'}
+
+@main.route('/admin/question_sources')
+def question_sources():
+    return render_template('question_sources.html')

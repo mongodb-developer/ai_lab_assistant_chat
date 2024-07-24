@@ -36,6 +36,7 @@ kiwisolver==1.4.5
 lxml==5.2.2
 MarkupSafe==2.1.5
 matplotlib==3.7.2
+markdown2
 multidict==6.0.5
 nltk==3.8.1
 numpy

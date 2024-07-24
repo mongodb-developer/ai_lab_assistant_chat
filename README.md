@@ -38,23 +38,23 @@ The AI Lab Assistant Chat application is a web-based tool designed to help users
    ```bash
    git clone https://github.com/yourusername/ai-lab-assistant-chat.git
    cd ai-lab-assistant-chat
+   ```
 
-Create a virtual environment:
+2. Create a virtual environment:
 
 ```bash
 python3 -m venv venv
 source venv/bin/activate
 ```
-Install dependencies:
+3. Install dependencies:
 
 ```bash
 pip install -r requirements.txt
 ```
 ## Set up environment variables:
 
-Create a .env file in the root directory and add the following variables:
+4. Create a .env file in the root directory and add the following variables:
 ```
-
 FLASK_APP=run.py
 FLASK_ENV=development
 MONGODB_URI=your_mongodb_uri

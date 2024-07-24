@@ -13,7 +13,7 @@
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 <!-- Home link -->
                 <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint == 'main.index' %}active-page{% endif %}" aria-current="page" href="{{ url_for('main.index') }}">Home</a>
+                    <a class="nav-link {% if request.endpoint=='main.index' %}active-page{% endif %}" aria-current="page" href="{{ url_for('main.index') }}">Home</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.about') }}">About</a>
@@ -21,32 +21,25 @@
                 {% if current_user.is_authenticated %}
                 <!-- Chat link -->
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'main.chat' %}active-page{% endif %}" href="{{ url_for('main.chat') }}">Chat</a>
+                        <a class="nav-link {% if request.endpoint=='main.chat' %}active-page{% endif %}" href="{{ url_for('main.chat') }}">Chat</a>
                     </li>
                     {% if current_user.is_admin %}
                     <!-- Admin link (only for admins) -->
                     <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint == 'main.admin' %}active-page{% endif %}" href="{{ url_for('main.admin') }}" id="admin-link">Admin</a>
+                        <a class="nav-link {% if request.endpoint=='main.admin' %}active-page{% endif %}" href="{{ url_for('main.admin') }}" id="admin-link">Admin</a>
                     </li>
                     {% endif %}
                 {% endif %}
-                <!-- Developer Day Labs dropdown -->
-                <li class="nav-item dropdown">
-                    <a class="nav-link dropdown-toggle" href="#" id="labsDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                        Labs
-                    </a>
-                    <ul class="dropdown-menu" aria-labelledby="labsDropdown">
-                        <li><a class="dropdown-item" href="https://mongodb-developer.github.io/intro-lab/" target="_blank">Intro Lab</a></li>
-                        <li><a class="dropdown-item" href="https://mongodb-developer.github.io/search-lab/" target="_blank">Search Lab</a></li>
-                        <li><a class="dropdown-item" href="https://mongodb-developer.github.io/aggregation-pipeline-lab/" target="_blank">Aggregation Pipeline Lab</a></li>
-                        <li><a class="dropdown-item" href="https://mongodb-developer.github.io/relational-migrator-lab/" target="_blank">Relational Migrator Lab</a></li>
-                    </ul>
-                </li>
                 <!-- Help link -->
                 <li class="nav-item">
                     <a class="nav-link" href="https://mongodb.com/docs" target="_blank">Help</a>
                 </li>
+                <!-- Feedback dropdown -->
+                <li class="nav-item">
+                    <a class="nav-link" href="{{ url_for('main.feedback') }}">Feedback</a>
+                </li>
             </ul>
+            
             <ul class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
                 <!-- User greeting and profile link -->
@@ -73,3 +66,8 @@
         </div>
     </div>
 </nav>
+
+<!-- Include necessary scripts -->
+<script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.min.js"></script>

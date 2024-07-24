@@ -5,6 +5,7 @@ from pptx import Presentation
 from docx import Document
 from config import Config
 from datetime import datetime
+import logging
 
 # MongoDB client and collections
 client = MongoClient(Config.MONGODB_URI)
@@ -13,6 +14,10 @@ documents_collection = db['documents']
 
 # Initialize OpenAI API
 openai.api_key = Config.OPENAI_API_KEY
+
+# Set up logging
+logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname=s - %(message)s')
+logger = logging.getLogger(__name__)
 
 def debug_log(message):
     print(f"[DEBUG] {message}")
@@ -55,6 +60,12 @@ def generate_question_answer(content):
     return response['choices'][0]['message']['content'].strip()
 
 def save_to_mongodb(question, answer, title, summary, references):
+    similar_question = find_similar_questions(question)
+    
+    if similar_question:
+        debug_log(f"Similar question found: {similar_question}. Skipping insertion.")
+        return None
+    
     document = {
         'question': question,
         'title': title,
@@ -62,8 +73,8 @@ def save_to_mongodb(question, answer, title, summary, references):
         'answer': answer,
         'main_answer': answer,
         'references': references,
-        'question_embedding': generate_embedding(question),  # Implement generate_embedding function
-        'answer_embedding': generate_embedding(answer),  # Implement generate_embedding function
+        'question_embedding': generate_embedding(question)[0],  # Only take the embedding, not the debug info
+        'answer_embedding': generate_embedding(answer)[0],  # Only take the embedding, not the debug info
         'created_at': datetime.now(),
         'updated_at': datetime.now(),
         'schema_version': 2,
@@ -73,6 +84,7 @@ def save_to_mongodb(question, answer, title, summary, references):
     debug_log(f"Document: {document}")
     result = documents_collection.insert_one(document)
     debug_log(f"Document inserted with ID: {result.inserted_id}")
+    return result.inserted_id
 
 def generate_title_and_summary(answer):
     prompt = f"Generate a concise title and summary for the following answer:\n\n{answer}\n\nProvide the title and summary in the following format:\nTitle: [Title]\nSummary: [Summary]"
@@ -128,6 +140,46 @@ def generate_embedding(text):
         debug_info['traceback'] = traceback.format_exc()
         raise
 
+def find_similar_questions(question, threshold=0.9):
+    question_embedding, _ = generate_embedding(question)
+    
+    pipeline = [
+        {
+            '$vectorSearch': {
+                'index': 'question_index',
+                'path': 'question_embedding',
+                'queryVector': question_embedding,
+                'numCandidates': 10,
+                'limit': 5
+            }
+        },
+        {
+            '$project': {
+                '_id': 1,
+                'question': 1,
+                'answer': 1,
+                'summary': 1,
+                'title': 1,
+                'references': 1,
+                'score': {
+                    '$meta': 'vectorSearchScore'
+                }
+            }
+        },
+        {
+            '$match': {
+                'score': {'$gte': threshold}
+            }
+        }
+    ]
+    
+    results = list(documents_collection.aggregate(pipeline))
+    
+    if results:
+        return results[0]['question']  # Return the most similar question
+    
+    return None
+
 def process_files_in_directory(directory):
     debug_log(f"Processing files in directory: {directory}")
     for root, dirs, files in os.walk(directory):
@@ -143,14 +195,17 @@ def process_files_in_directory(directory):
                 debug_log(f"Skipping unsupported file: {file}")
                 continue
 
-            qa_pairs = generate_question_answer(content).split("\n\n")  # Assuming QA pairs are separated by double newlines
             for qa_pair in qa_pairs:
                 if "Q:" in qa_pair and "A:" in qa_pair:
                     question = qa_pair.split("Q:")[1].split("A:")[0].strip()
                     answer = qa_pair.split("A:")[1].strip()
                     title, summary = generate_title_and_summary(answer)
                     references = generate_references(answer)
-                    save_to_mongodb(question, answer, title, summary, references)
+                    inserted_id = save_to_mongodb(question, answer, title, summary, references)
+                    if inserted_id:
+                        debug_log(f"New question added with ID: {inserted_id}")
+                    else:
+                        debug_log("Question skipped due to similarity with existing question.")
 
 if __name__ == "__main__":
     directory = "documents/"

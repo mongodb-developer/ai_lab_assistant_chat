@@ -7,6 +7,8 @@ import logging
 from datetime import datetime
 from bson import ObjectId, json_util
 from flask_login import login_required, current_user
+from flask import request, current_app
+
 import traceback
 import requests
 from typing import Any, Dict, List, Tuple, Union
@@ -15,8 +17,9 @@ from collections import Counter
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
-nltk.data.path.append('/tmp/nltk_data')
+from datetime import datetime, timezone, timedelta
 
+nltk.data.path.append('/tmp/nltk_data')
 
 # Download necessary NLTK data
 nltk.download('punkt')
@@ -30,11 +33,23 @@ nltk.download('words')
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
+def get_db_connection():
+    if 'mongo_client' not in current_app.config:
+        try:
+            current_app.config['mongo_client'] = MongoClient(current_app.config['MONGODB_URI'])
+            current_app.logger.info("Successfully connected to MongoDB")
+        except Exception as e:
+            current_app.logger.error(f"Failed to connect to MongoDB: {str(e)}")
+            return None
+
+    return current_app.config['mongo_client'][current_app.config['MONGODB_DB']]
+
 client = MongoClient(Config.MONGODB_URI)
 db = client[Config.MONGODB_DB]
 collection = db[Config.MONGODB_COLLECTION]
 conversation_collection = db['conversations']  # New collection for conversations
 unanswered_collection = db['unanswered_questions']
+documents_collection = db['unanswered_questions']
 
 SIMILARITY_THRESHOLD = 0.91  # Adjust this value as needed
 
@@ -42,8 +57,7 @@ SIMILARITY_THRESHOLD = 0.91  # Adjust this value as needed
 try:
     client = MongoClient(Config.MONGODB_URI, serverSelectionTimeoutMS=5000)
     client.server_info()  # Will raise an exception if unable to connect
-    db = client[Config.MONGODB_DB]
-    collection = db[Config.MONGODB_COLLECTION]
+    
     logger.info(f"Successfully connected to MongoDB. Database: {Config.MONGODB_DB}, Collection: {Config.MONGODB_COLLECTION}")
 except Exception as e:
     logger.error(f"Failed to connect to MongoDB: {str(e)}")
@@ -68,6 +82,42 @@ def get_db_connection():
     return db
 
 openai.api_key = Config.OPENAI_API_KEY
+
+def update_user_login_info(user_id):
+    db = get_db_connection()
+    users_collection = db['users']
+
+    # Get user's IP address
+    if request.headers.getlist("X-Forwarded-For"):
+        ip = request.headers.getlist("X-Forwarded-For")[0]
+    else:
+        ip = request.remote_addr
+    
+    update_data = {
+        'last_login': datetime.utcnow(),
+        'last_ip': ip
+    }
+    
+    # Use a geolocation API to get location info
+    try:
+        response = requests.get(f'http://ip-api.com/json/{ip}')
+        if response.status_code == 200:
+            location_data = response.json()
+            update_data['last_location'] = {
+                'country': location_data.get('country'),
+                'region': location_data.get('regionName'),
+                'city': location_data.get('city'),
+                'lat': location_data.get('lat'),
+                'lon': location_data.get('lon')
+            }
+    except Exception as e:
+        current_app.logger.error(f"Error getting location data: {str(e)}")
+    
+    users_collection.update_one({'_id': ObjectId(user_id)}, {'$set': update_data})
+
+def get_db_connection():
+    client = MongoClient(Config.MONGODB_URI)
+    return client[Config.MONGODB_DB]
 
 def generate_embedding(text):
     debug_info = {}
@@ -98,50 +148,26 @@ def generate_embedding(text):
         debug_info['traceback'] = traceback.format_exc()
         raise
 
-def add_question_answer(question, answer):
-    debug_info = {}
+def add_question_answer(db, question, answer, title, summary, references):
     try:
-        if collection is None:
-            raise Exception("MongoDB connection not established")
-
-        logger.info(f"Adding question and answer to database. Question: {question[:50]}...")
-        question_embedding, q_debug = generate_embedding(question)
-        answer_embedding, a_debug = generate_embedding(answer)
-
-        # Generate a title for the conversation
-        title = generate_title(question)
-        
         document = {
             'question': question,
             'answer': answer,
-            'question_embedding': question_embedding,
-            'answer_embedding': answer_embedding,
-            'title': title  # Add the title to the document
+            'title': title,
+            'summary': summary,
+            'references': references,
+            'question_embedding': generate_embedding(question)[0],
+            'answer_embedding': generate_embedding(answer)[0],
+            'created_at': datetime.now(),
+            'updated_at': datetime.now(),
+            'schema_version': 2,
+            'created_by': 'ai'
         }
-        
-        debug_info['question_embedding'] = q_debug
-        debug_info['answer_embedding'] = a_debug
-        
-        logger.debug(f"Inserting document into MongoDB: {json.dumps(document, default=str)[:200]}...")
-        result = collection.insert_one(document)
-        inserted_id = result.inserted_id
-        debug_info['inserted_id'] = str(inserted_id)
-        logger.info(f"Document inserted successfully. ID: {inserted_id}")
-        
-        # Verify insertion
-        verification = collection.find_one({'_id': inserted_id})
-        if verification:
-            logger.info("Document verified in database.")
-            debug_info['verification'] = 'successful'
-        else:
-            logger.warning("Unable to verify document in database.")
-            debug_info['verification'] = 'failed'
-        
-        return inserted_id, debug_info
+        result = db.documents.insert_one(document)
+        return str(result.inserted_id)
     except Exception as e:
-        logger.error(f"Error adding question and answer: {str(e)}")
-        debug_info['error'] = str(e)
-        debug_info['traceback'] = traceback.format_exc()
+        current_app.logger.error(f"Error adding question and answer: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
         raise
 
 def generate_title(question):
@@ -151,65 +177,79 @@ def generate_title(question):
     return title if len(title) < 30 else title[:27] + '...'
 
 
-def search_similar_questions(question_embedding):
-    debug_info = {'function': 'search_similar_questions'}
-    try:
-        if collection is None:
-            raise Exception("MongoDB connection not established")
-        
-        logger.info("Searching for similar questions...")
-        debug_info['mongodb_query'] = {
-            'vectorSearch': {
+from bson import ObjectId
+
+def search_similar_questions(question_embedding, query_text, similarity_threshold=0.93):
+    db = current_app.config['MONGODB_DB']
+    collection = documents_collection
+
+    # Vector search stage
+    vector_search_stage = [
+        {
+            '$vectorSearch': {
                 'index': 'question_index',
                 'path': 'question_embedding',
-                'queryVector': f"[{question_embedding[:5]}...{question_embedding[-5:]}]",  # Truncated for brevity
+                'queryVector': question_embedding,
                 'numCandidates': 10,
-                'limit': 10
+                'limit': 5
+            }
+        },
+        {
+            '$project': {
+                'question': 1,
+                'answer': 1,
+                'summary': 1,
+                'title': 1,
+                'references': 1,
+                'vector_score': {'$meta': 'vectorSearchScore'}
             }
         }
-        
-        results = collection.aggregate([
-            {
-                '$vectorSearch': {
-                    'index': 'question_index',
-                    'path': 'question_embedding',
-                    'queryVector': question_embedding,
-                    'numCandidates': 10,
-                    'limit': 10
-                }
-            },
-            {
-                '$project': {
-                    '_id': 1,
-                    'question': 1,
-                    'answer': 1,
-                    'summary': 1,
-                    'title': 1,
-                    'references': 1,
-                    'score': {
-                        '$meta': 'vectorSearchScore'
+    ]
+
+    # Text search stage
+    text_search_stage = [
+        {
+            '$search': {
+                'index': 'default',
+                'text': {
+                    'query': query_text,
+                    'path': 'question',
+                    'fuzzy': {
+                        'maxEdits': 2
                     }
                 }
-            },
-            {
-                '$match': {
-                    'score': {'$gte': SIMILARITY_THRESHOLD}
-                }
             }
-        ])
-        
-        results_list = list(results)
-        debug_info['mongodb_results'] = json.loads(json.dumps(results_list, default=str))
-        debug_info['results_count'] = len(results_list)
-        logger.info(f"Search complete. Found {len(results_list)} results.")
-        
-        return results_list, debug_info
-    except Exception as e:
-        logger.error(f"Error searching similar questions: {str(e)}")
-        debug_info['error'] = str(e)
-        debug_info['traceback'] = traceback.format_exc()
-        raise
+        },
+        {
+            '$project': {
+                'question': 1,
+                'answer': 1,
+                'summary': 1,
+                'title': 1,
+                'references': 1,
+                'text_score': {'$meta': 'searchScore'}
+            }
+        }
+    ]
 
+    # Combine results
+    vector_results = list(collection.aggregate(vector_search_stage))
+    text_results = list(collection.aggregate(text_search_stage))
+
+    all_results = vector_results + text_results
+
+    # Process and combine scores
+    for result in all_results:
+        result['vector_score'] = result.get('vector_score', 0)
+        result['text_score'] = result.get('text_score', 0)
+        result['combined_score'] = 0.7 * result.get('vector_score', 0) + 0.3 * result.get('text_score', 0)
+
+    # Sort and filter results
+    sorted_results = sorted(all_results, key=lambda x: x['combined_score'], reverse=True)
+    filtered_results = [r for r in sorted_results if r['combined_score'] >= similarity_threshold]
+
+    return filtered_results[:10]
+    
 def add_unanswered_question(user_id, user_name, question, potential):
     debug_info = {'function': 'add_unanswered_questions'}
 
@@ -495,15 +535,31 @@ def get_conversation_messages(conversation_id):
 
     __all__ = ['get_db_connection', 'generate_embedding', 'add_question_answer', 'add_unanswered_question','search_similar_questions', 'json_serialize']
 
-def generate_potential_answer_v2(question_with_context, last_assistant_message=""):
-    print(f"Debug - Question with context: {question_with_context[:100]}...")  # Print first 100 chars
-    print(f"Debug - Last assistant message: {last_assistant_message[:100]}...")  # Print first 100 chars
+def generate_potential_answer_v2(question, last_assistant_message=""):
+    logger.debug(f"Generating potential answer for question: {question}")
     
+    if is_event_related_question(question):
+        logger.debug("Question identified as event-related")
+        events_data = fetch_relevant_events(question)
+        logger.debug(f"Fetched {len(events_data)} relevant events")
+        if events_data:
+            logger.debug("Formatting events response")
+            return format_events_response(events_data, question)
+        else:
+            logger.debug("No relevant events found, returning default message")
+            return {
+                'title': 'No Upcoming Events',
+                'summary': 'There are currently no upcoming events in our database.',
+                'answer': "I'm sorry, but there are currently no upcoming events scheduled in our database for the next three months. We're continuously updating our event calendar. Please check back later for updates on future events, or you can visit our official website for the most up-to-date information on MongoDB Developer Day events.",
+                'references': 'Events data from MongoDB events collection.'
+            }
+        
+    # Existing code for non-event questions
     context = "Context: MongoDB Developer Days, MongoDB Atlas, MongoDB Aggregation Pipelines, and MongoDB Atlas Search"
     prompt = f"""
     Previous assistant message: {last_assistant_message}
 
-    New question with context: {question_with_context}
+    New question with context: {question}
 
     {context}
 
@@ -519,7 +575,6 @@ def generate_potential_answer_v2(question_with_context, last_assistant_message="
     )
     answer = response['choices'][0]['message']['content'].strip()
 
-    # Generate title, summary, and references
     title = generate_title(answer)
     summary = generate_summary(answer)
     references = generate_references(answer)
@@ -529,6 +584,118 @@ def generate_potential_answer_v2(question_with_context, last_assistant_message="
         'summary': summary,
         'answer': answer,
         'references': references
+    }
+
+def is_event_related_question(question):
+    prompt = f"""
+    Determine if the following question is related to events, specifically MongoDB Developer Day events or similar tech conferences. 
+    Respond with 'Yes' if it's event-related, or 'No' if it's not.
+
+    Question: {question}
+
+    Is this question related to events?
+    """
+
+    try:
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that determines if questions are related to events."},
+                {"role": "user", "content": prompt}
+            ],
+            max_tokens=5  # We only need a short response
+        )
+        
+        answer = response['choices'][0]['message']['content'].strip().lower()
+        return answer == 'yes'
+    except Exception as e:
+        logger.error(f"Error in is_event_related_question: {str(e)}")
+        # If there's an error, we'll fall back to the keyword method
+        event_keywords = ['event', 'developer day', 'conference', 'workshop', 'upcoming', 'schedule', 'calendar']
+        return any(keyword in question.lower() for keyword in event_keywords)
+    
+def fetch_relevant_events(question):
+    logger.debug(f"Fetching relevant events for question: {question}")
+    db = get_db_connection()
+    events_collection = db['events']
+
+    now = datetime.now(timezone.utc)
+    three_months_from_now = now + timedelta(days=90)
+
+    # Default to fetching upcoming events
+    query = {'date_time': {'$gte': now, '$lte': three_months_from_now}}
+
+    logger.debug(f"Initial query: {query}")
+
+    # # Adjust query based on question specifics
+    # question_lower = question.lower()
+    # if 'past' in question_lower:
+    #     query = {'date_time': {'$lt': now}}
+    # elif 'all' in question_lower:
+    query = {}
+
+    logger.debug(f"Adjusted query: {query}")
+
+    # Sort events by date
+    events = list(events_collection.find(query).sort('date_time', 1).limit(10))
+    
+    logger.debug(f"Found {len(events)} events")
+    for event in events:
+        logger.debug(f"Event: {event.get('title', 'No title')} at {event.get('date_time', 'No date')}")
+
+    return events
+
+def format_events_response(events, question):
+    logger.debug(f"Formatting response for {len(events)} events")
+    
+    if not events:
+        return {
+            'title': 'No Upcoming Events Found',
+            'summary': 'There are no upcoming events in our database at this time.',
+            'answer': f"I'm sorry, but I couldn't find any upcoming events that match your query: '{question}'. Please check back later for updates on future events.",
+            'references': 'Events data from MongoDB events collection.'
+        }
+
+    # Create a table of events
+    table_rows = []
+    for event in events:
+        logger.debug(f"Processing event: {event}")
+        
+        # Extract date and time
+        date_time = event.get('date_time')
+        if isinstance(date_time, str):
+            try:
+                date_time = datetime.fromisoformat(date_time)
+            except ValueError:
+                date_time = None
+        
+        if isinstance(date_time, datetime):
+            date = date_time.strftime('%Y-%m-%d')
+            time = date_time.strftime('%H:%M %Z')
+        else:
+            date = "Date not specified"
+            time = "Time not specified"
+
+        title = event.get('title', 'Event title not specified')
+        location = f"{event.get('city', 'N/A')}, {event.get('state', 'N/A')}, {event.get('country_code', 'N/A')}"
+        
+        # Add registration URL if available
+        registration_url = event.get('registration_url')
+        if registration_url:
+            title = f"[{title}]({registration_url})"
+        
+        table_rows.append(f"| {title} | {date} | {time} | {location} |")
+
+    table_header = "| Event | Date | Time | Location |\n|-------|------|------|----------|\n"
+    table = table_header + '\n'.join(table_rows)
+
+    answer = f"Yes, there are upcoming Developer Day events. Here are the details:\n\n{table}\n\nClick on the event name to register or get more information. If there's no link, please check the official MongoDB Developer Day website for registration details."
+
+    return {
+        'title': 'Upcoming Developer Day Events',
+        'summary': f"Found {len(events)} upcoming events.",
+        'answer': answer,
+        'references': 'Events data from MongoDB events collection.'
     }
 
 def generate_title(answer):

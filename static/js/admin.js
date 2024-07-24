@@ -61,6 +61,12 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.error('Main content element not found');
     }
+    function showEventSettings() {
+        // Hide other content and show event settings
+        document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('show', 'active'));
+        document.getElementById('event-settings').classList.add('show', 'active');
+        fetchEvents();
+    }
 
     // Add event listener for the view conversations link
     const viewConversationsLink = document.getElementById('view-conversations-link');
@@ -72,7 +78,7 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.error('View conversations link not found');
     }
-    document.getElementById('conversations-pagination').addEventListener('click', function(e) {
+    document.getElementById('conversations-pagination').addEventListener('click', function (e) {
         if (e.target.tagName === 'A') {
             e.preventDefault();
             const page = parseInt(e.target.getAttribute('data-page'));
@@ -80,7 +86,7 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    document.getElementById('conversations-body').addEventListener('click', function(e) {
+    document.getElementById('conversations-body').addEventListener('click', function (e) {
         if (e.target.classList.contains('view-conversation')) {
             const conversationId = e.target.getAttribute('data-id');
             viewConversation(conversationId);
@@ -170,26 +176,24 @@ function populateQuestionsTable(questions) {
     }
     tableBody.innerHTML = '';
     questions.forEach(question => {
-        const title = question.title || 'No title provided';
-        const summary = question.summary || 'No summary provided';
-        const answer = question.answer || 'No main answer provided';
-        const mainAnswer = question.main_answer || answer || 'No main answer provided';
-        const references = question.references || 'No references provided';
+        const title = truncateText(question.title || 'No title provided');
+        const summary = truncateText(question.summary || 'No summary provided');
+        const answer = truncateText(question.answer || question.main_answer || 'No answer provided');
 
         const row = document.createElement('tr');
         row.innerHTML = `
             <td>${escapeHTML(title)}</td>
-            <td>${escapeHTML(question.question)}</td>
+            <td>${escapeHTML(truncateText(question.question))}</td>
             <td>${escapeHTML(summary)}</td>
-            <td>${escapeHTML(mainAnswer.split('\n').slice(0, 3).join('\n'))}</td>
+            <td>${escapeHTML(answer)}</td>
             <td class="text-center">
                 <button class="btn btn-sm btn-outline-primary me-2" 
                     data-id="${question._id}" 
                     data-question="${escapeHTML(question.question)}" 
-                    data-title="${escapeHTML(title)}" 
-                    data-summary="${escapeHTML(summary)}" 
-                    data-answer="${escapeHTML(mainAnswer)}" 
-                    data-references="${escapeHTML(references)}" 
+                    data-title="${escapeHTML(question.title || '')}" 
+                    data-summary="${escapeHTML(question.summary || '')}" 
+                    data-answer="${escapeHTML(question.main_answer || question.answer || '')}" 
+                    data-references="${escapeHTML(question.references || '')}" 
                     onclick="showEditQuestionForm(this)">
                     <i class="fas fa-edit"></i> Edit
                 </button>
@@ -483,10 +487,11 @@ async function showEditQuestionForm(button) {
     document.getElementById('references-input').value = references || '';
 
     const form = document.getElementById('question-form');
-    form.setAttribute('data-question-id', id);  // Set the ID as a data attribute
-    form.onsubmit = async (event) => {
+    form.setAttribute('data-question-id', id);
+    form.onsubmit = function(event) {
         event.preventDefault();
-        await updateQuestion(id);
+        const questionId = this.getAttribute('data-question-id');
+        updateQuestion(questionId);
     };
     const modalElement = document.getElementById('question-modal');
     const modal = bootstrap.Modal.getInstance(modalElement) || new bootstrap.Modal(modalElement);
@@ -624,15 +629,10 @@ async function addQuestion() {
  * @param {Event} event - The form submission event
  * @throws {Error} If there's an issue updating the question
  */
-async function updateQuestion(event) {
-    event.preventDefault();
-
-    const form = event.target;
-    const questionId = form.getAttribute('data-question-id');
-
+async function updateQuestion(questionId) {
     if (!questionId) {
-        console.error('No question ID found');
-        alert('Error: Question ID not found. Please try again.');
+        console.error('No question ID provided');
+        alert('Error: No question ID found. Please try again.');
         return;
     }
 
@@ -645,6 +645,7 @@ async function updateQuestion(event) {
     };
 
     try {
+        console.log(`Updating question with ID: ${questionId}`);
         const response = await fetch(`/api/questions/${questionId}`, {
             method: 'PUT',
             headers: {
@@ -667,12 +668,8 @@ async function updateQuestion(event) {
         const modal = bootstrap.Modal.getInstance(modalElement);
         modal.hide();
 
-        // Refresh the questions or statistics table
-        if (document.querySelector('table th').textContent.includes('Effectiveness')) {
-            showAnswerFeedbackStats();
-        } else {
-            fetchQuestions();
-        }
+        // Refresh the questions table
+        fetchQuestions();
 
         alert('Question updated successfully!');
     } catch (error) {
@@ -680,7 +677,6 @@ async function updateQuestion(event) {
         alert('Failed to update question. Please check the console for more details.');
     }
 }
-
 // Answer an unanswered question
 async function answerQuestion(id) {
     const question = document.getElementById('question-input').value;
@@ -1465,3 +1461,516 @@ document.getElementById('conversations-body').addEventListener('click', function
         console.log('View conversation:', conversationId);
     }
 });
+function showEventSettings() {
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) {
+        console.error('Main content element not found');
+        return;
+    }
+
+    // Clear existing content
+    mainContent.innerHTML = '';
+
+    // Create event settings container
+    const eventSettingsContainer = document.createElement('div');
+    eventSettingsContainer.id = 'event-settings';
+    eventSettingsContainer.className = 'tab-pane fade show active';
+    eventSettingsContainer.innerHTML = `
+        <h2>Developer Day Event Settings</h2>
+        <button class="btn btn-primary mb-3" onclick="showAddEventForm()">Add New Event</button>
+        <div id="event-map" style="height: 400px; margin-top: 20px;"></div>
+        <div class="table-responsive">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>Title</th>
+                        <th>Date & Time</th>
+                        <th>Location</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody id="events-table-body">
+                    <!-- Events will be populated here -->
+                </tbody>
+            </table>
+        </div>
+    `;
+
+    mainContent.appendChild(eventSettingsContainer);
+
+    // Update active tab in the sidebar
+    document.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+    const eventSettingsLink = document.querySelector('.nav-link[onclick="showEventSettings()"]');
+    if (eventSettingsLink) {
+        eventSettingsLink.classList.add('active');
+    }
+
+    fetchEvents();
+}
+function fetchEvents() {
+    fetch('/api/events')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(events => {
+            console.log('Received events:', events); // For debugging
+            populateEventsTable(events);
+            displayEventMap(events);
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            const tableBody = document.getElementById('events-table-body');
+            if (tableBody) {
+                tableBody.innerHTML = `<tr><td colspan="4">Error loading events: ${error.message}</td></tr>`;
+            }
+        });
+}
+
+function populateEventsTable(events) {
+    const tableBody = document.getElementById('events-table-body');
+    if (tableBody) {
+        tableBody.innerHTML = '';
+        events.forEach(event => {
+            const row = `
+                <tr>
+                    <td>${escapeHTML(event.title)}</td>
+                    <td>${new Date(event.date_time).toLocaleString()} (${event.time_zone})</td>
+                    <td>${escapeHTML(event.city)}, ${escapeHTML(event.state)}</td>
+                    <td>
+                        <button class="btn btn-sm btn-warning" onclick="editEvent('${event._id}')">Edit</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteEvent('${event._id}')">Delete</button>
+                    </td>
+                </tr>
+            `;
+            tableBody.innerHTML += row;
+        });
+    } else {
+        console.error('Events table body not found');
+    }
+}
+function showAddEventForm() {
+    const modal = document.getElementById('question-modal');
+    modal.querySelector('.modal-title').textContent = 'Add New Event';
+    modal.querySelector('.modal-body').innerHTML = `
+        <form id="event-form">
+            <div class="mb-3">
+                <label for="event-title" class="form-label">Event Title</label>
+                <input type="text" class="form-control" id="event-title" required>
+            </div>
+            <div class="mb-3">
+                <label for="event-date-time" class="form-label">Date and Time</label>
+                <input type="datetime-local" class="form-control" id="event-date-time" required>
+            </div>
+            <div class="mb-3">
+                <label for="event-time-zone" class="form-label">Time Zone</label>
+                <input type="text" class="form-control" id="event-time-zone" required>
+            </div>
+            <div class="mb-3">
+                <label for="event-address1" class="form-label">Address Line 1</label>
+                <input type="text" class="form-control" id="event-address1" required>
+            </div>
+            <div class="mb-3">
+                <label for="event-address2" class="form-label">Address Line 2</label>
+                <input type="text" class="form-control" id="event-address2">
+            </div>
+            <div class="mb-3">
+                <label for="event-city" class="form-label">City</label>
+                <input type="text" class="form-control" id="event-city" required>
+            </div>
+            <div class="mb-3">
+                <label for="event-state" class="form-label">State</label>
+                <input type="text" class="form-control" id="event-state" required>
+            </div>
+            <div class="mb-3">
+                <label for="event-postal-code" class="form-label">Postal Code</label>
+                <input type="text" class="form-control" id="event-postal-code" required>
+            </div>
+            <div class="mb-3">
+                <label for="event-country-code" class="form-label">Country Code</label>
+                <input type="text" class="form-control" id="event-country-code" required>
+            </div>
+            <div class="mb-3">
+                <label for="event-registration-url" class="form-label">Registration URL</label>
+                <input type="url" class="form-control" id="event-registration-url" required>
+            </div>
+            <div class="mb-3">
+                <label for="event-feedback-url" class="form-label">Feedback URL</label>
+                <input type="url" class="form-control" id="event-feedback-url">
+            </div>        
+            <div class="form-group">
+                <label for="lead-instructor">Lead Instructor</label>
+                <input type="text" class="form-control" id="lead-instructor" name="lead_instructor">
+            </div>
+
+            <div class="form-group">
+                <label>Sessions</label>
+                <div>
+                    <label class="form-check-label">
+                        <input type="checkbox" class="form-check-input session-checkbox" name="sessions" value="Data Modeling"> Data Modeling
+                        <input type="text" class="form-control session-instructor" placeholder="Instructor" data-session="Data Modeling">
+                    </label>
+                </div>
+                <div>
+                    <label class="form-check-label">
+                        <input type="checkbox" class="form-check-input session-checkbox" name="sessions" value="Intro Lab"> Intro Lab
+                        <input type="text" class="form-control session-instructor" placeholder="Instructor" data-session="Intro Lab">
+                    </label>
+                </div>
+                <div>
+                    <label class="form-check-label">
+                        <input type="checkbox" class="form-check-input session-checkbox" name="sessions" value="Aggregations"> Aggregations
+                        <input type="text" class="form-control session-instructor" placeholder="Instructor" data-session="Aggregations">
+                    </label>
+                </div>
+                <div>
+                    <label class="form-check-label">
+                        <input type="checkbox" class="form-check-input session-checkbox" name="sessions" value="Atlas Search"> Atlas Search
+                        <input type="text" class="form-control session-instructor" placeholder="Instructor" data-session="Atlas Search">
+                    </label>
+                </div>
+                <div>
+                    <label class="form-check-label">
+                        <input type="checkbox" class="form-check-input session-checkbox" name="sessions" value="VectorSearch"> VectorSearch
+                        <input type="text" class="form-control session-instructor" placeholder="Instructor" data-session="VectorSearch">
+                    </label>
+                </div>
+            </div>
+        </form>
+    `;
+    modal.querySelector('.modal-footer').innerHTML = `
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+        <button type="button" class="btn btn-primary" onclick="saveEvent()">Save Event</button>
+    `;
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
+}
+
+function saveEvent() {
+    const eventData = {
+        title: document.getElementById('event-title').value,
+        date_time: document.getElementById('event-date-time').value,
+        time_zone: document.getElementById('event-time-zone').value,
+        address1: document.getElementById('event-address1').value,
+        address2: document.getElementById('event-address2').value,
+        city: document.getElementById('event-city').value,
+        state: document.getElementById('event-state').value,
+        postal_code: document.getElementById('event-postal-code').value,
+        country_code: document.getElementById('event-country-code').value,
+        registration_url: document.getElementById('event-registration-url').value,
+        feedback_url: document.getElementById('event-feedback-url').value
+    };
+
+    fetch('/api/events', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+            bootstrap.Modal.getInstance(document.getElementById('question-modal')).hide();
+            fetchEvents();
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+
+function updateEvent(eventId) {
+    const eventData = {
+        title: document.getElementById('event-title').value,
+        date_time: document.getElementById('event-date-time').value,
+        time_zone: document.getElementById('event-time-zone').value,
+        address1: document.getElementById('event-address1').value,
+        address2: document.getElementById('event-address2').value,
+        city: document.getElementById('event-city').value,
+        state: document.getElementById('event-state').value,
+        postal_code: document.getElementById('event-postal-code').value,
+        country_code: document.getElementById('event-country-code').value,
+        registration_url: document.getElementById('event-registration-url').value,
+        feedback_url: document.getElementById('event-feedback-url').value
+    };
+
+    fetch(`/api/events/${eventId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(eventData),
+    })
+        .then(response => response.json())
+        .then(data => {
+            console.log('Success:', data);
+            bootstrap.Modal.getInstance(document.getElementById('question-modal')).hide();
+            fetchEvents();
+        })
+        .catch((error) => {
+            console.error('Error:', error);
+        });
+}
+function editEvent(eventId) {
+    // Fetch event details and show edit form
+    fetch(`/api/events/${eventId}`)
+        .then(response => response.json())
+        .then(event => {
+            showAddEventForm(); // Reuse the add form
+            document.getElementById('event-title').value = event.title || '';
+            document.getElementById('event-date-time').value = event.date_time ? new Date(event.date_time).toISOString().slice(0, 16) : '';
+            document.getElementById('event-time-zone').value = event.time_zone || '';
+            document.getElementById('event-address1').value = event.address1 || '';
+            document.getElementById('event-address2').value = event.address2 || '';
+            document.getElementById('event-city').value = event.city || '';
+            document.getElementById('event-state').value = event.state || '';
+            document.getElementById('event-postal-code').value = event.postal_code || '';
+            document.getElementById('event-country-code').value = event.country_code || '';
+            document.getElementById('event-registration-url').value = event.registration_url || '';
+            document.getElementById('event-feedback-url').value = event.feedback_url || '';
+
+            // Change the save button to update
+            const saveButton = document.querySelector('.modal-footer .btn-primary');
+            saveButton.textContent = 'Update Event';
+            saveButton.onclick = () => updateEvent(eventId);
+        })
+        .catch(error => {
+            console.error('Error fetching event details:', error);
+            alert('Failed to fetch event details. Please try again.');
+        });
+}
+
+
+function deleteEvent(eventId) {
+    if (confirm('Are you sure you want to delete this event?')) {
+        fetch(`/api/events/${eventId}`, {
+            method: 'DELETE',
+        })
+            .then(response => response.json())
+            .then(data => {
+                console.log('Success:', data);
+                fetchEvents();
+            })
+            .catch((error) => {
+                console.error('Error:', error);
+            });
+    }
+}
+function displayEventMap(events) {
+    const mapContainer = document.getElementById('event-map');
+    if (!mapContainer) {
+        console.log("Map container not found");
+        return;
+    }
+
+    // Check if the Google Maps API is fully loaded
+    if (typeof google === 'undefined' || typeof google.maps === 'undefined') {
+        console.log("Google Maps API is not loaded yet");
+        return;
+    }
+
+    // Initialize the map
+    const map = new google.maps.Map(mapContainer, {
+        zoom: 2,
+        center: { lat: 0, lng: 0 }
+    });
+
+    const bounds = new google.maps.LatLngBounds();
+    let hasValidCoordinates = false;
+
+    // Function to create a marker (works with both AdvancedMarkerElement and standard Marker)
+    function createMarker(position, title) {
+        if (google.maps.marker && google.maps.marker.AdvancedMarkerElement) {
+            return new google.maps.marker.AdvancedMarkerElement({
+                map: map,
+                position: position,
+                title: title
+            });
+        } else {
+            return new google.maps.Marker({
+                map: map,
+                position: position,
+                title: title
+            });
+        }
+    }
+
+    // Add markers for each event
+    events.forEach(event => {
+        if (event.location && event.location.coordinates) {
+            const [lng, lat] = event.location.coordinates;
+            const position = new google.maps.LatLng(lat, lng);
+    
+            const marker = createMarker(position, event.title);
+    
+            // Format the date
+            let formattedDate = "Date not available";
+            if (event.date_time) {
+                const eventDate = new Date(event.date_time);
+                if (!isNaN(eventDate.getTime())) {
+                    formattedDate = eventDate.toLocaleDateString('en-US', {
+                        weekday: 'long',
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                } else {
+                    // If the date is invalid, use the original string
+                    formattedDate = event.date_time;
+                }
+            }
+    
+            // Create the content for the InfoWindow
+            const infoWindowContent = `
+                <div style="max-width: 300px;">
+                    <h3 style="margin-bottom: 5px;">${event.title}</h3>
+                    <p style="margin: 5px 0;"><strong>Date:</strong> ${formattedDate}</p>
+                    <p style="margin: 5px 0;"><strong>Location:</strong><br>
+                        ${event.address1}${event.address2 ? '<br>' + event.address2 : ''}<br>
+                        ${event.city}, ${event.state} ${event.postal_code}<br>
+                        ${event.country_code}
+                    </p>
+                    ${event.registration_url ? `<p style="margin: 10px 0;"><a href="${event.registration_url}" target="_blank" style="background-color: #4CAF50; color: white; padding: 5px 10px; text-align: center; text-decoration: none; display: inline-block; border-radius: 4px;">Register</a></p>` : ''}
+                    ${event.feedback_url ? `<p style="margin: 5px 0;"><a href="${event.feedback_url}" target="_blank" style="background-color: #007bff; color: white; padding: 5px 10px; text-align: center; text-decoration: none; display: inline-block; border-radius: 4px;">Provide Feedback</a></p>` : ''}
+                </div>
+            `;
+    
+            const infoWindow = new google.maps.InfoWindow({
+                content: infoWindowContent
+            });
+    
+            marker.addListener('click', () => {
+                infoWindow.open(map, marker);
+            });
+    
+            bounds.extend(position);
+            hasValidCoordinates = true;
+        }
+    });
+
+    if (hasValidCoordinates) {
+        map.fitBounds(bounds);
+    } else {
+        console.log("No events with valid coordinates found");
+    }
+}
+/**
+ * Displays the question sources interface and sets up the forms.
+ *
+ * @function showQuestionSources
+ */
+function showQuestionSources() {
+    const mainContent = document.getElementById('main-content');
+    if (!mainContent) {
+        console.error('Main content element not found');
+        return;
+    }
+
+    // Clear existing content
+    mainContent.innerHTML = '';
+
+    // Create question sources container
+    const questionSourcesContainer = document.createElement('div');
+    questionSourcesContainer.id = 'question-sources';
+    questionSourcesContainer.innerHTML = `
+        <h2>Add Questions from Sources</h2>
+
+    <div class="alert alert-info" role="alert">
+            <p>This feature allows you to easily import questions and answers from various sources, enhancing your knowledge base efficiently.</p>
+            <hr>
+            <p class="mb-0">You can:</p>
+            <ul>
+                <li>Upload and process files (PPTX, DOCX, TXT) to extract questions and answers.</li>
+                <li>Process content from a URL to generate questions and answers.</li>
+                <li>Set similarity thresholds to avoid duplicate entries.</li>
+            </ul>
+            <p>This tool uses AI to analyze the content and create relevant question-answer pairs, which are then added to your database.</p>
+        </div>
+        <div class="row">
+    <div class="col-md-6">
+        <h3>Upload Files</h3>
+        <form id="file-upload-form" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label for="file-input" class="form-label">Select files (PPTX, DOCX, TXT)</label>
+                <input type="file" class="form-control" id="file-input" name="files" multiple accept=".pptx,.docx,.txt">
+            </div>
+            <div class="mb-3">
+                <label for="file-similarity-threshold" class="form-label">Similarity Threshold (0-1)</label>
+                <input type="number" class="form-control" id="file-similarity-threshold" name="similarity_threshold" min="0" max="1" step="0.01" value="0.9">
+            </div>
+            <button type="submit" class="btn btn-primary">Upload and Process</button>
+        </form>
+    </div>
+    <div class="col-md-6">
+        <h3>Process URL</h3>
+        <form id="url-process-form">
+            <div class="mb-3">
+                <label for="url-input" class="form-label">Enter URL</label>
+                <input type="url" class="form-control" id="url-input" name="url" required>
+            </div>
+            <div class="mb-3">
+                <label for="url-similarity-threshold" class="form-label">Similarity Threshold (0-1)</label>
+                <input type="number" class="form-control" id="url-similarity-threshold" name="similarity_threshold" min="0" max="1" step="0.01" value="0.9">
+            </div>
+            <button type="submit" class="btn btn-primary">Process URL</button>
+        </form>
+    </div>
+</div>
+    `;
+
+    mainContent.appendChild(questionSourcesContainer);
+
+    // Set up the forms
+    setupQuestionSourcesForms();
+}
+
+
+
+function setupQuestionSourcesForms() {
+    const fileUploadForm = document.getElementById('file-upload-form');
+    const urlProcessForm = document.getElementById('url-process-form');
+    const processingStatus = document.getElementById('processing-status');
+
+    fileUploadForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const formData = new FormData(fileUploadForm);
+        try {
+            const response = await fetch('/api/process_files', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+            processingStatus.innerHTML = `<div class="alert alert-success">Files processed successfully. ${result.questionsAdded} new questions added.</div>`;
+        } catch (error) {
+            processingStatus.innerHTML = `<div class="alert alert-danger">Error processing files: ${error.message}</div>`;
+        }
+    });
+
+    urlProcessForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        const url = document.getElementById('url-input').value;
+        const similarityThreshold = document.getElementById('url-similarity-threshold').value;
+        try {
+            const response = await fetch('/api/process_url', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ url, similarity_threshold: similarityThreshold })
+            });
+            const result = await response.json();
+            processingStatus.innerHTML = `<div class="alert alert-success">URL processed successfully. ${result.questionsAdded} new questions added.</div>`;
+        } catch (error) {
+            processingStatus.innerHTML = `<div class="alert alert-danger">Error processing URL: ${error.message}</div>`;
+        }
+    });
+}
+
+function truncateText(text, maxLength = 50) {
+    if (text && text.length > maxLength) {
+        return text.substring(0, maxLength) + '...';
+    }
+    return text || '';
+}
