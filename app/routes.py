@@ -1142,3 +1142,80 @@ def allowed_file(filename):
 @main.route('/admin/question_sources')
 def question_sources():
     return render_template('question_sources.html')
+
+@main.route('/api/admin/search_questions', methods=['GET'])
+@login_required
+def search_questions():
+    if not current_user.is_admin:
+        return jsonify({"error": "Unauthorized access"}), 403
+
+    query = request.args.get('query', '')
+    if not query:
+        return jsonify({"error": "No search query provided"}), 400
+
+    try:
+        result = db.questions.aggregate([
+            {
+                "$search": {
+                    "index": "default",  # replace with your index name if different
+                    "text": {
+                        "query": query,
+                        "path": ["question", "answer", "title"]  # adjust based on your schema
+                    }
+                }
+            },
+            {
+                "$project": {
+                    "_id": {"$toString": "$_id"},
+                    "question": 1,
+                    "answer": 1,
+                    "title": 1,
+                    "score": {"$meta": "searchScore"}
+                }
+            },
+            {
+                "$limit": 10  # adjust as needed
+            }
+        ])
+
+        questions = list(result)
+        return jsonify(questions), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error searching questions: {str(e)}")
+        return jsonify({"error": "An error occurred while searching questions"}), 500
+    
+@main.route('/api/autocomplete', methods=['GET'])
+def autocomplete():
+    prefix = request.args.get('prefix', '')
+    if not prefix:
+        return jsonify([]), 200
+
+    try:
+        pipeline = [
+            {
+                "$search": {
+                    "index": "autocomplete",  # Make sure to create this index
+                    "autocomplete": {
+                        "query": prefix,
+                        "path": "question",
+                        "tokenOrder": "sequential"
+                    }
+                }
+            },
+            {
+                "$project": {
+                    "_id": 0,
+                    "question": 1,
+                    "score": {"$meta": "searchScore"}
+                }
+            },
+            {"$limit": 5}  # Adjust the number of suggestions as needed
+        ]
+
+        results = list(db.documents.aggregate(pipeline))
+        suggestions = [result['question'] for result in results]
+        return jsonify(suggestions), 200
+    except Exception as e:
+        current_app.logger.error(f"Error in autocomplete: {str(e)}")
+        return jsonify({"error": "An error occurred during autocomplete"}), 500

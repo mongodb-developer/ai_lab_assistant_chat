@@ -13,6 +13,91 @@
 let chatContainer;
 let userInput;
 let currentConversationId = null;
+let currentFocus = -1;
+
+document.getElementById('user-input').addEventListener('input', debounce(getSuggestions, 300));
+document.getElementById('user-input').addEventListener('keydown', handleKeyDown);
+
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.autocomplete-wrapper')) {
+        document.getElementById('autocomplete-dropdown').style.display = 'none';
+    }
+});
+async function getSuggestions() {
+    const input = document.getElementById('user-input');
+    const dropdown = document.getElementById('autocomplete-dropdown');
+    
+    if (!input.value) {
+        dropdown.innerHTML = '';
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/autocomplete?prefix=${encodeURIComponent(input.value)}`);
+        if (!response.ok) throw new Error('Network response was not ok');
+        const suggestions = await response.json();
+
+        dropdown.innerHTML = '';
+        suggestions.forEach((suggestion, index) => {
+            const div = document.createElement('div');
+            div.innerHTML = suggestion;
+            div.addEventListener('click', function() {
+                input.value = this.innerText;
+                dropdown.innerHTML = '';
+            });
+            dropdown.appendChild(div);
+        });
+
+        // Show the dropdown
+        dropdown.style.display = 'block';
+    } catch (error) {
+        console.error('Error fetching suggestions:', error);
+    }
+}
+
+function handleKeyDown(e) {
+    const dropdown = document.getElementById('autocomplete-dropdown');
+    const items = dropdown.getElementsByTagName('div');
+    
+    if (e.keyCode === 40) { // down arrow
+        currentFocus++;
+        addActive(items);
+    } else if (e.keyCode === 38) { // up arrow
+        currentFocus--;
+        addActive(items);
+    } else if (e.keyCode === 13) { // enter
+        e.preventDefault();
+        if (currentFocus > -1) {
+            if (items) items[currentFocus].click();
+        }
+    }
+}
+
+function addActive(items) {
+    if (!items) return false;
+    removeActive(items);
+    if (currentFocus >= items.length) currentFocus = 0;
+    if (currentFocus < 0) currentFocus = (items.length - 1);
+    items[currentFocus].classList.add('autocomplete-active');
+}
+
+function removeActive(items) {
+    for (let i = 0; i < items.length; i++) {
+        items[i].classList.remove('autocomplete-active');
+    }
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
 
 /**
  * Initializes the chat functionality.
@@ -397,20 +482,40 @@ document.addEventListener('DOMContentLoaded', function() {
 
     var bookReviewBtn = document.getElementById('book-review-btn');
     var calendlyModal = new bootstrap.Modal(document.getElementById('calendlyModal'));
+    const reviewBanner = document.getElementById('review-banner');
 
-    bookReviewBtn.addEventListener('click', function () {
-        calendlyModal.show();
-    });
+    if (reviewBanner && bookReviewBtn && calendlyModal) {
+        // We're on the chat page, set up the banner behavior
+        document.body.classList.add('chat-page');
 
-    // Ensure the modal is hidden completely and grey overlay is removed
-    var modalElement = document.getElementById('calendlyModal');
-    modalElement.addEventListener('hidden.bs.modal', function () {
-        document.body.classList.remove('modal-open');
-        var modalBackdrop = document.querySelector('.modal-backdrop');
-        if (modalBackdrop) {
-            modalBackdrop.remove();
-        }
-    });
+        const bsCalendlyModal = new bootstrap.Modal(calendlyModal);
+
+        // Show/hide banner on scroll
+        let lastScrollTop = 0;
+        window.addEventListener('scroll', function() {
+            let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+            if (scrollTop > lastScrollTop) {
+                reviewBanner.classList.add('hidden');
+            } else {
+                reviewBanner.classList.remove('hidden');
+            }
+            lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+        }, false);
+
+        // Open Calendly modal when "Book Now" is clicked
+        bookReviewBtn.addEventListener('click', function () {
+            bsCalendlyModal.show();
+        });
+
+        // Existing modal event listener
+        calendlyModal.addEventListener('hidden.bs.modal', function () {
+            document.body.classList.remove('modal-open');
+            var modalBackdrop = document.querySelector('.modal-backdrop');
+            if (modalBackdrop) {
+                modalBackdrop.remove();
+            }
+        });
+    }
     marked.setOptions({
         breaks: true,
         gfm: true,

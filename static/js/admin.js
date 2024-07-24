@@ -8,6 +8,16 @@
  * @module admin
  */
 
+self.addEventListener('activate', event => {
+    event.waitUntil(
+      (async () => {
+        if ('navigationPreload' in self.registration) {
+          await self.registration.navigationPreload.enable();
+        }
+      })()
+    );
+  });
+
 /**
  * Initializes the admin panel functionality when the DOM is fully loaded.
  * Sets up event listeners and loads initial data.
@@ -169,6 +179,9 @@ async function fetchQuestions(page = 1) {
  * @param {Array} questions - An array of question objects
  */
 function populateQuestionsTable(questions) {
+
+    console.log('Received questions:', questions);
+
     const tableBody = document.getElementById('questions-table-body');
     if (!tableBody) {
         console.error('Element with ID "questions-table-body" not found. Make sure you are on the correct view.');
@@ -185,7 +198,7 @@ function populateQuestionsTable(questions) {
             <td>${escapeHTML(title)}</td>
             <td>${escapeHTML(truncateText(question.question))}</td>
             <td>${escapeHTML(summary)}</td>
-            <td>${escapeHTML(answer)}</td>
+            <td>${escapeHTML(question.answer)}</td>
             <td class="text-center">
                 <button class="btn btn-sm btn-outline-primary me-2" 
                     data-id="${question._id}" 
@@ -846,6 +859,9 @@ function showQuestions() {
     content.innerHTML = `
         <div id="questions-content">
             <h2>Questions</h2>
+            <div class="mb-3">
+                <input type="text" id="question-search" class="form-control" placeholder="Search questions...">
+            </div>
             <button class="btn btn-primary mb-3" onclick="showAddQuestionForm()">Add Question</button>
             <div class="table-responsive">
                 <div id="questions-pagination"></div>
@@ -867,7 +883,44 @@ function showQuestions() {
             <div id="questions-pagination"></div>
         </div>
     `;
+    const searchInput = document.getElementById('question-search');
+    searchInput.addEventListener('input', debounce(searchQuestions, 300));
     fetchQuestions();
+}
+
+function debounce(func, wait) {
+    let timeout;
+    return function executedFunction(...args) {
+        const later = () => {
+            clearTimeout(timeout);
+            func(...args);
+        };
+        clearTimeout(timeout);
+        timeout = setTimeout(later, wait);
+    };
+}
+
+async function searchQuestions() {
+    const query = document.getElementById('question-search').value;
+    console.log('Search query:', query);
+    if (!query) {
+        fetchQuestions();
+        return;
+    }
+
+    try {
+        const response = await fetch(`/api/admin/search_questions?query=${encodeURIComponent(query)}`);
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const questions = await response.json();
+        populateQuestionsTable(questions);
+        // Hide pagination for search results
+        document.getElementById('questions-pagination').style.display = 'none';
+    } catch (error) {
+        console.error('Error searching questions:', error);
+        alert('An error occurred while searching questions. Please try again.');
+    }
 }
 
 // Display unanswered questions tab
