@@ -1,9 +1,28 @@
 :root {
-    --mongodb-green: #00a35c;
-    --mongodb-dark-blue: #001E2B;
-    --mongodb-light-blue: #00684A;
-    --mongodb-gray: #E8EDEB;
-}
+    --mongodb-green: #00ED64;
+    --mongodb-blue: #016BF8;
+    --mongodb-yellow: #FFDD00;
+    --mongodb-red: #FF0000;
+    --mongodb-gray-light: #F9FBFA;
+    --mongodb-gray-dark: #21313C;
+  }
+  
+  body {
+    font-family: 'Euclid Circular A', 'Helvetica Neue', sans-serif;
+    color: var(--mongodb-gray-dark);
+    background-color: var(--mongodb-gray-light);
+  }
+  
+  .btn-primary {
+    background-color: var(--mongodb-blue);
+    border-color: var(--mongodb-blue);
+    color: white;
+  }
+  
+  .btn-primary:hover {
+    background-color: #0051c3;
+    border-color: #0051c3;
+  }
 
 /* Primary buttons */
 .btn-primary {
