@@ -1,12 +1,13 @@
 from flask import Blueprint, url_for, session, redirect, request, current_app
 from authlib.integrations.flask_client import OAuth
 from flask_login import LoginManager, UserMixin, login_user, logout_user, current_user
-from app.utils import get_db_connection
 from config import Config
 from bson import ObjectId
 import time
 from datetime import datetime
 import logging
+from app.utils import with_db_connection
+
 
 auth = Blueprint('auth', __name__)
 oauth = OAuth()
@@ -16,6 +17,7 @@ def init_oauth(app):
     oauth.init_app(app)
     login_manager.init_app(app)
     login_manager.login_view = 'auth.login'
+    app.register_blueprint(oauth, url_prefix="/login")
     oauth.register(
         name='google',
         client_id=Config.GOOGLE_CLIENT_ID,
@@ -35,8 +37,8 @@ class User(UserMixin):
         self.last_login = last_login
 
 @login_manager.user_loader
-def load_user(user_id):
-    db = get_db_connection()
+@with_db_connection
+def load_user(db, user_id):
     user_data = db.users.find_one({"_id": ObjectId(user_id)})
     if not user_data:
         return None
@@ -63,7 +65,8 @@ def logout():
     return redirect(url_for('main.index'))
 
 @auth.route('/login/authorized')
-def authorized():
+@with_db_connection
+def authorized(db):
     try:
         token = oauth.google.authorize_access_token()
         current_app.logger.debug(f"Received token: {token}")
@@ -79,7 +82,6 @@ def authorized():
         picture = user_info.get('picture')
         current_time = datetime.now()
 
-        db = get_db_connection()
         user_data = db.users.find_one({'email': email})
         if user_data is None:
             user_data = {

@@ -1,6 +1,10 @@
 import openai
 from pymongo import MongoClient, ASCENDING
 from pymongo.operations import IndexModel
+from pymongo import MongoClient
+from pymongo.collection import Collection
+from pymongo.database import Database
+from typing import Optional
 from config import Config
 import json
 import logging
@@ -14,10 +18,12 @@ import requests
 from typing import Any, Dict, List, Tuple, Union
 import re
 from collections import Counter
+
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
 from datetime import datetime, timezone, timedelta
+from functools import wraps
 
 nltk.data.path.append('/tmp/nltk_data')
 
@@ -28,28 +34,57 @@ nltk.download('averaged_perceptron_tagger')
 nltk.download('maxent_ne_chunker')
 nltk.download('words')
 
-
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-def get_db_connection():
+
+def get_db_connection() -> Optional[Database]:
     if 'mongo_client' not in current_app.config:
         try:
+            current_app.logger.info(f"Attempting to connect to MongoDB with URI: {current_app.config['MONGODB_URI']}")
             current_app.config['mongo_client'] = MongoClient(current_app.config['MONGODB_URI'])
             current_app.logger.info("Successfully connected to MongoDB")
         except Exception as e:
             current_app.logger.error(f"Failed to connect to MongoDB: {str(e)}")
             return None
 
-    return current_app.config['mongo_client'][current_app.config['MONGODB_DB']]
+    try:
+        db = current_app.config['mongo_client'].get_database(current_app.config['MONGODB_DB'])
+        current_app.logger.info(f"Successfully got database: {current_app.config['MONGODB_DB']}")
+        return db
+    except Exception as e:
+        current_app.logger.error(f"Failed to get database: {str(e)}")
+        return None
 
-client = MongoClient(Config.MONGODB_URI)
-db = client[Config.MONGODB_DB]
-collection = db[Config.MONGODB_COLLECTION]
-conversation_collection = db['conversations']  # New collection for conversations
-unanswered_collection = db['unanswered_questions']
-documents_collection = db['unanswered_questions']
+def get_collection(collection_name: str) -> Optional[Collection]:
+    try:
+        db = get_db_connection()
+        if db is None:
+            current_app.logger.error(f"Failed to get database connection for collection: {collection_name}")
+            return None
+        collection = db[collection_name]
+        current_app.logger.info(f"Successfully got collection: {collection_name}")
+        return collection
+    except Exception as e:
+        current_app.logger.error(f"Error getting collection {collection_name}: {str(e)}")
+        return None
+
+def with_db_connection(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        db = get_db_connection()
+        return f(db, *args, **kwargs)
+    return decorated_function
+
+def init_db(app):
+    with app.app_context():
+        db = get_db_connection()
+        # Perform any initial setup if needed
+        # For example, creating indexes
+        if db:
+            # Your index creation code here
+            pass
 
 SIMILARITY_THRESHOLD = 0.91  # Adjust this value as needed
 
@@ -68,23 +103,10 @@ except Exception as e:
 client = None
 db = None
 
-def get_db_connection():
-    global client, db
-    if client is None:
-        try:
-            client = MongoClient(Config.MONGODB_URI)
-            db = client[Config.MONGODB_DB]
-            logger.info(f"Successfully connected to MongoDB. Database: {Config.MONGODB_DB}")
-            return db
-        except Exception as e:
-            logger.error(f"Failed to connect to MongoDB: {str(e)}")
-            raise
-    return db
-
 openai.api_key = Config.OPENAI_API_KEY
 
-def update_user_login_info(user_id):
-    db = get_db_connection()
+@with_db_connection
+def update_user_login_info(db, user_id):
     users_collection = db['users']
 
     # Get user's IP address
@@ -115,10 +137,6 @@ def update_user_login_info(user_id):
     
     users_collection.update_one({'_id': ObjectId(user_id)}, {'$set': update_data})
 
-def get_db_connection():
-    client = MongoClient(Config.MONGODB_URI)
-    return client[Config.MONGODB_DB]
-
 def generate_embedding(text):
     debug_info = {}
     if isinstance(text, dict):
@@ -148,6 +166,7 @@ def generate_embedding(text):
         debug_info['traceback'] = traceback.format_exc()
         raise
 
+@with_db_connection
 def add_question_answer(db, question, answer, title, summary, references):
     try:
         document = {
@@ -179,9 +198,23 @@ def generate_title(question):
 
 from bson import ObjectId
 
-def search_similar_questions(question_embedding, query_text, similarity_threshold=0.93):
-    db = current_app.config['MONGODB_DB']
-    collection = documents_collection
+@with_db_connection
+def search_similar_questions(db, question_embedding, query_text, similarity_threshold=0.93):
+
+    logging.info(f"Searching for similar questions. Query: {query_text}, {question_embedding}")
+    collection = get_documents_collection()
+
+# db.documents.aggregate([
+#   {
+#     "$vectorSearch": {
+#       "index": "question_index",
+#       "path": "question_embedding",
+#       "queryVector": [<array-of-numbers>],
+#       "numCandidates": <number-of-candidates>,
+#       "limit": <number-of-results>
+#     }
+#   }
+# ])
 
     # Vector search stage
     vector_search_stage = [
@@ -190,8 +223,8 @@ def search_similar_questions(question_embedding, query_text, similarity_threshol
                 'index': 'question_index',
                 'path': 'question_embedding',
                 'queryVector': question_embedding,
-                'numCandidates': 10,
-                'limit': 5
+                'numCandidates': 200,  # Increase this
+                'limit': 20  # Increase this
             }
         },
         {
@@ -213,7 +246,9 @@ def search_similar_questions(question_embedding, query_text, similarity_threshol
                 'index': 'default',
                 'text': {
                     'query': query_text,
-                    'path': 'question',
+                    'path': {
+                        'wildcard': "*"
+                    },
                     'fuzzy': {
                         'maxEdits': 2
                     }
@@ -242,15 +277,30 @@ def search_similar_questions(question_embedding, query_text, similarity_threshol
     for result in all_results:
         result['vector_score'] = result.get('vector_score', 0)
         result['text_score'] = result.get('text_score', 0)
-        result['combined_score'] = 0.7 * result.get('vector_score', 0) + 0.3 * result.get('text_score', 0)
+        result['combined_score'] = 0.6 * result.get('vector_score', 0) + 0.4 * result.get('text_score', 0)
+
 
     # Sort and filter results
     sorted_results = sorted(all_results, key=lambda x: x['combined_score'], reverse=True)
     filtered_results = [r for r in sorted_results if r['combined_score'] >= similarity_threshold]
 
+    logging.info(f"Vector results: {len(vector_results)}")
+    logging.info(f"Text results: {len(text_results)}")
+    logging.info(f"All results: {len(all_results)}")
+    logging.info(f"Filtered results: {len(filtered_results)}")
+
+    if text_results:
+        logging.info(f"Top text result: {text_results[0]}")
+    indexes = collection.list_indexes()
+    logging.info("Existing indexes:")
+    for index in indexes:
+        logging.info(index)
+
     return filtered_results[:10]
-    
-def add_unanswered_question(user_id, user_name, question, potential):
+
+
+@with_db_connection
+def add_unanswered_question(db, user_id, user_name, question, potential):
     debug_info = {'function': 'add_unanswered_questions'}
 
     try:
@@ -278,7 +328,8 @@ def add_unanswered_question(user_id, user_name, question, potential):
         logger.error(f"Error adding unanswered question: {str(e)}")
         raise
 
-def check_database_connection():
+@with_db_connection
+def check_database_connection(db):
     try:
         if client is None:
             return False
@@ -288,8 +339,9 @@ def check_database_connection():
     except Exception as e:
         logger.error(f"Database connection failed: {str(e)}")
         return False
-
-def get_collection_stats():
+    
+@with_db_connection
+def get_collection_stats(db):
     try:
         if db is None or collection is None:
             raise Exception("MongoDB connection not established")
@@ -308,20 +360,27 @@ def json_serialize(obj):
         return obj.isoformat()
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
 
-def get_collection_stats():
-    try:
-        if db is None or collection is None:
-            raise Exception("MongoDB connection not established")
-        logger.info("Getting collection stats...")
-        stats = db.command("collstats", Config.MONGODB_COLLECTION)
-        # Convert stats to a JSON-serializable format
-        serializable_stats = json.loads(json_util.dumps(stats))
-        logger.info(f"Collection stats: {json.dumps(serializable_stats, default=json_serialize)}")
-        return serializable_stats
-    except Exception as e:
-        logger.error(f"Error getting collection stats: {str(e)}")
-        return None
-    
+def get_events_collection():
+    return get_collection('events')
+
+def get_answer_feedback_collection():
+    return get_collection('answer_feedback')
+
+def get_conversation_collection():
+    return get_collection('conversations')
+
+def get_feedback_collection():
+    return get_collection('feedback')
+
+def get_users_collection() -> Optional[Collection]:
+    return get_collection('users')
+
+def get_unanswered_collection():
+    return get_collection('unanswered_questions')
+
+def get_documents_collection():
+    return get_collection('documents')
+
 def store_message(user_id, message, sender, conversation_id=None):
     if not conversation_id:
         conversation_id = get_or_create_conversation(user_id)
@@ -342,7 +401,7 @@ def store_message(user_id, message, sender, conversation_id=None):
         # Assuming current_user.name is available
         update_data['$set']['user_name'] = current_user.name
     
-    conversation_collection.update_one(
+    get_conversation_collection().update_one(
         {'_id': ObjectId(conversation_id)},
         update_data
     )
@@ -380,21 +439,8 @@ def get_or_create_conversation(user_id):
         'last_updated': datetime.utcnow()
     }
     
-    result = conversation_collection.insert_one(new_conversation)
+    result = get_conversation_collection().insert_one(new_conversation)
     return str(result.inserted_id)
-
-import re
-from collections import Counter
-from nltk.corpus import stopwords
-from nltk.tokenize import word_tokenize
-import nltk
-
-# Download necessary NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('maxent_ne_chunker')
-nltk.download('words')
 
 def extract_topics(text, top_n=5):
     # Tokenize the text
@@ -440,7 +486,9 @@ def generate_context_summary(context_text, max_length=200):
     return summary
 
 # Update the update_conversation_context function
-def update_conversation_context(conversation_id):
+@with_db_connection
+def update_conversation_context(db, conversation_id):
+    conversation_collection = get_collection('conversations')
     conversation = conversation_collection.find_one({'_id': ObjectId(conversation_id)})
     
     if not conversation:
@@ -467,14 +515,18 @@ def update_conversation_context(conversation_id):
         }
     )
 
-def get_current_conversation(user_id):
+@with_db_connection
+def get_current_conversation(db, user_id):
+    conversation_collection = get_collection('conversations')
     conversation = conversation_collection.find_one(
         {'user_id': user_id, 'active': True},
         sort=[('timestamp', -1)]
     )
     return conversation['_id'] if conversation else None
 
-def start_new_conversation(user_id, title):
+@with_db_connection
+def start_new_conversation(db, user_id, title):
+    conversation_collection = get_collection('conversations')
     conversation_entry = {
         'user_id': user_id,
         'title': title,
@@ -484,14 +536,18 @@ def start_new_conversation(user_id, title):
     result = conversation_collection.insert_one(conversation_entry)
     return result.inserted_id
 
-def end_conversation(conversation_id):
-    conversation_collection.update_one(
+@with_db_connection
+def end_conversation(db, conversation_id):
+    conversations_collection = get_collection('conversations')
+    conversations_collection.update_one(
         {'_id': conversation_id},
         {'$set': {'active': False}}
     )
 
-def get_user_conversations(user_id):
-    conversations = conversation_collection.find(
+@with_db_connection
+def get_user_conversations(db, user_id):
+    conversations_collection = get_collection('conversations')
+    conversations = conversations_collection.find(
         {'user_id': user_id}
     ).sort('timestamp', -1)
     
@@ -504,8 +560,10 @@ def get_user_conversations(user_id):
         })
     return formatted_conversations
 
-def get_conversation_context(conversation_id):
-    conversation = conversation_collection.find_one({'_id': ObjectId(conversation_id)})
+@with_db_connection
+def get_conversation_context(db, conversation_id):
+    conversations = get_collection('conversations')
+    conversation = conversations.find_one({'_id': ObjectId(conversation_id)})
     if not conversation:
         return "", ""
     
@@ -528,8 +586,10 @@ def get_conversation_context(conversation_id):
     
     return context, last_assistant_message
 
-def get_conversation_messages(conversation_id):
-    return conversation_collection.find(
+@with_db_connection
+def get_conversation_messages(db, conversation_id):
+    conversations = get_collect('conversations');
+    return conversations.find(
         {'conversation_id': conversation_id}
     ).sort('timestamp', 1)
 
@@ -613,11 +673,11 @@ def is_event_related_question(question):
         # If there's an error, we'll fall back to the keyword method
         event_keywords = ['event', 'developer day', 'conference', 'workshop', 'upcoming', 'schedule', 'calendar']
         return any(keyword in question.lower() for keyword in event_keywords)
-    
-def fetch_relevant_events(question):
+
+@with_db_connection
+def fetch_relevant_events(db, question):
     logger.debug(f"Fetching relevant events for question: {question}")
-    db = get_db_connection()
-    events_collection = db['events']
+    events_collection = get_collection('events')
 
     now = datetime.now(timezone.utc)
     three_months_from_now = now + timedelta(days=90)
@@ -755,15 +815,6 @@ def fetch_changelog(repo_owner, repo_name, access_token=None):
         return response.text
     else:
         raise Exception(f"Failed to fetch changelog: {response.status_code} {response.text}")
-    
-def setup_database():
-    conversation_collection.create_indexes([
-        IndexModel([("user_id", ASCENDING)]),
-        IndexModel([("status", ASCENDING)]),
-        IndexModel([("last_updated", ASCENDING)]),
-        IndexModel([("embedding", ASCENDING)], sparse=True)
-    ])
-setup_database()
 
 def extract_topics(text, top_n=5):
     # Tokenize the text
@@ -807,3 +858,11 @@ def generate_context_summary(context_text, max_length=200):
     if len(summary) > max_length:
         summary = summary[:max_length] + '...'
     return summary
+
+@with_db_connection
+def print_db_info(db):
+    logging.info(f"Current database: {db.name}")
+    logging.info(f"Collections in database: {db.list_collection_names()}")
+    collection = get_collection('documents')
+    logging.info(f"Current collection: {collection.name}")
+    logging.info(f"Document count in collection: {collection.count_documents({})}")

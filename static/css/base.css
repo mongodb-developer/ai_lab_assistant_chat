@@ -29,3 +29,9 @@ body {
     height: 100%;
     overflow-y: auto;
 }
+/* Source information styles */
+.source-info {
+    font-size: 0.8em;
+    color: #888;
+    margin-top: 0.5em;
+}

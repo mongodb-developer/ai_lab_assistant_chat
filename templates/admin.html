@@ -99,6 +99,14 @@
                             <div id="questions-pagination"></div>
 
                             <button class="btn btn-primary" onclick="showAddQuestionForm()">Add Question</button>
+                            <div class="mb-4">
+                                <h3>Search Similar Questions</h3>
+                                <div class="input-group mb-3">
+                                    <input type="text" id="search-query" class="form-control" placeholder="Enter search query">
+                                    <button id="search-button" class="btn btn-primary">Search</button>
+                                </div>
+                                <div id="search-results" class="mt-3"></div>
+                            </div>
                         </div>
                         <!-- Unanswered Questions tab -->
                         <div class="tab-pane fade" id="unanswered-questions" role="tabpanel"

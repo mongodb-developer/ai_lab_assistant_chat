@@ -12,7 +12,9 @@ def create_app(config_class=Config):
     app = Flask(__name__,
                 template_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '../templates')),
                 static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '../static')))
+
     app.config.from_object(config_class)
+    
     CORS(app, supports_credentials=True)
 
     # Configure logging

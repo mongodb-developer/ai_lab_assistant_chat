@@ -103,6 +103,52 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
     createUserGrowthChart();
+    const searchButton = document.getElementById('search-button');
+    const searchQuery = document.getElementById('search-query');
+    const searchResults = document.getElementById('search-results');
+
+    searchButton.addEventListener('click', function() {
+        const query = searchQuery.value.trim();
+        if (!query) {
+            alert('Please enter a search query');
+            return;
+        }
+
+        fetch(`/api/admin/search_similar_questions?query=${encodeURIComponent(query)}`)
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    searchResults.innerHTML = `<p class="text-danger">${data.error}</p>`;
+                } else {
+                    let resultsHtml = '<table class="table"><thead><tr><th>Question</th><th>Title</th><th>Answer Preview</th><th>Score</th></tr></thead><tbody>';
+                    data.forEach(item => {
+                        resultsHtml += `
+                            <tr>
+                                <td>${escapeHtml(item.question)}</td>
+                                <td>${escapeHtml(item.title)}</td>
+                                <td>${escapeHtml(item.answer)}</td>
+                                <td>${item.score.toFixed(4)}</td>
+                            </tr>
+                        `;
+                    });
+                    resultsHtml += '</tbody></table>';
+                    searchResults.innerHTML = resultsHtml;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                searchResults.innerHTML = '<p class="text-danger">An error occurred while searching</p>';
+            });
+    });
+
+    function escapeHtml(unsafe) {
+        return unsafe
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
 
 });
 

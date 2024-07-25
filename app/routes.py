@@ -14,6 +14,9 @@ from .question_generator import process_content, save_to_mongodb, fetch_content_
 import requests
 from werkzeug.utils import secure_filename
 import pytz
+from app.utils import get_collection, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection
+from bson.son import SON
+
 
 from app.utils import (
     generate_embedding,
@@ -56,15 +59,15 @@ def custom_json_encoder(obj):
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname=s - %(message)s')
 logger = logging.getLogger(__name__)
 
-# MongoDB client and collections
-client = MongoClient(Config.MONGODB_URI)
-db = client[Config.MONGODB_DB]
-conversation_collection = db['conversations']
-documents_collection = db['documents']
-unanswered_collection = db['unanswered_questions']
-users_collection = db['users']
-feedback_collection = db['feedback']
-events_collection = db['events']
+# # MongoDB client and collections
+# client = MongoClient(Config.MONGODB_URI)
+# db = client[Config.MONGODB_DB]
+# conversation_collection = db['conversations']
+# documents_collection = db['documents']
+# unanswered_collection = db['unanswered_questions']
+# users_collection = db['users']
+# feedback_collection = db['feedback']
+# events_collection = db['events']
 
 # Default sessions
 DEFAULT_SESSIONS = [
@@ -101,10 +104,9 @@ def index():
             current_app.logger.debug(f"Current user: {current_user}")
             current_app.logger.debug(f"Authenticated user email: {getattr(current_user, 'email', 'Email not found')}")
 
-            db = get_db_connection()
-            users_collection = db['users']
+
             current_app.logger.debug(f"Fetching user data for id: {current_user.id}")
-            user_data = users_collection.find_one({'_id': ObjectId(current_user.id)})
+            user_data = get_users_collection().find_one({'_id': ObjectId(current_user.id)})
 
             if user_data:
                 current_app.logger.debug("User data found, updating login info")
@@ -164,6 +166,7 @@ def chat_api():
             raise ValueError("Missing 'question' in request payload")
 
         user_question = request.json['question']
+        logging.info(f"Searching for similar questions to: {user_question}")
         user_id = current_user.get_id()
         user_name = current_user.name
 
@@ -181,10 +184,12 @@ def chat_api():
 
         # Search for similar questions
         similar_questions = search_similar_questions(question_embedding, user_question)
+        logging.info(f"Found {len(similar_questions)} similar questions")
 
         response_data = {}
         
         if similar_questions and similar_questions[0]['combined_score'] > SIMILARITY_THRESHOLD:
+            logging.info(f"Best match: {similar_questions[0]['question']} with score {similar_questions[0]['combined_score']}")
             response_message = similar_questions[0]['answer']
             response_data = {
                 'question': similar_questions[0]['question'],
@@ -194,9 +199,11 @@ def chat_api():
                 'summary': similar_questions[0].get('summary', ''),
                 'references': similar_questions[0].get('references', ''),
                 'usage_count': similar_questions[0].get('usage_count', 0) + 1,
-                'debug_info': debug_info
+                'debug_info': debug_info,
+                'source': 'database'  # Add source field
             }
         else:
+            logging.info("No good match found. Adding as unanswered question.")
             # Add the unanswered question to the unanswered_questions collection
             response_message = 'This question has not been specifically answered for MongoDB Developer Days. However, here is some information I found that may assist you.</br>'
             potential_answer_data = generate_potential_answer_v2(user_question)
@@ -207,7 +214,8 @@ def chat_api():
                 'title': response_message + "<br>\n" + potential_answer_data.get('title', ''),
                 'summary': potential_answer_data.get('summary', ''),
                 'references': potential_answer_data.get('references', ''),
-                'debug_info': debug_info
+                'debug_info': debug_info,
+                'source': 'LLM'  # Add source field
             }
             add_unanswered_question(user_id, user_name, user_question, response_data)
 
@@ -233,6 +241,7 @@ def get_questions():
     try:
         page = int(request.args.get('page', 1))
         per_page = int(request.args.get('per_page', 10))  # Number of items per page
+        documents_collection = get_documents_collection()
 
         total = documents_collection.count_documents({})
         
@@ -296,6 +305,7 @@ def handle_exception(e):
 @main.route('/api/questions/<string:question_id>', methods=['GET'])
 @login_required
 def get_question(question_id):
+    documents_collection = get_documents_collection()
     try:
         question = documents_collection.find_one({'_id': ObjectId(question_id)})
         if question:
@@ -316,6 +326,8 @@ def update_question(question_id):
     title = data.get('title')
     summary = data.get('summary')
     references = data.get('references')
+    unanswered_collection = get_unanswered_collection()
+    documents_collection = get_documents_collection()
 
     current_app.logger.info(f"Received request to update question with ID: {question_id}")
     current_app.logger.info(f"New question: {question}")
@@ -327,6 +339,7 @@ def update_question(question_id):
 
     try:
         # Check if the question_id exists in the unanswered_collection
+
         unanswered_question = unanswered_collection.find_one({'_id': ObjectId(question_id)})
         if unanswered_question:
             # Update the unanswered question with the answered flag
@@ -355,7 +368,7 @@ def update_question(question_id):
                 'created_at': unanswered_question.get('created_at', datetime.now()),
                 'updated_at': datetime.now()
             }
-            insert_result = documents_collection.insert_one(new_document)
+            insert_result = get_documents_collection().insert_one(new_document)
             
             current_app.logger.info("Question updated in unanswered_questions and moved to documents collection with embeddings")
             return jsonify({'message': 'Question updated successfully', 'new_id': str(insert_result.inserted_id)}), 200
@@ -376,7 +389,7 @@ def update_question(question_id):
         update_data['question_embedding'] = question_embedding
         update_data['answer_embedding'] = answer_embedding
 
-        result = documents_collection.update_one(
+        result = get_documents_collection().update_one(
             {'_id': ObjectId(question_id)},
             {'$set': update_data}
         )
@@ -395,6 +408,7 @@ def update_question(question_id):
 @main.route('/api/questions/<string:question_id>', methods=['DELETE'])
 @login_required
 def delete_question(question_id):
+    documents_collection = get_documents_collection()
     try:
         result = documents_collection.delete_one({'_id': ObjectId(question_id)})
         if result.deleted_count == 1:
@@ -410,11 +424,11 @@ def delete_question(question_id):
 def get_unanswered_questions():
     try:
         # Find all unanswered questions
-        unanswered_questions = list(unanswered_collection.find({"$or": [{"answered": {"$exists": False}}, {"answered": False}]}))
+        unanswered_questions = list(get_unanswered_collection().find({"$or": [{"answered": {"$exists": False}}, {"answered": False}]}))
         user_ids = [question['user_id'] for question in unanswered_questions]
         
         # Fetch user names for the corresponding user IDs
-        users = db.users.find({"_id": {"$in": [ObjectId(user_id) for user_id in user_ids]}})
+        users = get_users_collection().find({"_id": {"$in": [ObjectId(user_id) for user_id in user_ids]}})
         user_dict = {str(user['_id']): user['name'] for user in users}
         
         for question in unanswered_questions:
@@ -429,7 +443,7 @@ def get_unanswered_questions():
 @main.route('/api/unanswered_questions/<id>', methods=['DELETE'])
 def delete_unanswered_question(id):
     try:
-        result = unanswered_collection.delete_one({'_id': ObjectId(id)})
+        result = get_unanswered_collection().delete_one({'_id': ObjectId(id)})
         if result.deleted_count == 1:
             return jsonify({'message': 'Unanswered question deleted successfully'}), 200
         else:
@@ -448,7 +462,7 @@ def admin():
 @main.route('/api/users', methods=['GET'])
 @login_required
 def get_users():
-    users = list(users_collection.find())
+    users = list(get_users_collection().find())
     for user in users:
         user['_id'] = str(user['_id'])
     return jsonify(users)
@@ -458,7 +472,7 @@ def get_users():
 @login_required
 def update_user(id):
     data = request.json
-    users_collection.update_one({'_id': ObjectId(id)}, {'$set': data})
+    get_users_collection().update_one({'_id': ObjectId(id)}, {'$set': data})
     return '', 204
 
 @main.route('/feedback')
@@ -481,7 +495,7 @@ def receive_feedback():
             'rating': rating,
             'timestamp': datetime.now()
         }
-        db.feedback.insert_one(feedback)
+        get_feedback_collection().insert_one(feedback)
         return jsonify({"message": "Feedback received"}), 200
     else:
         return jsonify({"error": "Invalid feedback"}), 400
@@ -560,13 +574,13 @@ def submit_answer_feedback():
             'original_question': original_question,
             'proposed_answer': proposed_answer,
             'is_positive': is_positive,
-            'timestamp': datetime.utcnow()
+            'timestamp': datetime.now()
         }
         
         if question_id:
             feedback_entry['matched_question_id'] = ObjectId(question_id)
 
-        db.answer_feedback.insert_one(feedback_entry)
+        get_answer_feedback_collection().insert_one(feedback_entry)
         
         logger.info(f"Feedback submitted successfully: {feedback_entry}")  # Add this line for debugging
         return jsonify({'message': 'Answer feedback submitted successfully'}), 200
@@ -632,7 +646,7 @@ def get_answer_feedback_stats():
             }
         ]
         
-        stats = list(db.answer_feedback.aggregate(pipeline))
+        stats = list(get_answer_feedback_collection().aggregate(pipeline))
         
         # Convert ObjectId to string, handle None values, and join original questions
         for stat in stats:
@@ -662,22 +676,26 @@ def get_answer_feedback_stats():
 @login_required
 def get_overall_statistics():
     try:
-        # Get database collections
-        users_collection = db.users
-        questions_collection = db.questions
-        unanswered_collection = db.unanswered_questions
-        feedback_collection = db.feedback
-        answer_feedback_collection = db.answer_feedback
+        users_collection = get_collection('users')
+        questions_collection = get_collection('documents')
+        unanswered_collection = get_collection('unanswered_questions')
+        feedback_collection = get_collection('feedback')
+        answer_feedback_collection = get_collection('answer_feedback')
+
+        if any(coll is None for coll in [users_collection, questions_collection, unanswered_collection, feedback_collection, answer_feedback_collection]):
+            current_app.logger.error("Failed to get one or more collections")
+            return jsonify({"error": "Database connection error"}), 500
+        
 
         # Calculate statistics
         total_users = users_collection.count_documents({})
-        total_questions = questions_collection.count_documents({})
+        total_questions = get_documents_collection().count_documents({})
         
         # Count answered questions from unanswered_collection
-        answered_questions = unanswered_collection.count_documents({"answered": True})
+        answered_questions = get_unanswered_collection().count_documents({"answered": True})
         
         # Count total questions in unanswered_collection
-        total_unanswered = unanswered_collection.count_documents({})
+        total_unanswered = get_unanswered_collection().count_documents({})
         
         # Calculate unanswered questions
         unanswered_questions = total_unanswered - answered_questions
@@ -698,7 +716,7 @@ def get_overall_statistics():
                 }
             }
         ]
-        feedback_result = list(feedback_collection.aggregate(feedback_pipeline))
+        feedback_result = list(get_feedback_collection().aggregate(feedback_pipeline))
         
         if feedback_result:
             avg_rating = round(feedback_result[0]['avg_rating'], 2)
@@ -729,7 +747,7 @@ def get_overall_statistics():
                 }
             }
         ]
-        answer_feedback_result = list(answer_feedback_collection.aggregate(answer_feedback_pipeline))
+        answer_feedback_result = list(get_answer_feedback_collection().aggregate(answer_feedback_pipeline))
         
         if answer_feedback_result:
             positive_feedback_percentage = round(answer_feedback_result[0]['positive_percentage'], 2)
@@ -755,16 +773,16 @@ def get_overall_statistics():
 @main.route('/statistics')
 def statistics():
     # Get total users
-    total_users = db.users.count_documents({})
+    total_users = get_users_collection().count_documents({})
 
     # Get total questions
-    total_questions = db.questions.count_documents({})
+    total_questions = get_documents_collection().count_documents({})
 
     # Get answered questions
-    answered_questions = db.questions.count_documents({"status": "answered"})
+    answered_questions = get_documents_collection().count_documents({"status": "answered"})
 
     # Get unanswered questions
-    unanswered_questions = db.questions.count_documents({"status": "unanswered"})
+    unanswered_questions = get_documents_collection().count_documents({"status": "unanswered"})
 
     # Get top 5 categories
     pipeline = [
@@ -772,7 +790,7 @@ def statistics():
         {"$sort": {"count": -1}},
         {"$limit": 5}
     ]
-    top_categories = list(db.questions.aggregate(pipeline))
+    top_categories = list(get_documents_collection().aggregate(pipeline))
 
     # Prepare data for the template
     stats = {
@@ -791,9 +809,9 @@ def get_conversations():
     page = int(request.args.get('page', 1))
     per_page = int(request.args.get('per_page', 10))
     
-    total = conversation_collection.count_documents({})
+    total = get_conversation_collection().count_documents({})
     
-    conversations = list(conversation_collection.find()
+    conversations = list(get_conversation_collection().find()
                          .sort('last_updated', -1)
                          .skip((page - 1) * per_page)
                          .limit(per_page))
@@ -819,7 +837,7 @@ def get_conversations():
 @main.route('/api/conversations/<conversation_id>', methods=['GET'])
 @login_required
 def get_conversation(conversation_id):
-    conversation = conversation_collection.find_one({'_id': ObjectId(conversation_id)})
+    conversation = get_conversation_collection().find_one({'_id': ObjectId(conversation_id)})
     if conversation:
         serialized_conv = {
             '_id': str(conversation['_id']),
@@ -841,42 +859,54 @@ def get_conversation(conversation_id):
 @main.route('/api/user_growth', methods=['GET'])
 @login_required
 def get_user_growth():
-    pipeline = [
-        {
-            '$group': {
-                '_id': {'$dateToString': {'format': '%Y-%m-%d', 'date': '$created_at'}},
-                'count': {'$sum': 1}
-            }
-        },
-        {'$sort': {'_id': 1}}
-    ]
-    result = list(db.users.aggregate(pipeline))
-    
-    # Convert string dates to ISO format, handle None values, and filter out dates before 2020
-    formatted_result = []
-    for item in result:
-        if item['_id'] is not None:
-            try:
-                date = datetime.strptime(item['_id'], '%Y-%m-%d')
-                if date.year >= 2020:  # Filter out dates before 2020
-                    formatted_result.append({
-                        '_id': date.isoformat(),
-                        'count': item['count']
-                    })
-            except ValueError:
-                print(f"Invalid date format: {item['_id']}")
-        else:
-            print("Encountered a None _id value")
-    
-    print("User growth data:", formatted_result)
-    return jsonify(formatted_result)
+    try:
+        users_collection = get_users_collection()
+        if users_collection is None:
+            current_app.logger.error("Failed to get users collection")
+            return jsonify({"error": "Database connection error"}), 500
+
+        pipeline = [
+            {
+                '$group': {
+                    '_id': {'$dateToString': {'format': '%Y-%m-%d', 'date': '$created_at'}},
+                    'count': {'$sum': 1}
+                }
+            },
+            {'$sort': SON([('_id', 1)])}
+        ]
+
+        current_app.logger.info("Attempting to run aggregation pipeline")
+        result = list(users_collection.aggregate(pipeline))
+        current_app.logger.debug(f"Raw aggregation result: {result}")
+
+        formatted_result = []
+        for item in result:
+            if item['_id'] is not None:
+                try:
+                    date = datetime.strptime(item['_id'], '%Y-%m-%d')
+                    if date.year >= 2020:
+                        formatted_result.append({
+                            '_id': date.isoformat(),
+                            'count': item['count']
+                        })
+                except ValueError:
+                    current_app.logger.warning(f"Invalid date format: {item['_id']}")
+            else:
+                current_app.logger.warning("Encountered a None _id value")
+
+        current_app.logger.info(f"User growth data: {formatted_result}")
+        return jsonify(formatted_result)
+
+    except Exception as e:
+        current_app.logger.error(f"Error in get_user_growth: {str(e)}", exc_info=True)
+        return jsonify({"error": "An internal error occurred"}), 500
 
 @main.route('/api/events', methods=['GET'])
 @login_required
 def get_events():
     try:
         # Fetch all events from the database
-        events = list(db.events.find())
+        events = list(get_events_collection().find())
 
         # Process each event
         processed_events = []
@@ -925,7 +955,7 @@ def get_events():
 @login_required
 def get_event(event_id):
     try:
-        event = db.events.find_one({'_id': ObjectId(event_id)})
+        event = get_events_collection().find_one({'_id': ObjectId(event_id)})
         if event:
             # Handle date_time field
             date_time = event.get('date_time')
@@ -1002,7 +1032,7 @@ def add_event():
     
     event_data['feedback_url'] = event_data.get('feedback_url', '')
 
-    result = db.events.insert_one(event_data)
+    result = get_events_collection().insert_one(event_data)
     event_data['_id'] = str(result.inserted_id)
     
     return jsonify({'message': 'Event added successfully', 'event': event_data}), 201
@@ -1051,10 +1081,10 @@ def update_event(event_id):
     # Update feedback_url
     event_data['feedback_url'] = event_data.get('feedback_url', '')
 
-    result = db.events.update_one({'_id': ObjectId(event_id)}, {'$set': event_data})
+    result = get_events_collection().update_one({'_id': ObjectId(event_id)}, {'$set': event_data})
     
     if result.modified_count:
-        updated_event = db.events.find_one({'_id': ObjectId(event_id)})
+        updated_event = get_events_collection().find_one({'_id': ObjectId(event_id)})
         if updated_event:
             updated_event['_id'] = str(updated_event['_id'])
             return jsonify({'message': 'Event updated successfully', 'event': updated_event})
@@ -1064,7 +1094,7 @@ def update_event(event_id):
 @main.route('/api/events/<event_id>', methods=['DELETE'])
 @login_required
 def delete_event(event_id):
-    result = db.events.delete_one({'_id': ObjectId(event_id)})
+    result = get_events_collection().delete_one({'_id': ObjectId(event_id)})
     if result.deleted_count:
         return jsonify({'message': 'Event deleted successfully'})
     return jsonify({'error': 'Event not found'}), 404
@@ -1156,7 +1186,7 @@ def search_questions():
         return jsonify({"error": "No search query provided"}), 400
 
     try:
-        result = db.documents.aggregate([
+        result = get_documents_collection().aggregate([
             {
                 "$search": {
                     "index": "default",  # Make sure this matches your Atlas Search index name
@@ -1216,9 +1246,45 @@ def autocomplete():
             {"$limit": 5}  # Adjust the number of suggestions as needed
         ]
 
-        results = list(db.documents.aggregate(pipeline))
+        results = list(get_documents_collection().aggregate(pipeline))
         suggestions = [result['question'] for result in results]
         return jsonify(suggestions), 200
     except Exception as e:
         current_app.logger.error(f"Error in autocomplete: {str(e)}")
         return jsonify({"error": "An error occurred during autocomplete"}), 500
+    
+# @main.route('/api/admin/search_similar_questions', methods=['GET'])
+# @login_required
+# def search_similar_questions():
+#     if not current_user.is_admin:
+#         return jsonify({"error": "Unauthorized access"}), 403
+
+#     query = request.args.get('query', '')
+#     current_app.logger.info(f"Received search query: {query}")
+
+#     if not query:
+#         return jsonify({"error": "No search query provided"}), 400
+
+#     try:
+#         # Generate embedding for the query
+#         query_embedding, _ = generate_embedding(query)
+
+#         # Search for similar questions
+#         similar_questions = search_similar_questions(query_embedding, query)
+
+#         # Format the results
+#         results = []
+#         for q in similar_questions:
+#             results.append({
+#                 "question": q['question'],
+#                 "title": q.get('title', ''),
+#                 "answer": q.get('answer', '')[:50] + '...',
+#                 "score": q['combined_score']
+#             })
+
+#         current_app.logger.info(f"Search results: {results}")
+#         return jsonify(results), 200
+
+#     except Exception as e:
+#         current_app.logger.error(f"Error searching questions: {str(e)}")
+#         return jsonify({"error": "An error occurred while searching questions"}), 500
