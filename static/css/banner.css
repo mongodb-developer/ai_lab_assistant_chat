@@ -1,0 +1,25 @@
+/* Banner styles */
+.review-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #f8f9fa;
+    border: 1px solid #e0e0e0;
+    padding: 10px 15px;
+    border-radius: 5px;
+    margin: 10px 0;
+    font-size: 14px;
+    color: #333;
+    text-align: center;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+}
+
+.review-banner:hover {
+    background-color: #e0e0e0;
+    color: #007b5e;
+}
+
+.review-banner i {
+    margin-right: 5px;
+}

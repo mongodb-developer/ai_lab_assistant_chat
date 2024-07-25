@@ -1,0 +1,27 @@
+/* Component styles */
+/* Sample questions */
+.sample-questions,
+.sample-questions-container {
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 10px 0;
+    bottom: 35px;
+}
+
+.sample-questions-scroll {
+    display: inline-block;
+}
+
+.sample-questions button,
+.sample-question {
+    width: 100%;
+    font-size: 0.875rem;
+    padding: 10px;
+    margin: 5px 0;
+    border: none;
+    background-color: #f8f9fa;
+    color: #333;
+    border-radius: 5px;
+    cursor: pointer;
+    transition: background-color 0.3s, color 0.3s;
+}

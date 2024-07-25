@@ -625,6 +625,21 @@ function escapeSpecialChars(input) {
     });
 }
 
+function showLoader() {
+    document.getElementById('loader').style.display = 'flex';
+}
+
+function hideLoader() {
+    document.getElementById('loader').style.display = 'none';
+}
+
+// Example usage
+document.addEventListener('DOMContentLoaded', function () {
+    showLoader();
+    // Simulate loading completion
+    setTimeout(hideLoader, 2000);
+});
+
 window.handleSampleQuestion = handleSampleQuestion;
 window.sendMessage = sendMessage;
 window.provideAnswerFeedback = provideAnswerFeedback;
