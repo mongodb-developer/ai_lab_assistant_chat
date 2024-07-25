@@ -1,65 +1,55 @@
-<nav class="navbar navbar-expand-lg navbar-light bg-light">
+<nav class="navbar navbar-expand-lg navbar-light bg-light" id="mainNavbar">
     <div class="container-fluid">
-        <div class="d-flex align-items-center">
+        <!-- Logo (visible on all screen sizes) -->
+        <a class="navbar-brand d-flex align-items-center" href="{{ url_for('main.index') }}">
             <div class="navbar__logo me-2">
                 <img src="{{ url_for('static', filename='/img/logo.svg') }}" alt="MongoDB Logo" class="navbar-logo" height="50px">
             </div>
-            <a class="navbar-brand ms-2" href="{{ url_for('main.index') }}">AI Lab Assistant</a>
-        </div>
+            <!-- Title (hidden on mobile) -->
+            <span class="d-none d-lg-inline ms-2">AI Lab Assistant</span>
+        </a>
+
+        <!-- Hamburger menu (visible only on mobile) -->
         <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav" aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
             <span class="navbar-toggler-icon"></span>
         </button>
+
+        <!-- Navigation items -->
         <div class="collapse navbar-collapse" id="navbarNav">
-            <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <!-- Home link -->
+            <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint=='main.index' %}active-page{% endif %}" aria-current="page" href="{{ url_for('main.index') }}">Home</a>
+                    <a class="nav-link {% if request.endpoint=='main.index' %}active-page{% endif %}" href="{{ url_for('main.index') }}" aria-current="page">Home</a>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.about') }}">About</a>
                 </li>
-                {% if current_user.is_authenticated %}
-                <!-- Chat link -->
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint=='main.chat' %}active-page{% endif %}" href="{{ url_for('main.chat') }}">Chat</a>
-                    </li>
-                    {% if current_user.is_admin %}
-                    <!-- Admin link (only for admins) -->
-                    <li class="nav-item">
-                        <a class="nav-link {% if request.endpoint=='main.admin' %}active-page{% endif %}" href="{{ url_for('main.admin') }}" id="admin-link">Admin</a>
-                    </li>
-                    {% endif %}
-                {% endif %}
-                <!-- Help link -->
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint=='main.chat' %}active-page{% endif %}" href="{{ url_for('main.chat') }}">Chat</a>
+                </li>
+                <li class="nav-item">
+                    <a id="admin-link" class="nav-link {% if request.endpoint=='main.admin' %}active-page{% endif %}" href="{{ url_for('main.admin') }}">Admin</a>
+                </li>
                 <li class="nav-item">
                     <a class="nav-link" href="https://mongodb.com/docs" target="_blank">Help</a>
                 </li>
-                <!-- Feedback dropdown -->
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.feedback') }}">Feedback</a>
                 </li>
-            </ul>
-            
-            <ul class="navbar-nav ms-auto">
                 {% if current_user.is_authenticated %}
-                <!-- User greeting and profile link -->
-                <li class="nav-item">
-                    <span class="nav-link">Welcome, <a href="{{ url_for('main.profile') }}">{{ current_user.name }}</a>!</span>
-                </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
-                </li>
+                    <li class="nav-item">
+                        <span class="nav-link">Welcome, <a href="{{ url_for('main.profile') }}">{{ current_user.name }}</a>!</span>
+                    </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.logout') }}">Logout</a>
+                    </li>
                 {% else %}
-                <!-- Login link -->
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
-                </li>
+                    <li class="nav-item">
+                        <a class="nav-link" href="{{ url_for('auth.login') }}">Login</a>
+                    </li>
                 {% endif %}
-            </ul>
-            <ul class="navbar-nav ms-auto">
                 <li class="nav-item">
                     <a class="nav-link" href="https://github.com/mongodb-developer/ai_lab_assistant_chat/fork" target="_blank">
-                        <img src="https://cdn-icons-png.flaticon.com/128/1051/1051377.png" alt="Fork on GitHub" width="20" height="20">
+                        <img src="https://cdn-icons-png.flaticon.com/128/1051/1051377.png" width="20" height="20" alt="Fork on GitHub">
                     </a>
                 </li>
             </ul>

@@ -533,7 +533,43 @@ document.addEventListener('DOMContentLoaded', function () {
     });
     console.log('Marked library loaded:', typeof marked);
     console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
+    const navbarToggler = document.querySelector('.navbar-toggler');
+    const navbarCollapse = document.querySelector('.navbar-collapse');
+    const mainNavbar = document.getElementById('mainNavbar');
 
+    if (navbarToggler && navbarCollapse) {
+        let isOpen = false;
+
+        function toggleMenu() {
+            isOpen = !isOpen;
+            navbarCollapse.classList.toggle('show', isOpen);
+            navbarToggler.setAttribute('aria-expanded', isOpen);
+        }
+
+        // Toggle menu when hamburger is clicked
+        navbarToggler.addEventListener('click', function(event) {
+            event.stopPropagation();
+            toggleMenu();
+        });
+
+        // Close the menu when a nav item is clicked
+        const navItems = navbarCollapse.querySelectorAll('.nav-link');
+        navItems.forEach(item => {
+            item.addEventListener('click', function() {
+                if (window.innerWidth < 992) {  // Only on mobile
+                    toggleMenu();
+                }
+            });
+        });
+
+        // Close the menu when clicking outside
+        document.addEventListener('click', function(event) {
+            const isClickInside = mainNavbar.contains(event.target);
+            if (!isClickInside && isOpen) {
+                toggleMenu();
+            }
+        });
+    }
 
 });
 

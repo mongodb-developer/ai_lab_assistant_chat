@@ -654,8 +654,8 @@ body {
     color: #666;
 }
 
-/* Floating Action Button */
 .fab {
+    position: fixed;
     width: 40px;
     height: 40px;
     border-radius: 50%;
@@ -667,12 +667,14 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    top: 90px;
     box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-    bottom: 80px;  /* Increase this value significantly to move it down */
-    transform: translateY(15px);  /* Move down by 15px */
     z-index: 1000;  /* Ensure it's above other elements */
+}
 
-
+#sample-questions-fab {
+    top: 90px;  /* Position it below the navbar */
+    right: 20px;  /* Position it on the right side */
 }
 
 .fab:hover {
@@ -680,13 +682,40 @@ body {
 }
 
 /* Responsive styles */
-@media (max-width: 991px) {
+@media (max-width: 991.98px) {
     .navbar-brand {
-        margin-left: 0;
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        align-items: center;
     }
 
-    .navbar-nav .nav-item {
-        margin: 5px 0;
+    .navbar-toggler {
+        position: absolute;
+        right: 15px;
+        top: 15px;
+    }
+
+    .navbar > .container-fluid {
+        justify-content: center;
+    }
+    .navbar-collapse {
+        position: absolute;
+        top: 100%;
+        left: 0;
+        right: 0;
+        background-color: #f8f9fa;
+        padding: 1rem;
+        transition: all 0.3s ease-in-out;
+        transform: translateY(-100%);
+        opacity: 0;
+        visibility: hidden;
+    }
+
+    .navbar-collapse.show {
+        transform: translateY(0);
+        opacity: 1;
+        visibility: visible;
     }
 }
 
@@ -700,12 +729,20 @@ body {
         width: 35px;
         height: 35px;
         font-size: 16px;
-        bottom: 30px;
+        bottom: 80px;  /* Increase this value significantly to move it down */
     }
 
     .button-tile {
         width: 100%;
         max-width: none;
+    }
+    #sample-questions-fab {
+        top: auto;  /* Reset top positioning */
+        bottom: 20px;  /* Position it from the bottom on mobile */
+        right: 20px;
+        width: 35px;
+        height: 35px;
+        font-size: 16px;
     }
 }
 @media (max-width: 767.98px) {
@@ -732,7 +769,7 @@ body {
         width: 35px;
         height: 35px;
         font-size: 16px;
-        bottom: 35px;
+        bottom: 80px;  /* Increase this value significantly to move it down */
     }
     body.chat-page {
         padding-top: 30px; /* Adjust for smaller screens */
@@ -789,7 +826,7 @@ body {
         width: 35px;
         height: 35px;
         font-size: 16px;
-        bottom: 35px;
+        bottom: 80px;  /* Increase this value significantly to move it down */
     }
 
 }
