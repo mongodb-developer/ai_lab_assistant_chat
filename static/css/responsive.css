@@ -1,0 +1,16 @@
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .review-banner {
+        font-size: 12px;
+        padding: 5px;
+    }
+
+    .chat-container,
+    .input-group {
+        max-width: 100%;
+    }
+    
+    .chat-bubble {
+        max-width: 90%;
+    }
+}
