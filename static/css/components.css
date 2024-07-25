@@ -1,27 +1,19 @@
-/* Component styles */
-/* Sample questions */
-.sample-questions,
-.sample-questions-container {
-    overflow-x: auto;
-    white-space: nowrap;
-    padding: 10px 0;
-    bottom: 35px;
+.feedback-container {
+    display: flex;
+    align-items: center;
+    gap: 10px; /* Adjust the gap between elements as needed */
 }
 
-.sample-questions-scroll {
-    display: inline-block;
-}
-
-.sample-questions button,
-.sample-question {
-    width: 100%;
-    font-size: 0.875rem;
-    padding: 10px;
-    margin: 5px 0;
+.feedback-container .thumbs-up,
+.feedback-container .thumbs-down {
     border: none;
-    background-color: #f8f9fa;
-    color: #333;
-    border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s, color 0.3s;
+    background: none;  /* Optionally remove the background */
+    outline: none;     /* Optionally remove the outline when focused */
+    cursor: pointer;   /* Change cursor to pointer on hover */
+    font-size: 24px;   /* Adjust the size of the buttons */
+}
+
+.feedback-text {
+    font-size: 14px;  /* Adjust the text size as needed */
+    color: #333;      /* Adjust the text color as needed */
 }

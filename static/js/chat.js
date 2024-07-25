@@ -212,14 +212,21 @@ function appendFeedbackButtons(messageElement, data) {
     const feedbackContainer = document.createElement('div');
     feedbackContainer.classList.add('feedback-container');
 
+    const feedbackText = document.createElement('span');
+    feedbackText.textContent = 'Was this response helpful?'; // Add encouraging text
+    feedbackText.classList.add('feedback-text'); // Add class for styling
+
     const positiveButton = document.createElement('button');
     positiveButton.textContent = '👍';
+    positiveButton.classList.add('thumbs-up'); // Add class
     positiveButton.onclick = () => provideAnswerFeedback(data.question_id, data.original_question, data.answer, true);
 
     const negativeButton = document.createElement('button');
     negativeButton.textContent = '👎';
+    negativeButton.classList.add('thumbs-down'); // Add class
     negativeButton.onclick = () => provideAnswerFeedback(data.question_id, data.original_question, data.answer, false);
 
+    feedbackContainer.appendChild(feedbackText); // Append text before buttons
     feedbackContainer.appendChild(positiveButton);
     feedbackContainer.appendChild(negativeButton);
 
