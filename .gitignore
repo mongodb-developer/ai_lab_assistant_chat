@@ -164,3 +164,4 @@ stash
 .env
 .DS_Store
 env.sh
+*bak

@@ -21,3 +21,4 @@ stash
 env.sh
 node_modules
 venv
+*bak
