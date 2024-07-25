@@ -18,7 +18,7 @@ let currentFocus = -1;
 document.getElementById('user-input').addEventListener('input', debounce(getSuggestions, 300));
 document.getElementById('user-input').addEventListener('keydown', handleKeyDown);
 
-document.addEventListener('click', function(e) {
+document.addEventListener('click', function (e) {
     if (!e.target.closest('.autocomplete-wrapper')) {
         document.getElementById('autocomplete-dropdown').style.display = 'none';
     }
@@ -26,7 +26,7 @@ document.addEventListener('click', function(e) {
 async function getSuggestions() {
     const input = document.getElementById('user-input');
     const dropdown = document.getElementById('autocomplete-dropdown');
-    
+
     if (!input.value) {
         dropdown.innerHTML = '';
         return;
@@ -41,7 +41,7 @@ async function getSuggestions() {
         suggestions.forEach((suggestion, index) => {
             const div = document.createElement('div');
             div.innerHTML = suggestion;
-            div.addEventListener('click', function() {
+            div.addEventListener('click', function () {
                 input.value = this.innerText;
                 dropdown.innerHTML = '';
             });
@@ -58,7 +58,7 @@ async function getSuggestions() {
 function handleKeyDown(e) {
     const dropdown = document.getElementById('autocomplete-dropdown');
     const items = dropdown.getElementsByTagName('div');
-    
+
     if (e.keyCode === 40) { // down arrow
         currentFocus++;
         addActive(items);
@@ -109,7 +109,7 @@ function debounce(func, wait) {
 function initChat() {
     chatContainer = document.getElementById('chat-container');
     userInput = document.getElementById('user-input');
-    
+
     if (!chatContainer) {
         console.error('Chat container not found. Make sure there is an element with id "chat-container" in your HTML.');
         return false;
@@ -120,7 +120,7 @@ function initChat() {
         return false;
     }
 
-    userInput.addEventListener('keypress', function(event) {
+    userInput.addEventListener('keypress', function (event) {
         if (event.key === 'Enter') {
             sendMessage();
         }
@@ -178,7 +178,7 @@ function appendMessage(sender, message, data = null) {
     }
 
     console.log(`Appending message from ${sender}:`, message);
-    
+
     const messageElement = document.createElement('div');
     messageElement.classList.add('chat-bubble', sender.toLowerCase());
 
@@ -235,78 +235,85 @@ function appendFeedbackButtons(messageElement, data) {
  * @param {Event|string} event - The event object from a button click or a string message.
  */
 async function sendMessage(event) {
-    if (!chatContainer || !userInput) {
-        console.error('Chat not properly initialized. Cannot send message.');
-        return;
-    }
-    
-    let userMessage;
-    if (event instanceof PointerEvent) {
-        // If called from a button click
-        userMessage = userInput.value.trim();
-    } else if (typeof event === 'string') {
-        // If called with a string argument (e.g., from sample questions)
-        userMessage = event;
-    } else {
-        console.error('Invalid input to sendMessage');
-        return;
-    }
+    const userInput = document.getElementById('user-input');
+    const message = userInput.value.trim();
 
-    if (!userMessage) return;
-
-    appendMessage('User', userMessage);
-    userInput.value = '';
-
-    const loader = appendLoader();
-
-    try {
-        const response = await fetch('/api/chat', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ 
-                question: userMessage,
-                conversation_id: currentConversationId
-            })
-        });
-
-        if (!response.ok) {
-            const errorMessage = await response.text();
-            throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
+    if (message) {
+        // Your existing code to send the message
+        console.log('Sending message:', message);
+        if (!chatContainer || !userInput) {
+            console.error('Chat not properly initialized. Cannot send message.');
+            return;
         }
 
-        const data = await response.json();
-                       
-        if (data.debug_info) {
-            appendDebugInfo('Debug Information', data.debug_info);
-        }
-
-        if (data.conversation_id) {
-            currentConversationId = data.conversation_id;
-        }
-
-        console.log('Received data:', data);
-        if (data.answer) {
-            appendMessage('Assistant', data.answer, {
-                ...data,
-                question_id: data.question_id || '',
-                original_question: userMessage
-            });
-        } else if (data.potential_answer) {
-            appendMessage('Assistant', data.potential_answer, {
-                ...data,
-                question_id: '',
-                original_question: userMessage
-            });
+        let userMessage;
+        if (event instanceof PointerEvent) {
+            // If called from a button click
+            userMessage = userInput.value.trim();
+        } else if (typeof event === 'string') {
+            // If called with a string argument (e.g., from sample questions)
+            userMessage = event;
         } else {
-            appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
+            console.error('Invalid input to sendMessage');
+            return;
         }
-    } catch (error) {
-        console.error('Error:', error);
-        appendMessage('Assistant', `Error: ${error.message}`);
-    } finally {
-        removeLoader(loader);
+
+        if (!userMessage) return;
+
+        appendMessage('User', userMessage);
+        userInput.value = '';
+
+        const loader = appendLoader();
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    question: userMessage,
+                    conversation_id: currentConversationId
+                })
+            });
+
+            if (!response.ok) {
+                const errorMessage = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
+            }
+
+            const data = await response.json();
+
+            if (data.debug_info) {
+                appendDebugInfo('Debug Information', data.debug_info);
+            }
+
+            if (data.conversation_id) {
+                currentConversationId = data.conversation_id;
+            }
+
+            console.log('Received data:', data);
+            if (data.answer) {
+                appendMessage('Assistant', data.answer, {
+                    ...data,
+                    question_id: data.question_id || '',
+                    original_question: userMessage
+                });
+            } else if (data.potential_answer) {
+                appendMessage('Assistant', data.potential_answer, {
+                    ...data,
+                    question_id: '',
+                    original_question: userMessage
+                });
+            } else {
+                appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            appendMessage('Assistant', `Error: ${error.message}`);
+        } finally {
+            removeLoader(loader);
+        }
     }
 }
 
@@ -408,11 +415,11 @@ async function provideAnswerFeedback(questionId, originalQuestion, proposedAnswe
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ 
-                question_id: questionId || null, 
+            body: JSON.stringify({
+                question_id: questionId || null,
                 original_question: originalQuestion || '',
                 proposed_answer: proposedAnswer,
-                is_positive: isPositive 
+                is_positive: isPositive
             })
         });
 
@@ -435,18 +442,18 @@ async function provideAnswerFeedback(questionId, originalQuestion, proposedAnswe
     }
 }
 
-document.addEventListener('DOMContentLoaded', function() {
+document.addEventListener('DOMContentLoaded', function () {
     if (!initChat()) {
         console.error('Failed to initialize chat. Some features may not work correctly.');
     }
-    
+
     const fab = document.getElementById('sample-questions-fab');
     const modal = document.getElementById('sample-questions-modal');
     const sampleQuestions = document.querySelectorAll('.sample-question');
     const sendButton = document.getElementById('send-button');
 
     if (fab) {
-        fab.addEventListener('click', function() {
+        fab.addEventListener('click', function () {
             modal.style.display = 'block';
         });
     }
@@ -456,21 +463,21 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 
     if (userInput) {
-        userInput.addEventListener('keypress', function(event) {
+        userInput.addEventListener('keypress', function (event) {
             if (event.key === 'Enter') {
                 sendMessage(event);
             }
         });
     }
 
-    window.addEventListener('click', function(event) {
+    window.addEventListener('click', function (event) {
         if (event.target === modal) {
             modal.style.display = 'none';
         }
     });
 
     sampleQuestions.forEach(question => {
-        question.addEventListener('click', function() {
+        question.addEventListener('click', function () {
             const questionText = this.textContent;
             if (userInput) {
                 userInput.value = questionText;
@@ -492,7 +499,7 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Show/hide banner on scroll
         let lastScrollTop = 0;
-        window.addEventListener('scroll', function() {
+        window.addEventListener('scroll', function () {
             let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
             if (scrollTop > lastScrollTop) {
                 reviewBanner.classList.add('hidden');
@@ -534,41 +541,29 @@ document.addEventListener('DOMContentLoaded', function() {
 document.addEventListener('DOMContentLoaded', () => {
     console.log('Marked library loaded:', typeof marked);
     console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
+    const userInput = document.getElementById('user-input');
+    const sendButton = document.getElementById('send-button');
+
+    if (userInput && sendButton) {
+        // Handle Enter key press in the input field
+        userInput.addEventListener('keypress', function (event) {
+            if (event.key === 'Enter') {
+                event.preventDefault();
+                sendMessage();
+            }
+        });
+
+        // Handle click and touch events on the send button
+        sendButton.addEventListener('click', sendMessage);
+        sendButton.addEventListener('touchstart', function (event) {
+            event.preventDefault(); // Prevent double-firing on some devices
+            sendMessage();
+        });
+    } else {
+        console.error('User input or send button not found');
+    }
 });
 
-// if (adminForm) {
-//     adminForm.addEventListener('submit', async (e) => {
-//         e.preventDefault();
-//         const question = document.getElementById('question').value;
-//         const answer = document.getElementById('answer').value;
-
-//         try {
-//             const response = await fetch('/api/add_question', {
-//                 method: 'POST',
-//                 headers: {
-//                     'Content-Type': 'application/json',
-//                 },
-//                 body: JSON.stringify({ question, answer }),
-//             });
-
-//             if (!response.ok) {
-//                 throw new Error(`HTTP error! status: ${response.status}`);
-//             }
-
-//             const result = await response.json();
-            
-//             if (result.debug_info) {
-//                 appendDebugInfo('Admin Debug Information', result.debug_info);
-//             }
-            
-//             alert(result.message);
-//             adminForm.reset();
-//         } catch (error) {
-//             console.error('Error:', error);
-//             alert(`An error occurred: ${error.message}`);
-//         }
-//     });
-// }
 
 /**
  * Escapes special characters in a string to prevent XSS.
@@ -583,7 +578,7 @@ function escapeSpecialChars(input) {
         console.warn(`escapeSpecialChars received non-string input: ${typeof input}`);
         return String(input); // Convert to string if it's not already
     }
-    return input.replace(/[&<>"']/g, function(m) {
+    return input.replace(/[&<>"']/g, function (m) {
         return {
             '&': '&amp;',
             '<': '&lt;',
