@@ -322,12 +322,16 @@ async function sendMessage(event) {
         }
 
         let userMessage;
-        if (event instanceof PointerEvent) {
-            // If called from a button click
+
+        if (event instanceof Event) {
+            // If called from an event (button click or Enter key)
             userMessage = userInput.value.trim();
         } else if (typeof event === 'string') {
             // If called with a string argument (e.g., from sample questions)
             userMessage = event;
+        } else if (!event) {
+            // If called without arguments (our new case)
+            userMessage = userInput.value.trim();
         } else {
             console.error('Invalid input to sendMessage');
             return;
