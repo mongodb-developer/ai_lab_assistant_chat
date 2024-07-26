@@ -199,46 +199,31 @@ def generate_title(question):
 from bson import ObjectId
 
 @with_db_connection
-def search_similar_questions(db, question_embedding, query_text, similarity_threshold=0.93):
-
-    logging.info(f"Searching for similar questions. Query: {query_text}, {question_embedding}")
-    collection = get_documents_collection()
-
-# db.documents.aggregate([
-#   {
-#     "$vectorSearch": {
-#       "index": "question_index",
-#       "path": "question_embedding",
-#       "queryVector": [<array-of-numbers>],
-#       "numCandidates": <number-of-candidates>,
-#       "limit": <number-of-results>
-#     }
-#   }
-# ])
-
-    # Vector search stage
-    vector_search_stage = [
+def search_similar_questions(db, question_embedding, query_text, similarity_threshold=0.8):
+    pipeline = [
         {
             '$vectorSearch': {
                 'index': 'question_index',
                 'path': 'question_embedding',
                 'queryVector': question_embedding,
-                'numCandidates': 200,  # Increase this
-                'limit': 20  # Increase this
+                'numCandidates': 100,
+                'limit': 10
             }
         },
         {
             '$project': {
                 'question': 1,
                 'answer': 1,
-                'summary': 1,
                 'title': 1,
+                'summary': 1,
                 'references': 1,
                 'vector_score': {'$meta': 'vectorSearchScore'}
             }
         }
     ]
-
+    
+    vector_results = list(get_documents_collection().aggregate(pipeline))
+    
     # Text search stage
     text_search_stage = [
         {
@@ -247,7 +232,7 @@ def search_similar_questions(db, question_embedding, query_text, similarity_thre
                 'text': {
                     'query': query_text,
                     'path': {
-                        'wildcard': "*"
+                        'wildcard': '*'
                     },
                     'fuzzy': {
                         'maxEdits': 2
@@ -259,44 +244,30 @@ def search_similar_questions(db, question_embedding, query_text, similarity_thre
             '$project': {
                 'question': 1,
                 'answer': 1,
-                'summary': 1,
                 'title': 1,
+                'summary': 1,
                 'references': 1,
                 'text_score': {'$meta': 'searchScore'}
             }
         }
     ]
+    
+    text_results = list(get_documents_collection().aggregate(text_search_stage))
 
     # Combine results
-    vector_results = list(collection.aggregate(vector_search_stage))
-    text_results = list(collection.aggregate(text_search_stage))
-
     all_results = vector_results + text_results
 
     # Process and combine scores
     for result in all_results:
         result['vector_score'] = result.get('vector_score', 0)
         result['text_score'] = result.get('text_score', 0)
-        result['combined_score'] = 0.6 * result.get('vector_score', 0) + 0.4 * result.get('text_score', 0)
-
+        result['combined_score'] = 0.7 * result['vector_score'] + 0.3 * result['text_score']
 
     # Sort and filter results
     sorted_results = sorted(all_results, key=lambda x: x['combined_score'], reverse=True)
     filtered_results = [r for r in sorted_results if r['combined_score'] >= similarity_threshold]
 
-    logging.info(f"Vector results: {len(vector_results)}")
-    logging.info(f"Text results: {len(text_results)}")
-    logging.info(f"All results: {len(all_results)}")
-    logging.info(f"Filtered results: {len(filtered_results)}")
-
-    if text_results:
-        logging.info(f"Top text result: {text_results[0]}")
-    indexes = collection.list_indexes()
-    logging.info("Existing indexes:")
-    for index in indexes:
-        logging.info(index)
-
-    return filtered_results[:10]
+    return filtered_results[:5]  # Return top 5 results
 
 
 @with_db_connection
@@ -304,13 +275,13 @@ def add_unanswered_question(db, user_id, user_name, question, potential):
     debug_info = {'function': 'add_unanswered_questions'}
 
     try:
-        unanswered_collection.insert_one({
+        get_unanswered_collection().insert_one({
             'user_id': user_id,
             'user_name': user_name,
             'question': question,
             'timestamp': datetime.now(),
             'answered': False,
-            'answer': potential.get('potential_answer'),
+            'answer': potential.get('answer'),
             'title': potential.get('title'),
             'summary': potential.get('summary'),
             'references': potential.get('references'),
@@ -385,11 +356,19 @@ def store_message(user_id, message, sender, conversation_id=None):
     if not conversation_id:
         conversation_id = get_or_create_conversation(user_id)
     
-    message_entry = {
-        'role': sender,
-        'content': message,
-        'timestamp': datetime.utcnow()
-    }
+    # Ensure message is a dictionary with 'content' field
+    if isinstance(message, dict) and 'content' in message:
+        message_entry = {
+            'role': sender,
+            'content': message['content'],
+            'timestamp': datetime.utcnow()
+        }
+    else:
+        message_entry = {
+            'role': sender,
+            'content': str(message),
+            'timestamp': datetime.utcnow()
+        }
     
     update_data = {
         '$push': {'messages': message_entry},
@@ -495,7 +474,9 @@ def update_conversation_context(db, conversation_id):
         return
     
     last_n_messages = conversation['messages'][-5:]  # Consider last 5 messages
-    context_text = " ".join([msg['content'] for msg in last_n_messages])
+    
+    # Modified this line to handle potential dictionary messages
+    context_text = " ".join([msg['content'] if isinstance(msg, dict) else str(msg) for msg in last_n_messages])
     
     context_summary = generate_context_summary(context_text)
     topics = extract_topics(context_text)
@@ -634,6 +615,7 @@ def generate_potential_answer_v2(question, last_assistant_message=""):
         ]
     )
     answer = response['choices'][0]['message']['content'].strip()
+    logger.debug(f"Generated answer: {answer}")
 
     title = generate_title(answer)
     summary = generate_summary(answer)
@@ -866,3 +848,26 @@ def print_db_info(db):
     collection = get_collection('documents')
     logging.info(f"Current collection: {collection.name}")
     logging.info(f"Document count in collection: {collection.count_documents({})}")
+
+def verify_question_similarity(query, candidate):
+    prompt = f"""
+    On a scale of 1 to 10, how similar are these two questions in terms of their intent and subject matter?
+    Question 1: {query}
+    Question 2: {candidate}
+    Only respond with a number between 1 and 10.
+    """
+    
+    response = openai.ChatCompletion.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "You are a helpful assistant that rates the similarity of questions."},
+            {"role": "user", "content": prompt}
+        ],
+        max_tokens=5
+    )
+    
+    try:
+        similarity_score = int(response['choices'][0]['message']['content'].strip())
+        return similarity_score / 10  # Normalize to 0-1 range
+    except ValueError:
+        return 0 

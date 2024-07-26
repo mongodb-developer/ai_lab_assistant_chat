@@ -24,6 +24,12 @@
 <body>
     <!-- Include the navigation bar -->
     {% include 'navbar.html' %}
+    <div id="error-container" class="alert alert-danger" style="display: none;" role="alert">
+        <span id="error-message"></span>
+        <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+            <span aria-hidden="true">&times;</span>
+        </button>
+    </div>
     <div class="container-fluid">
         <div class="row flex-nowrap">
             <nav id="sidebar" class="col-md-3 col-lg-2 d-md-block bg-light sidebar collapse">

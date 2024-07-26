@@ -73,6 +73,7 @@
     z-index: 1000;
     display: flex;
     justify-content: center;
+    width: 100%;
 }
 
 .input-group {
@@ -88,6 +89,7 @@
     border: 1px solid #ced4da;
     padding: 0.5rem 1rem;
     font-size: 16px;
+    width: 100%;
 }
 
 .input-group .btn,
@@ -117,6 +119,8 @@
     border-collapse: collapse;
     width: 100%;
     margin-bottom: 1em;
+    background-color: #93dcd2;
+
 }
 
 .chat-bubble.assistant th,

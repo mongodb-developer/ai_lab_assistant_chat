@@ -32,6 +32,7 @@ body {
 /* Source information styles */
 .source-info {
     font-size: 0.8em;
-    color: #888;
-    margin-top: 0.5em;
+    color: #666;
+    margin-top: 5px;
+    font-style: italic;
 }

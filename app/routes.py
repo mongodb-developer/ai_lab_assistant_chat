@@ -14,7 +14,7 @@ from .question_generator import process_content, save_to_mongodb, fetch_content_
 import requests
 from werkzeug.utils import secure_filename
 import pytz
-from app.utils import get_collection, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection
+from app.utils import get_collection, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity
 from bson.son import SON
 
 
@@ -186,40 +186,48 @@ def chat_api():
         similar_questions = search_similar_questions(question_embedding, user_question)
         logging.info(f"Found {len(similar_questions)} similar questions")
 
-        response_data = {}
-        
-        if similar_questions and similar_questions[0]['combined_score'] > SIMILARITY_THRESHOLD:
-            logging.info(f"Best match: {similar_questions[0]['question']} with score {similar_questions[0]['combined_score']}")
-            response_message = similar_questions[0]['answer']
-            response_data = {
-                'question': similar_questions[0]['question'],
-                'answer': response_message,
-                'score': similar_questions[0]['combined_score'],
-                'title': similar_questions[0].get('title', ''),
-                'summary': similar_questions[0].get('summary', ''),
-                'references': similar_questions[0].get('references', ''),
-                'usage_count': similar_questions[0].get('usage_count', 0) + 1,
-                'debug_info': debug_info,
-                'source': 'database'  # Add source field
-            }
+        if similar_questions:
+            best_match = similar_questions[0]
+            logging.info(f"Best match: '{best_match['question']}' with score {best_match['combined_score']}")
+            
+            # Check if the best match is actually relevant
+            if best_match['combined_score'] > SIMILARITY_THRESHOLD and verify_question_similarity(user_question, best_match['question']) >= 0.8:
+                response_message = best_match['answer']
+                response_data = {
+                    'question': best_match['question'],
+                    'answer': response_message,
+                    'score': best_match['combined_score'],
+                    'title': best_match.get('title', ''),
+                    'summary': best_match.get('summary', ''),
+                    'references': best_match.get('references', ''),
+                    'source': 'database',
+                    'match_score': round(best_match['combined_score'], 4)
+                }
+            else:
+                logging.info("Best match didn't pass relevance check. Generating new answer.")
+                response_message = generate_potential_answer_v2(user_question)
+                response_data = {
+                    'question': user_question,
+                    'answer': response_message.get('answer',''),
+                    'title': response_message.get('title', ''),
+                    'summary': response_message.get('summary', ''),
+                    'references': response_message.get('references', ''),
+                    'source': 'LLM'
+                }
+                add_unanswered_question(user_id, user_name, user_question, response_data)
         else:
-            logging.info("No good match found. Adding as unanswered question.")
-            # Add the unanswered question to the unanswered_questions collection
-            response_message = 'This question has not been specifically answered for MongoDB Developer Days. However, here is some information I found that may assist you.</br>'
-            potential_answer_data = generate_potential_answer_v2(user_question)
-
+            logging.info("No similar questions found. Generating new answer.")
+            response_message = generate_potential_answer_v2(user_question)
             response_data = {
-                'error': response_message,
-                'answer': potential_answer_data['answer'],
-                'title': response_message + "<br>\n" + potential_answer_data.get('title', ''),
-                'summary': potential_answer_data.get('summary', ''),
-                'references': potential_answer_data.get('references', ''),
-                'debug_info': debug_info,
-                'source': 'LLM'  # Add source field
+                'question': user_question,
+                'answer': response_message['answer'],
+                'title': response_message.get('title', ''),
+                'summary': response_message.get('summary', ''),
+                'references': response_message.get('references', ''),
+                'source': 'LLM'
             }
             add_unanswered_question(user_id, user_name, user_question, response_data)
 
-    
         store_message(user_id, response_message, 'Assistant', conversation_id)
         return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
     except ValueError as e:
@@ -692,10 +700,10 @@ def get_overall_statistics():
         total_questions = get_documents_collection().count_documents({})
         
         # Count answered questions from unanswered_collection
-        answered_questions = get_unanswered_collection().count_documents({"answered": True})
+        answered_questions = unanswered_collection.count_documents({"answered": True})
         
         # Count total questions in unanswered_collection
-        total_unanswered = get_unanswered_collection().count_documents({})
+        total_unanswered = unanswered_collection.count_documents({})
         
         # Calculate unanswered questions
         unanswered_questions = total_unanswered - answered_questions

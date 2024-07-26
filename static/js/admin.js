@@ -251,7 +251,7 @@ function populateQuestionsTable(questions) {
                     data-question="${escapeHTML(question.question)}" 
                     data-title="${escapeHTML(question.title || '')}" 
                     data-summary="${escapeHTML(question.summary || '')}" 
-                    data-answer="${escapeHTML(question.main_answer || question.answer || '')}" 
+                    data-answer="${escapeHTML( question.answer || '')}" 
                     data-references="${escapeHTML(question.references || '')}" 
                     onclick="showEditQuestionForm(this)">
                     <i class="fas fa-edit"></i> Edit
@@ -689,9 +689,9 @@ async function addQuestion() {
  * @throws {Error} If there's an issue updating the question
  */
 async function updateQuestion(questionId) {
-    if (!questionId) {
-        console.error('No question ID provided');
-        alert('Error: No question ID found. Please try again.');
+    if (!questionId || typeof questionId !== 'string') {
+        console.error('Invalid question ID:', questionId);
+        alert('Error: Invalid question ID. Please try again.');
         return;
     }
 
@@ -1472,6 +1472,8 @@ function loadConversations(page) {
         })
         .catch(error => {
             console.error('Error loading conversations:', error);
+            const errorMessage = `Failed to load conversations. ${error.message}`;
+            showError(errorMessage);
             const tableBody = document.getElementById('conversations-body');
             if (tableBody) {
                 tableBody.innerHTML = `<tr><td colspan="4">Error loading conversations: ${escapeHTML(error.message)}</td></tr>`;
@@ -2079,3 +2081,18 @@ function truncateText(text, maxLength = 50) {
     }
     return text || '';
 }
+
+function showError(message) {
+    const errorContainer = document.getElementById('error-container');
+    const errorMessage = document.getElementById('error-message');
+    errorMessage.textContent = message;
+    errorContainer.style.display = 'block';
+}
+
+function hideError() {
+    const errorContainer = document.getElementById('error-container');
+    errorContainer.style.display = 'none';
+}
+document.querySelector('#error-container .close').addEventListener('click', hideError);
+
+

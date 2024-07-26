@@ -9,7 +9,8 @@ self.addEventListener('fetch', event => {
           }
   
           // Otherwise, use the network.
-          return await fetch(event.request);
+          const response = await fetch(event.request);
+          return response;
         } catch (error) {
           // If both fail, show an offline page.
           return caches.match('offline.html');
