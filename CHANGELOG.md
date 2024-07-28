@@ -1,5 +1,65 @@
 # Changelog
 
+## 2024-07-26
+- fix mobile version not sending message (ab37067)
+
+## 2024-07-26
+- fix various display issues (91456e6)
+
+## 2024-07-25
+- Fix duplicate database calls (17a1510)
+
+## 2024-07-25
+- Fix feedback styling (de276be)
+
+## 2024-07-25
+- update requirements (f353078)
+
+## 2024-07-25
+- Fix interface scrolling issues (1fe9ef4)
+
+## 2024-07-24
+- Fix sample question button (12dece5)
+
+## 2024-07-24
+- fix send button (04cdc0b)
+
+## 2024-07-24
+- Fix table header (10d422c)
+
+## 2024-07-24
+- Ditch leafy and update custom css (e889eed)
+
+## 2024-07-24
+- Add autocomplete and move booking a design review banner to the top (0c6d6bc)
+
+## 2024-07-24
+- Add Event Tracking and Feedback (f9683b3)
+
+## 2024-07-22
+- Add Booking Design Review (cd6b10f)
+
+## 2024-07-22
+- Documentation, new requirements for nltk for context (e1fa48b)
+
+## 2024-07-22
+- Add background image (04d9c78)
+
+## 2024-07-21
+- Add user growth chart (f3b579a)
+
+## 2024-07-21
+- Add conversation history, context/memory and conversation view in admin (3d0fafc)
+
+## 2024-07-21
+- add flow diagram to about page (c6122aa)
+
+## 2024-07-21
+- Add flowchart (cea2050)
+
+## 2024-07-21
+- Update CHANGELOG.md (6038a48)
+
 ## 2024-07-21
 - Add mongodb chart (43f1f17)
 
