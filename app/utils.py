@@ -1,14 +1,13 @@
 import openai
 from pymongo import MongoClient, ASCENDING
 from pymongo.operations import IndexModel
-from pymongo import MongoClient
 from pymongo.collection import Collection
 from pymongo.database import Database
 from typing import Optional
 from config import Config
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 from bson import ObjectId, json_util
 from flask_login import login_required, current_user
 from flask import request, current_app
@@ -22,7 +21,6 @@ from collections import Counter
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 import nltk
-from datetime import datetime, timezone, timedelta
 from functools import wraps
 
 nltk.data.path.append('/tmp/nltk_data')
@@ -86,7 +84,7 @@ def init_db(app):
             # Your index creation code here
             pass
 
-SIMILARITY_THRESHOLD = 0.91  # Adjust this value as needed
+SIMILARITY_THRESHOLD = 0.91  # Governs matching of similar questions from database collection `documents`
 
 # Attempt to connect to MongoDB
 try:
@@ -109,22 +107,35 @@ openai.api_key = Config.OPENAI_API_KEY
 def update_user_login_info(db, user_id):
     users_collection = db['users']
 
+    current_app.logger.info(f"Updating login info for user ID: {user_id}")
+
     # Get user's IP address
     if request.headers.getlist("X-Forwarded-For"):
         ip = request.headers.getlist("X-Forwarded-For")[0]
+        current_app.logger.info(f"IP address from X-Forwarded-For: {ip}")
     else:
         ip = request.remote_addr
+        current_app.logger.info(f"IP address from remote_addr: {ip}")
     
     update_data = {
-        'last_login': datetime.utcnow(),
+        'last_login': datetime.now(timezone.utc),
         'last_ip': ip
     }
     
+    current_app.logger.info(f"Initial update data: {update_data}")
+
     # Use a geolocation API to get location info
     try:
-        response = requests.get(f'http://ip-api.com/json/{ip}')
+        geolocation_url = f'http://ip-api.com/json/{ip}'
+        current_app.logger.info(f"Requesting geolocation data from: {geolocation_url}")
+        
+        response = requests.get(geolocation_url, timeout=5)  # Add a timeout
+        current_app.logger.info(f"Geolocation API response status code: {response.status_code}")
+        
         if response.status_code == 200:
             location_data = response.json()
+            current_app.logger.info(f"Received location data: {location_data}")
+            
             update_data['last_location'] = {
                 'country': location_data.get('country'),
                 'region': location_data.get('regionName'),
@@ -132,10 +143,22 @@ def update_user_login_info(db, user_id):
                 'lat': location_data.get('lat'),
                 'lon': location_data.get('lon')
             }
+            current_app.logger.info(f"Updated location data: {update_data['last_location']}")
+        else:
+            current_app.logger.warning(f"Unexpected status code from geolocation API: {response.status_code}")
+            current_app.logger.warning(f"Response content: {response.text}")
+    except requests.RequestException as e:
+        current_app.logger.error(f"RequestException while getting location data: {str(e)}")
     except Exception as e:
-        current_app.logger.error(f"Error getting location data: {str(e)}")
+        current_app.logger.error(f"Unexpected error while getting location data: {str(e)}")
+        current_app.logger.error(f"Error traceback: {traceback.format_exc()}")
     
-    users_collection.update_one({'_id': ObjectId(user_id)}, {'$set': update_data})
+    current_app.logger.info(f"Final update data: {update_data}")
+    
+    result = users_collection.update_one({'_id': ObjectId(user_id)}, {'$set': update_data})
+    current_app.logger.info(f"Database update result: {result.modified_count} document(s) modified")
+
+    return update_data
 
 def generate_embedding(text):
     debug_info = {}
@@ -199,7 +222,10 @@ def generate_title(question):
 from bson import ObjectId
 
 @with_db_connection
-def search_similar_questions(db, question_embedding, query_text, similarity_threshold=0.8):
+#def search_similar_questions(db, question_embedding, query_text, similarity_threshold=0.8):
+#def search_similar_questions(db, query, is_embedding=False, similarity_threshold=0.8):
+def search_similar_questions(db, question_embedding, query_text=None, similarity_threshold=0.8):
+
     pipeline = [
         {
             '$vectorSearch': {
@@ -390,7 +416,7 @@ def store_message(user_id, message, sender, conversation_id=None):
     return conversation_id
 
 def get_or_create_conversation(user_id):
-    active_conversation = conversation_collection.find_one(
+    active_conversation = get_conversation_collection().find_one(
         {'user_id': user_id, 'status': 'active'},
         sort=[('last_updated', -1)]
     )
@@ -783,20 +809,6 @@ def generate_references(answer):
     if not references:
         references = "No specific references provided. Please refer to the MongoDB Documentation at https://www.mongodb.com/docs/"
     return references
-
-def fetch_changelog(repo_owner, repo_name, access_token=None):
-    url = f"https://api.github.com/repos/{repo_owner}/{repo_name}/contents/CHANGELOG.md"
-    headers = {"Accept": "application/vnd.github.v3.raw"}
-    
-    if access_token:
-        headers["Authorization"] = f"token {access_token}"
-    
-    response = requests.get(url, headers=headers)
-    
-    if response.status_code == 200:
-        return response.text
-    else:
-        raise Exception(f"Failed to fetch changelog: {response.status_code} {response.text}")
 
 def extract_topics(text, top_n=5):
     # Tokenize the text

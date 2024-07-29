@@ -5,7 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>About - AI Lab Assistant</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <link href="{{ url_for('static', filename='css/base.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/navbar.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/sidebar.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/chat.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/components.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/banner.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/loader.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/responsive.css') }}" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css" rel="stylesheet">    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
@@ -14,14 +23,84 @@
 <body>
     <!-- Include the navigation bar -->
     {% include 'navbar.html' %}
-<div class="container mt-5">
-    <h1>Feedback</h1>
-    <p>We value your feedback! Please use this page to submit your thoughts and suggestions.</p>
-    <!-- Add your feedback form here -->
-</div>
+    <div class="container mt-5">
+        <h1>Feedback</h1>
+        <p>We value your feedback! Please use this page to submit your thoughts and suggestions.</p>
+        
+        <button id="showFeedbackButton" class="btn btn-primary mt-3">Show Feedback Form</button>
+    
+        <div id="feedback-container" class="container mt-5" style="display: none;">
+            <button type="button" class="close" aria-label="Close" onclick="hideFeedbackForm()">
+                <span aria-hidden="true">&times;</span>
+            </button>
+    
+            <h2>We value your feedback!</h2>
+            <p>Please rate your experience with our assistant:</p>
+    
+            <div id="feedback-scale" class="d-flex justify-content-center">
+                <span class="feedback-emoji" data-rating="1">😡</span>
+                <span class="feedback-emoji" data-rating="2">😟</span>
+                <span class="feedback-emoji" data-rating="3">😐</span>
+                <span class="feedback-emoji" data-rating="4">🙂</span>
+                <span class="feedback-emoji" data-rating="5">😍</span>
+            </div>
+        </div>
+    </div>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/marked@3.0.7/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.2.9/purify.min.js"></script> <!-- Add DOMPurify library -->
 <script src="{{ url_for('static', filename='js/chat.js') }}" defer></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const showFeedbackButton = document.getElementById('showFeedbackButton');
+        const feedbackContainer = document.getElementById('feedback-container');
+        const feedbackEmojis = document.querySelectorAll('.feedback-emoji');
+    
+        showFeedbackButton.addEventListener('click', function() {
+            feedbackContainer.style.display = 'block';
+        });
+    
+        feedbackEmojis.forEach(emoji => {
+            emoji.addEventListener('click', async function() {
+                const rating = this.getAttribute('data-rating');
+                console.log('Feedback rating:', rating);
+                
+                try {
+                    const response = await fetch('/api/feedback', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ rating: parseInt(rating) }),
+                    });
+    
+                    if (response.ok) {
+                        alert('Thank you for your feedback!');
+                        hideFeedbackForm();
+                    } else {
+                        throw new Error('Failed to submit feedback');
+                    }
+                } catch (error) {
+                    console.error('Error submitting feedback:', error);
+                    alert('There was an error submitting your feedback. Please try again.');
+                }
+            });
+        });
+    });
+    
+    function hideFeedbackForm() {
+        document.getElementById('feedback-container').style.display = 'none';
+    }
+    </script>
+<style>
+    .feedback-emoji {
+        font-size: 2em;
+        margin: 0 10px;
+        cursor: pointer;
+    }
+    .feedback-emoji:hover {
+        transform: scale(1.2);
+    }
+    </style>
 </body>
 </html>

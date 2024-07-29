@@ -1,5 +1,6 @@
 :root {
     --mongodb-green: #00ED64;
+    --mongodb-dark-green: #027532;
     --mongodb-blue: #016BF8;
     --mongodb-yellow: #FFDD00;
     --mongodb-red: #FF0000;
@@ -68,8 +69,27 @@
 }
 
 /* Navbar */
+
+.navbar-nav .nav-item .nav-link img {
+    filter: brightness(0) saturate(100%) invert(11%) sepia(20%) saturate(805%) hue-rotate(155deg) brightness(97%) contrast(98%);
+    transition: filter 0.3s ease;
+}
+
+.navbar-nav .nav-item .nav-link:hover img {
+    filter: brightness(0) saturate(100%) invert(80%) sepia(71%) saturate(397%) hue-rotate(95deg) brightness(103%) contrast(103%);
+}
+
+.navbar-nav .nav-item .nav-link:hover,
+.navbar-nav .nav-item .nav-link a {
+    color: var(--mongodb-dark-green); /* MongoDB green for the name link */
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+/* */
+
+
 .navbar-brand:hover,
-.navbar-nav .nav-link:hover,
 .nav-link.active-page {
     color: #00a35c;
 }

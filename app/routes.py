@@ -2,7 +2,7 @@ import os
 import json  # Ensure json is imported
 import traceback  # Ensure traceback is imported
 import logging
-from flask import Blueprint, request, jsonify, render_template, current_app, session, send_from_directory
+from flask import Blueprint, flash, redirect, request, jsonify, render_template, current_app, session, send_from_directory, url_for
 from flask_login import login_required, current_user
 from bson import ObjectId
 from pymongo import MongoClient
@@ -14,7 +14,7 @@ from .question_generator import process_content, save_to_mongodb, fetch_content_
 import requests
 from werkzeug.utils import secure_filename
 import pytz
-from app.utils import get_collection, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity
+from app.utils import get_collection, get_or_create_conversation, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity
 from bson.son import SON
 
 
@@ -25,7 +25,6 @@ from app.utils import (
     check_database_connection,
     get_collection_stats,
     json_serialize,
-    fetch_changelog,
     store_message,
     generate_title,
     generate_references,
@@ -43,8 +42,6 @@ from app.utils import (
     update_user_login_info
 
 )
-import openai
-
 from werkzeug.exceptions import HTTPException
 
 main = Blueprint('main', __name__)
@@ -172,10 +169,12 @@ def chat_api():
 
         # Generate a title for the conversation
         title = user_question[:50]
-        
+
         # Start a new conversation if no active conversation exists
-        conversation_id = start_new_conversation(user_id, title)
+        # conversation_id = start_new_conversation(user_id, title)
         
+        conversation_id = get_or_create_conversation(user_id)
+
         store_message(user_id, user_question, 'User', conversation_id)
 
         # Generate the question embedding
@@ -183,7 +182,9 @@ def chat_api():
         debug_info['embedding'] = embed_debug
 
         # Search for similar questions
-        similar_questions = search_similar_questions(question_embedding, user_question)
+        # similar_questions = search_similar_questions(question_embedding, user_question)
+        similar_questions = search_similar_questions(question_embedding, user_question, similarity_threshold=SIMILARITY_THRESHOLD)
+
         logging.info(f"Found {len(similar_questions)} similar questions")
 
         if similar_questions:
@@ -463,8 +464,17 @@ def delete_unanswered_question(id):
 @login_required
 def admin():
     if not current_user.is_admin:
-        return jsonify({"error": "Unauthorized access"}), 403
-    return render_template('admin.html')
+        flash("You don't have permission to access the admin page.", "error")
+        return redirect(url_for('main.index'))
+    
+    # Fetch any necessary data for the admin dashboard
+    # For example:
+    total_users = get_users_collection().count_documents({})
+    total_questions = get_documents_collection().count_documents({})
+    
+    return render_template('admin.html', 
+                           total_users=total_users, 
+                           total_questions=total_questions)
 
 # New route to fetch all users
 @main.route('/api/users', methods=['GET'])
@@ -560,7 +570,58 @@ def generate_answer():
     except Exception as e:
         current_app.logger.error(f"Error generating answer: {str(e)}")
         return jsonify({'error': 'An error occurred while generating the answer.'}), 500
-    
+
+@main.route('/api/user_feedback_status', methods=['GET', 'POST'])
+@login_required
+def user_feedback_status():
+    try:
+        user_id = current_user.id
+        users_collection = get_users_collection()
+        
+        if request.method == 'GET':
+            user = users_collection.find_one({'_id': ObjectId(user_id)})
+            if user and 'feedback_status' in user:
+                return jsonify({
+                    'status': 'success',
+                    'feedback_status': user['feedback_status'],
+                    'last_feedback_interaction': user.get('last_feedback_interaction')
+                }), 200
+            else:
+                return jsonify({
+                    'status': 'success',
+                    'feedback_status': 'not_interacted',
+                    'last_feedback_interaction': None
+                }), 200
+        
+        elif request.method == 'POST':
+            result = users_collection.update_one(
+                {'_id': ObjectId(user_id)},
+                {
+                    '$set': {
+                        'feedback_status': 'interacted',
+                        'last_feedback_interaction': datetime.now()
+                    }
+                }
+            )
+            
+            if result.modified_count > 0:
+                return jsonify({'status': 'success', 'message': 'User feedback status updated'}), 200
+            else:
+                return jsonify({'status': 'error', 'message': 'User not found or status not updated'}), 404
+
+    except Exception as e:
+        current_app.logger.error(f"Error handling user feedback status: {str(e)}")
+        return jsonify({'status': 'error', 'message': 'An error occurred while handling feedback status'}), 500
+
+@main.route('/api/current_user_id', methods=['GET'])
+@login_required
+def get_current_user_id():
+    try:
+        return jsonify({'userId': current_user.id}), 200
+    except Exception as e:
+        current_app.logger.error(f"Error in get_current_user_id: {str(e)}")
+        return jsonify({'error': 'Failed to get current user ID'}), 500
+
 @main.route('/api/answer_feedback', methods=['POST'])
 @login_required
 def submit_answer_feedback():
@@ -712,14 +773,24 @@ def get_overall_statistics():
         feedback_pipeline = [
             {
                 "$match": {
-                    "rating": {"$exists": True, "$ne": None},
-                    "$expr": {"$ne": [{"$type": "$rating"}, "string"]}  # Exclude string ratings
+                    "rating": {"$exists": True, "$ne": None}
+                }
+            },
+            {
+                "$addFields": {
+                    "numericRating": {
+                        "$cond": {
+                            "if": {"$eq": [{"$type": "$rating"}, "string"]},
+                            "then": {"$toDouble": "$rating"},
+                            "else": "$rating"
+                        }
+                    }
                 }
             },
             {
                 "$group": {
                     "_id": None,
-                    "avg_rating": {"$avg": {"$toInt": "$rating"}},
+                    "avg_rating": {"$avg": "$numericRating"},
                     "count": {"$sum": 1}
                 }
             }

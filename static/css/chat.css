@@ -142,3 +142,98 @@
 .chat-bubble.assistant a:hover {
     text-decoration: underline;
 }
+
+/* Feedback popup styles */
+#feedback-container {
+    display: none;
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: white;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+    z-index: 1000;
+}
+
+.close-feedback-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+}
+
+#feedback-scale {
+    margin-top: 20px;
+}
+
+.feedback-button {
+    background: none;
+    border: none;
+    font-size: 2rem;
+    cursor: pointer;
+    margin: 0 5px;
+    transition: transform 0.2s;
+}
+
+.feedback-button:hover {
+    transform: scale(1.2);
+}
+
+#feedback-response {
+    text-align: center;
+    font-weight: bold;
+}
+
+#mic-button.active, #voiceover-toggle.active {
+    background-color: #e0e0e0;
+    border-radius: 50%;
+  }
+  
+
+  .input-container {
+    display: flex;
+    align-items: center;
+  }
+  
+  .input-wrapper {
+    position: relative;
+    flex-grow: 1;
+    margin-right: 10px;
+  }
+  
+  #user-input {
+    width: 100%;
+    padding-right: 30px; /* Make room for the mic button */
+  }
+  
+  #mic-button {
+    position: absolute;
+    right: 5px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  
+  #send-button, #voiceover-toggle {
+    /* your existing styles */
+    margin-left: 5px;
+  }
+
+  .carousel-item img {
+    object-fit: cover;
+    height: 400px; /* Adjust this value as needed */
+  }
+  
+  .carousel-caption {
+    background-color: rgba(0,0,0,0.5);
+    padding: 20px;
+    border-radius: 10px;
+  }

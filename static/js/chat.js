@@ -8,15 +8,30 @@
  * @module chat
  */
 
-
-
 let chatContainer;
 let userInput;
 let currentConversationId = null;
 let currentFocus = -1;
 
-document.getElementById('user-input').addEventListener('input', debounce(getSuggestions, 300));
-document.getElementById('user-input').addEventListener('keydown', handleKeyDown);
+async function getCurrentUserId() {
+    try {
+        const response = await fetch('/api/current_user_id');
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Failed to fetch current user ID. Status: ${response.status}, Response: ${errorText}`);
+        }
+        const data = await response.json();
+        return data.userId;
+    } catch (error) {
+        console.error('Error getting current user ID:', error);
+        return null;
+    }
+}
+
+// import WizardFeatures from './wizardFeatures.js';
+
+// const wizardFeatures = WizardFeatures;
+// wizardFeatures.init(appendMessage, getCurrentUserId);
 
 document.addEventListener('click', function (e) {
     if (!e.target.closest('.autocomplete-wrapper')) {
@@ -125,7 +140,7 @@ function initChat() {
         }
     });
 
-    console.log('Chat initialized successfully');
+    // console.log('Chat initialized successfully');
     return true;
 }
 
@@ -197,6 +212,10 @@ function appendMessage(sender, message, data = null) {
             }
             
             messageElement.appendChild(sourceElement);
+            // speakResponse(message);
+
+            showFeedbackPopup();
+
         }
     } else {
         const span = document.createElement('span');
@@ -210,6 +229,42 @@ function appendMessage(sender, message, data = null) {
     // If it's an assistant message and we have additional data, add feedback buttons
     if (sender.toLowerCase() === 'assistant' && data) {
         appendFeedbackButtons(messageElement, data);
+    }
+}
+
+async function showFeedbackPopup() {
+    const feedbackContainer = document.getElementById('feedback-container');
+    if (feedbackContainer) {
+        const hasInteracted = await checkFeedbackStatus();
+        if (!hasInteracted) {
+            feedbackContainer.style.display = 'block';
+        }
+    }
+}
+
+async function updateFeedbackStatus() {
+    try {
+        const response = await fetch('/api/user_feedback_status', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        console.log('Feedback status updated:', data);
+    } catch (error) {
+        console.error('Error updating feedback status:', error);
+    }
+}
+
+async function hideFeedbackPopup() {
+    const feedbackContainer = document.getElementById('feedback-container');
+    if (feedbackContainer) {
+        feedbackContainer.style.display = 'none';
+        await updateFeedbackStatus();
     }
 }
 
@@ -345,50 +400,63 @@ async function sendMessage(event) {
         const loader = appendLoader();
 
         try {
-            const response = await fetch('/api/chat', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    question: userMessage,
-                    conversation_id: currentConversationId
-                })
-            });
-
-            if (!response.ok) {
-                const errorMessage = await response.text();
-                throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
+            const userId = await getCurrentUserId();
+            if (!userId) {
+                throw new Error('Failed to get current user ID');
             }
+            // if (wizardFeatures.getWizardState()) {
+            //     // We're in a wizard session, let wizardFeatures handle it
+            //     await wizardFeatures.handleMessage(message);
+            // } else {            
+            //     await wizardFeatures.handleMessage(message);
+            // }
+            if (!message.startsWith('/')) {
 
-            const data = await response.json();
-
-            if (data.debug_info) {
-                appendDebugInfo('Debug Information', data.debug_info);
-            }
-
-            if (data.conversation_id) {
-                currentConversationId = data.conversation_id;
-            }
-
-            console.log('Received data:', data);
-            if (data.answer) {
-                appendMessage('Assistant', data.answer, {
-                    ...data,
-                    question_id: data.question_id || '',
-                    original_question: userMessage
+                const response = await fetch('/api/chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        question: userMessage,
+                        conversation_id: currentConversationId
+                    })
                 });
-            } else if (data.potential_answer) {
-                appendMessage('Assistant', data.potential_answer, {
-                    ...data,
-                    question_id: '',
-                    original_question: userMessage
-                });
-            } else {
-                appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
+
+                if (!response.ok) {
+                    const errorMessage = await response.text();
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
+                }
+
+                const data = await response.json();
+
+                if (data.debug_info) {
+                    appendDebugInfo('Debug Information', data.debug_info);
+                }
+
+                if (data.conversation_id) {
+                    currentConversationId = data.conversation_id;
+                }
+
+                console.log('Received data:', data);
+                if (data.answer) {
+                    appendMessage('Assistant', data.answer, {
+                        ...data,
+                        question_id: data.question_id || '',
+                        original_question: userMessage
+                    });
+                } else if (data.potential_answer) {
+                    appendMessage('Assistant', data.potential_answer, {
+                        ...data,
+                        question_id: '',
+                        original_question: userMessage
+                    });
+                } else {
+                    appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
+                }
             }
         } catch (error) {
-            console.error('Error:', error);
+            console.error('Error in sendMessage:', error);
             appendMessage('Assistant', `Error: ${error.message}`);
         } finally {
             removeLoader(loader);
@@ -528,6 +596,14 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
+    // initializeSpeechRecognition();
+
+    if (userInput) {
+        userInput.addEventListener('input', debounce(getSuggestions, 300));
+        userInput.addEventListener('keydown', handleKeyDown);
+    } else {
+        console.error("Element with id 'user-input' not found");
+    }
 
     if (userInput && sendButton) {
         let isSending = false;
@@ -619,15 +695,15 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     });
 
+    var calendlyModalElement = document.getElementById('calendlyModal');
     var bookReviewBtn = document.getElementById('book-review-btn');
-    var calendlyModal = new bootstrap.Modal(document.getElementById('calendlyModal'));
-    const reviewBanner = document.getElementById('review-banner');
+    var reviewBanner = document.getElementById('review-banner');
 
-    if (reviewBanner && bookReviewBtn && calendlyModal) {
+    if (calendlyModalElement && bookReviewBtn && reviewBanner) {
         // We're on the chat page, set up the banner behavior
         document.body.classList.add('chat-page');
 
-        const bsCalendlyModal = new bootstrap.Modal(calendlyModal);
+        var calendlyModal = new bootstrap.Modal(calendlyModalElement);
 
         // Show/hide banner on scroll
         let lastScrollTop = 0;
@@ -643,11 +719,11 @@ document.addEventListener('DOMContentLoaded', function () {
 
         // Open Calendly modal when "Book Now" is clicked
         bookReviewBtn.addEventListener('click', function () {
-            bsCalendlyModal.show();
+            calendlyModal.show();
         });
 
         // Existing modal event listener
-        calendlyModal.addEventListener('hidden.bs.modal', function () {
+        calendlyModalElement.addEventListener('hidden.bs.modal', function () {
             document.body.classList.remove('modal-open');
             var modalBackdrop = document.querySelector('.modal-backdrop');
             if (modalBackdrop) {
@@ -663,8 +739,8 @@ document.addEventListener('DOMContentLoaded', function () {
         smartLists: true,
         smartypants: true
     });
-    console.log('Marked library loaded:', typeof marked);
-    console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
+    // console.log('Marked library loaded:', typeof marked);
+    // console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
     const navbarToggler = document.querySelector('.navbar-toggler');
     const navbarCollapse = document.querySelector('.navbar-collapse');
     const mainNavbar = document.getElementById('mainNavbar');
@@ -702,13 +778,20 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     }
-
+    document.querySelectorAll('.feedback-button').forEach(button => {
+        button.addEventListener('click', async function() {
+            const value = this.getAttribute('data-value');
+            console.log('Feedback value:', value);
+            
+            await updateFeedbackStatus();
+            hideFeedbackPopup();
+        });
+    });
 });
 
 // Ensure `marked` is correctly loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('Marked library loaded:', typeof marked);
-    console.log('Markdown test:', marked.parse('# Hello\n\nThis is a **test**.'));
+
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
 
@@ -808,3 +891,58 @@ document.addEventListener('DOMContentLoaded', function () {
 window.handleSampleQuestion = handleSampleQuestion;
 window.sendMessage = sendMessage;
 window.provideAnswerFeedback = provideAnswerFeedback;
+
+
+let recognition;
+let voiceoverEnabled = false;
+
+function initializeSpeechRecognition() {
+    if ('webkitSpeechRecognition' in window) {
+        recognition = new webkitSpeechRecognition();
+        recognition.continuous = false;
+        recognition.lang = 'en-US';
+
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            document.getElementById('user-input').value = transcript;
+            sendMessage();
+        };
+
+        recognition.onerror = function(event) {
+            console.error('Speech recognition error', event.error);
+        };
+
+        const micButton = document.createElement('button');
+        micButton.textContent = '🎤';
+        micButton.onclick = toggleSpeechRecognition;
+        document.getElementById('user-input').parentNode.appendChild(micButton);
+    }
+}
+
+function toggleSpeechRecognition() {
+    if (recognition.isStarted) {
+        recognition.stop();
+    } else {
+        recognition.start();
+    }
+    recognition.isStarted = !recognition.isStarted;
+}
+
+function speakResponse(text) {
+    const speech = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(speech);
+}
+
+async function checkFeedbackStatus() {
+    try {
+        const response = await fetch('/api/user_feedback_status');
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        const data = await response.json();
+        return data.feedback_status === 'interacted';
+    } catch (error) {
+        console.error('Error checking feedback status:', error);
+        return false;
+    }
+}

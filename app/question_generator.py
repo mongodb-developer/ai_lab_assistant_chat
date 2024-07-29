@@ -81,7 +81,7 @@ def save_to_mongodb(question, answer, similarity_threshold):
         question_embedding, _ = generate_embedding(question)
         current_app.logger.debug(f"Generated question embedding, length: {len(question_embedding)}")
         
-        similar_question = search_similar_questions(question_embedding, is_embedding=True, similarity_threshold=similarity_threshold)
+        similar_question = search_similar_questions(question_embedding, question, similarity_threshold=similarity_threshold)
         
         if similar_question is None:
             current_app.logger.warning("Failed to search for similar questions. Proceeding with insertion.")
