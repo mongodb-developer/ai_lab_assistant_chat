@@ -8,15 +8,17 @@
  * @module admin
  */
 
+import { showDesignReviews, editReview, updateReview, deleteReview, reviewDesign, createScoreIndicator, showEditReviewModal } from './designReviews.js';
+
 self.addEventListener('activate', event => {
     event.waitUntil(
-      (async () => {
-        if ('navigationPreload' in self.registration) {
-          await self.registration.navigationPreload.enable();
-        }
-      })()
+        (async () => {
+            if ('navigationPreload' in self.registration) {
+                await self.registration.navigationPreload.enable();
+            }
+        })()
     );
-  });
+});
 
 /**
  * Initializes the admin panel functionality when the DOM is fully loaded.
@@ -31,6 +33,12 @@ document.addEventListener('DOMContentLoaded', () => {
     fetchUnansweredQuestions();
     fetchUsers();
     showQuestions();
+    window.showDesignReviews = showDesignReviews;
+    window.editReview = editReview;
+    window.updateReview = updateReview;
+    window.deleteReview = deleteReview;
+    window.reviewDesign = reviewDesign;
+    window.showEditReviewModal = showEditReviewModal;
     const generateAnswerBtn = document.getElementById('generate-answer-btn');
     if (generateAnswerBtn) {
         generateAnswerBtn.addEventListener('click', generateAnswer);
@@ -107,7 +115,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const searchQuery = document.getElementById('search-query');
     const searchResults = document.getElementById('search-results');
 
-    searchButton.addEventListener('click', function() {
+    searchButton.addEventListener('click', function () {
         const query = searchQuery.value.trim();
         if (!query) {
             alert('Please enter a search query');
@@ -149,7 +157,17 @@ document.addEventListener('DOMContentLoaded', () => {
             .replace(/"/g, "&quot;")
             .replace(/'/g, "&#039;");
     }
-
+    const designReviewsTab = document.querySelector('#design-reviews-tab');
+    if (designReviewsTab) {
+        designReviewsTab.addEventListener('click', showDesignReviews);
+    }
+    const unansweredQuestionsTab = document.querySelector('[onclick="showUnansweredQuestions()"]');
+    if (unansweredQuestionsTab) {
+        unansweredQuestionsTab.removeAttribute('onclick');
+        unansweredQuestionsTab.addEventListener('click', showUnansweredQuestions);
+    } else {
+        console.error('Unanswered questions tab not found');
+    }
 
 });
 
@@ -158,7 +176,10 @@ const perPage = 10;
 const conversationList = document.getElementById('conversation-list');
 const adminForm = document.getElementById('admin-form');
 
-
+document.getElementById('updateReviewButton').addEventListener('click', function (e) {
+    e.preventDefault(); // Prevent any default action
+    updateReview();
+});
 
 function isValidObjectId(id) {
     return /^[0-9a-fA-F]{24}$/.test(id);
@@ -254,7 +275,7 @@ function populateQuestionsTable(questions) {
                     data-question="${escapeHTML(question.question)}" 
                     data-title="${escapeHTML(question.title || '')}" 
                     data-summary="${escapeHTML(question.summary || '')}" 
-                    data-answer="${escapeHTML( question.answer || '')}" 
+                    data-answer="${escapeHTML(question.answer || '')}" 
                     data-references="${escapeHTML(question.references || '')}" 
                     onclick="showEditQuestionForm(this)">
                     <i class="fas fa-edit"></i> Edit
@@ -426,13 +447,13 @@ async function generateAnswer() {
 function populateUnansweredQuestionsTable(unansweredQuestions) {
     const tableBody = document.getElementById('unanswered-questions-table-body');
     if (!tableBody) {
-        console.error('Element with ID "unanswered-questions-table-body" not found.');
-        return;
+      console.error('Element with ID "unanswered-questions-table-body" not found.');
+      return;
     }
     tableBody.innerHTML = '';
     if (unansweredQuestions.length === 0) {
-        tableBody.innerHTML = '<tr><td colspan="3">No unanswered questions found.</td></tr>';
-        return;
+      tableBody.appendChild(createTableRow(['<td colspan="3">No unanswered questions found.</td>']));
+      return;
     }
     unansweredQuestions.forEach(question => {
         const questionText = question.question || 'No question provided';
@@ -550,7 +571,7 @@ async function showEditQuestionForm(button) {
 
     const form = document.getElementById('question-form');
     form.setAttribute('data-question-id', id);
-    form.onsubmit = function(event) {
+    form.onsubmit = function (event) {
         event.preventDefault();
         const questionId = this.getAttribute('data-question-id');
         updateQuestion(questionId);
@@ -961,14 +982,14 @@ async function searchQuestions() {
     try {
         const response = await fetch(`/api/admin/search_questions?query=${encodeURIComponent(query)}`);
         console.log('Search response status:', response.status);
-        
+
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
-        
+
         const questions = await response.json();
         console.log('Received questions:', questions);
-        
+
         populateQuestionsTable(questions);
         // Hide pagination for search results
         document.getElementById('questions-pagination').style.display = 'none';
@@ -1912,9 +1933,9 @@ function displayEventMap(events) {
         if (event.location && event.location.coordinates) {
             const [lng, lat] = event.location.coordinates;
             const position = new google.maps.LatLng(lat, lng);
-    
+
             const marker = createMarker(position, event.title);
-    
+
             // Format the date
             let formattedDate = "Date not available";
             if (event.date_time) {
@@ -1931,7 +1952,7 @@ function displayEventMap(events) {
                     formattedDate = event.date_time;
                 }
             }
-    
+
             // Create the content for the InfoWindow
             const infoWindowContent = `
                 <div style="max-width: 300px;">
@@ -1946,15 +1967,15 @@ function displayEventMap(events) {
                     ${event.feedback_url ? `<p style="margin: 5px 0;"><a href="${event.feedback_url}" target="_blank" style="background-color: #007bff; color: white; padding: 5px 10px; text-align: center; text-decoration: none; display: inline-block; border-radius: 4px;">Provide Feedback</a></p>` : ''}
                 </div>
             `;
-    
+
             const infoWindow = new google.maps.InfoWindow({
                 content: infoWindowContent
             });
-    
+
             marker.addListener('click', () => {
                 infoWindow.open(map, marker);
             });
-    
+
             bounds.extend(position);
             hasValidCoordinates = true;
         }
@@ -2000,7 +2021,7 @@ function showQuestionSources() {
         </div>
         <div class="row">
     <div class="col-md-6">
-        <h3>Upload Files</h3>
+        <h3>Upload Files</h3>u
         <form id="file-upload-form" enctype="multipart/form-data">
             <div class="mb-3">
                 <label for="file-input" class="form-label">Select files (PPTX, DOCX, TXT)</label>
@@ -2098,4 +2119,12 @@ function hideError() {
 }
 document.querySelector('#error-container .close').addEventListener('click', hideError);
 
-
+function createTableRow(cells) {
+    const row = document.createElement('tr');
+    cells.forEach(cell => {
+      const td = document.createElement('td');
+      td.innerHTML = cell;
+      row.appendChild(td);
+    });
+    return row;
+  }

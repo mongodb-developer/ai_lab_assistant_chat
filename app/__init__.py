@@ -7,6 +7,8 @@ from .auth import auth, oauth, login_manager, init_oauth
 from .routes import main
 import logging
 from app.utils import update_user_login_info
+from .utils import init_db  # Add this import
+from .config import Config
 
 def create_app(config_class=Config):
     app = Flask(__name__,
@@ -15,7 +17,8 @@ def create_app(config_class=Config):
 
     app.config.from_object(config_class)
     
-    CORS(app, supports_credentials=True)
+    CORS(app, resources={r"/*": {"origins": ["https://lab-assistant.localhost.com", "https://lab-ai-assistant.ue.r.appspot.com"]}}, supports_credentials=True)
+    init_db(app)  # Add this line
 
     # Configure logging
     logging.basicConfig(level=logging.DEBUG)
@@ -35,6 +38,10 @@ def create_app(config_class=Config):
     app.register_blueprint(main)
     app.register_blueprint(auth)
 
+    app.config['UPLOAD_FOLDER'] = 'uploads'
+    # Ensure the upload directory exists
+    if not os.path.exists(app.config['UPLOAD_FOLDER']):
+        os.makedirs(app.config['UPLOAD_FOLDER'])
     @user_logged_in.connect_via(app)
     def _track_logins(sender, user, **extra):
         update_user_login_info(str(user.id))

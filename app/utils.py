@@ -35,6 +35,7 @@ nltk.download('words')
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
+SIMILARITY_THRESHOLD = 0.91  # or whatever value you want to use
 
 
 def get_db_connection() -> Optional[Database]:
@@ -80,9 +81,11 @@ def init_db(app):
         db = get_db_connection()
         # Perform any initial setup if needed
         # For example, creating indexes
-        if db:
-            # Your index creation code here
-            pass
+    if db is not None:
+        app.config['db'] = db
+    else:
+        raise Exception("Failed to initialize the database.")            # Your index creation code here
+    pass
 
 SIMILARITY_THRESHOLD = 0.91  # Governs matching of similar questions from database collection `documents`
 
@@ -221,10 +224,11 @@ def generate_title(question):
 
 from bson import ObjectId
 
-@with_db_connection
 #def search_similar_questions(db, question_embedding, query_text, similarity_threshold=0.8):
 #def search_similar_questions(db, query, is_embedding=False, similarity_threshold=0.8):
-def search_similar_questions(db, question_embedding, query_text=None, similarity_threshold=0.8):
+# def search_similar_questions(db, question_embedding, query_text=None, similarity_threshold=0.8):
+@with_db_connection
+def search_similar_questions(db, question_embedding, user_question, module, similarity_threshold=SIMILARITY_THRESHOLD):
 
     pipeline = [
         {
@@ -247,6 +251,14 @@ def search_similar_questions(db, question_embedding, query_text=None, similarity
             }
         }
     ]
+
+
+    if module:
+        pipeline.insert(1, {
+            '$match': {
+                'module': module
+            }
+        })
     
     vector_results = list(get_documents_collection().aggregate(pipeline))
     
@@ -256,7 +268,7 @@ def search_similar_questions(db, question_embedding, query_text=None, similarity
             '$search': {
                 'index': 'default',
                 'text': {
-                    'query': query_text,
+                    'query': user_question,
                     'path': {
                         'wildcard': '*'
                     },
@@ -278,6 +290,12 @@ def search_similar_questions(db, question_embedding, query_text=None, similarity
         }
     ]
     
+    if module:
+        text_search_stage.insert(1, {
+            '$match': {
+                'module': module
+            }
+        })
     text_results = list(get_documents_collection().aggregate(text_search_stage))
 
     # Combine results
@@ -297,7 +315,7 @@ def search_similar_questions(db, question_embedding, query_text=None, similarity
 
 
 @with_db_connection
-def add_unanswered_question(db, user_id, user_name, question, potential):
+def add_unanswered_question(db, user_id, user_name, question, potential, module):
     debug_info = {'function': 'add_unanswered_questions'}
 
     try:
@@ -307,6 +325,7 @@ def add_unanswered_question(db, user_id, user_name, question, potential):
             'question': question,
             'timestamp': datetime.now(),
             'answered': False,
+            'module': module,  # Include the module in the unanswered question
             'answer': potential.get('answer'),
             'title': potential.get('title'),
             'summary': potential.get('summary'),

@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+
+{% block title %}Home - AI Lab Assistant{% endblock %}
+
+{% block css %}
+    <link href="{{ url_for('static', filename='css/home.css') }}" rel="stylesheet">
+{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="home-page">
+        <h1>Welcome to the AI Lab Assistant</h1>
+        <p>
+            The AI Lab Assistant is designed to help you with commonly encountered issues while working on
+            MongoDB projects. Whether you're having trouble connecting to your MongoDB cluster, displaying data in your
+            application, or launching your GitHub codespace, the AI Lab Assistant is here to provide guidance and solutions.
+        </p>
+        <h3>Key Features:</h3>
+        <ul>
+            <li><strong>Real-time Assistance:</strong> Get immediate help with common MongoDB issues through our
+                chat interface.</li>
+            <li><strong>Sample Questions:</strong> Quickly access solutions to frequently asked questions about
+                MongoDB setup and troubleshooting.</li>
+            <li><strong>Admin Panel:</strong> Admins can manage questions and review unanswered queries to
+                improve our knowledge base.</li>
+            <li><strong>Labs Access:</strong> Explore our developer labs to deepen your MongoDB knowledge and
+                skills.</li>
+        </ul>
+        <h3>Get Involved</h3>
+        <p>We encourage you to fork the repository and review the code to gain a deeper understanding of how
+            MongoDB VectorSearch can be implemented to build a similar system.</p>
+        <p>Check out, or <a href="https://github.com/mongodb-developer/ai_lab_assistant_chat/fork">fork</a>
+            the project on GitHub: <a href="https://github.com/mongodb-developer/ai_lab_assistant_chat/">AI Lab
+                Assistant Chat</a>.</p>
+        <p>By exploring the code and the design patterns used, you can learn how to create scalable and
+            efficient applications using MongoDB. Happy coding!</p>
+        <p>
+            <a href="{{ url_for('main.chat') }}" class="btn btn-primary">Start a Conversation</a>
+        </p>
+        <div class="alert alert-info" role="alert">
+            <strong>Note Regarding This Software:</strong> This system is in beta testing and may have bugs.
+            If you encounter any issues, please notify your instructor.
+        </div>
+    </div>
+</div>
+{% endblock %}

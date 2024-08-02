@@ -1,0 +1,270 @@
+[
+  {
+    $match: { $and: [{ snapshotId: 1704067200 }] }
+  },
+  {
+    $facet: {
+      positionArray: [
+        {
+          $group: {
+            _id: {
+              actualUnderlyingType:
+                "$actualUnderlyingType"
+            },
+            position: {
+              $sum: "$position"
+            },
+            positionIsDefined: {
+              $max: {
+                $cond: [
+                  {
+                    $gt: ["$position", null]
+                  },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    $project: {
+      merged: {
+        $reduce: {
+          input: {
+            $concatArrays: ["$positionArray"]
+          },
+          initialValue: {
+            values: [],
+            mapping: []
+          },
+          in: {
+            $cond: [
+              {
+                $in: [
+                  "$$this._id",
+                  "$$value.mapping.key"
+                ]
+              },
+              {
+                values: {
+                  $map: {
+                    input: "$$value.values",
+                    as: "arrValue",
+                    in: {
+                      $cond: [
+                        {
+                          $eq: [
+                            "$$arrValue._id",
+                            "$$this._id"
+                          ]
+                        },
+                        {
+                          $mergeObjects: [
+                            "$$arrValue",
+                            "$$this"
+                          ]
+                        },
+                        "$$arrValue"
+                      ]
+                    }
+                  }
+                },
+                mapping: "$$value.mapping"
+              },
+              {
+                values: {
+                  $concatArrays: [
+                    "$$value.values",
+                    ["$$this"]
+                  ]
+                },
+                mapping: {
+                  $concatArrays: [
+                    "$$value.mapping",
+                    [
+                      {
+                        key: "$$this._id",
+                        value: {
+                          $size: "$$value.mapping"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    $project: {
+      mergedResults: "$merged.values"
+    }
+  },
+  {
+    $unwind: "$mergedResults"
+  },
+  {
+    $replaceRoot: {
+      newRoot: "$mergedResults"
+    }
+  },
+  {
+    $project: {
+      rowId: {
+        $concat: []
+      },
+      position: {
+        $cond: [
+          {
+            $gt: ["$positionIsDefined", 0]
+          },
+          "$position",
+          null
+        ]
+      }
+    }
+  },
+  {
+    $addFields: {
+      positionKey: {
+        $concat: [
+          {
+            $ifNull: [
+              {
+                $toString:
+                  "$_id.actualUnderlyingType"
+              },
+              ""
+            ]
+          },
+          "_",
+          "position"
+        ]
+      }
+    }
+  },
+  {
+    $group: {
+      _id: "$_id.null",
+      rowId: {
+        $first: "$rowId"
+      },
+      position: {
+        $push: {
+          k: "$positionKey",
+          v: "$position"
+        }
+      }
+    }
+  },
+  {
+    $project: {
+      _id: 1,
+      rowId: 1,
+      position: {
+        $arrayToObject: {
+          $map: {
+            in: {
+              k: "$$item.k",
+              v: "$$item.v"
+            },
+            as: "item",
+            input: "$position"
+          }
+        }
+      }
+    }
+  },
+  {
+    $replaceRoot: {
+      newRoot: {
+        $mergeObjects: [
+          {
+            rowId: "$rowId"
+          },
+          "$position"
+        ]
+      }
+    }
+  },
+  {
+    $sort: {
+      openClosedFXExposure: 1
+    }
+  },
+  {
+    $facet: {
+      totalRowCount: [
+        {
+          $count: "total"
+        }
+      ],
+      rows: [
+        {
+          $project: {
+            _id: 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    $project: {
+      totalRowCount: {
+        $arrayElemAt: ["$totalRowCount.total", 0]
+      },
+      rows: 1
+    }
+  },
+  {
+    $addFields: {
+      pivotFields: {
+        $reduce: {
+          input: "$rows",
+          initialValue: [],
+          in: {
+            $setUnion: [
+              "$$value",
+              {
+                $reduce: {
+                  input: {
+                    $objectToArray: "$$this"
+                  },
+                  initialValue: [],
+                  in: {
+                    $cond: [
+                      {
+                        $and: [
+                          {
+                            $ne: [
+                              "$$this.k",
+                              "rowId"
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        $concatArrays: [
+                          "$$value",
+                          ["$$this.k"]
+                        ]
+                      },
+                      "$$value"
+                    ]
+                  }
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  }
+]

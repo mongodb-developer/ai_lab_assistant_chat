@@ -366,35 +366,12 @@ function appendFeedbackButtons(messageElement, data) {
  */
 async function sendMessage(event) {
     const userInput = document.getElementById('user-input');
+    const moduleSelect = document.getElementById('module-select');
     const message = userInput.value.trim();
+    const selectedModule = moduleSelect.value;
 
     if (message) {
-        // Your existing code to send the message
-        console.log('Sending message:', message);
-        if (!chatContainer || !userInput) {
-            console.error('Chat not properly initialized. Cannot send message.');
-            return;
-        }
-
-        let userMessage;
-
-        if (event instanceof Event) {
-            // If called from an event (button click or Enter key)
-            userMessage = userInput.value.trim();
-        } else if (typeof event === 'string') {
-            // If called with a string argument (e.g., from sample questions)
-            userMessage = event;
-        } else if (!event) {
-            // If called without arguments (our new case)
-            userMessage = userInput.value.trim();
-        } else {
-            console.error('Invalid input to sendMessage');
-            return;
-        }
-
-        if (!userMessage) return;
-
-        appendMessage('User', userMessage);
+        appendMessage('User', message);
         userInput.value = '';
 
         const loader = appendLoader();
@@ -404,56 +381,38 @@ async function sendMessage(event) {
             if (!userId) {
                 throw new Error('Failed to get current user ID');
             }
-            // if (wizardFeatures.getWizardState()) {
-            //     // We're in a wizard session, let wizardFeatures handle it
-            //     await wizardFeatures.handleMessage(message);
-            // } else {            
-            //     await wizardFeatures.handleMessage(message);
-            // }
-            if (!message.startsWith('/')) {
 
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        question: userMessage,
-                        conversation_id: currentConversationId
-                    })
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    question: message,
+                    conversation_id: currentConversationId,
+                    module: selectedModule // Send the selected module to the backend
+                })
+            });
+
+            if (!response.ok) {
+                const errorMessage = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
+            }
+
+            const data = await response.json();
+
+            if (data.conversation_id) {
+                currentConversationId = data.conversation_id;
+            }
+
+            if (data.answer) {
+                appendMessage('Assistant', data.answer, {
+                    ...data,
+                    question_id: data.question_id || '',
+                    original_question: message
                 });
-
-                if (!response.ok) {
-                    const errorMessage = await response.text();
-                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
-                }
-
-                const data = await response.json();
-
-                if (data.debug_info) {
-                    appendDebugInfo('Debug Information', data.debug_info);
-                }
-
-                if (data.conversation_id) {
-                    currentConversationId = data.conversation_id;
-                }
-
-                console.log('Received data:', data);
-                if (data.answer) {
-                    appendMessage('Assistant', data.answer, {
-                        ...data,
-                        question_id: data.question_id || '',
-                        original_question: userMessage
-                    });
-                } else if (data.potential_answer) {
-                    appendMessage('Assistant', data.potential_answer, {
-                        ...data,
-                        question_id: '',
-                        original_question: userMessage
-                    });
-                } else {
-                    appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
-                }
+            } else {
+                appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
             }
         } catch (error) {
             console.error('Error in sendMessage:', error);
@@ -463,6 +422,7 @@ async function sendMessage(event) {
         }
     }
 }
+
 
 /**
  * Starts a new conversation by resetting the conversation ID and clearing the chat container.
@@ -594,9 +554,39 @@ document.addEventListener('DOMContentLoaded', function () {
         console.error('Failed to initialize chat. Some features may not work correctly.');
     }
 
+    const chatContainer = document.getElementById('chat-container');
     const userInput = document.getElementById('user-input');
     const sendButton = document.getElementById('send-button');
+    const moduleSelect = document.getElementById('module-select');
+    const moduleItems = document.querySelectorAll('.dropdown-item');
+    const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+
+    let selectedModule = '';
+
+    moduleItems.forEach(item => {
+        item.addEventListener('click', function(event) {
+            event.preventDefault();
+            selectedModule = this.getAttribute('data-value');
+            console.log('Module selected:', selectedModule);
+            moduleSelect.textContent = this.textContent;
+            moduleItems.forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
     // initializeSpeechRecognition();
+
+    const moduleDropdown = document.getElementById('moduleDropdown');
+    const dropdownItems = document.querySelectorAll('.dropdown-menu .dropdown-item');
+
+    dropdownItems.forEach(item => {
+        item.addEventListener('click', function(event) {
+            event.preventDefault();
+            const selectedValue = this.getAttribute('data-value');
+            moduleDropdown.textContent = selectedValue;
+            console.log('Module selected:', selectedValue);
+            // You can store the selected value in a variable or use it as needed
+        });
+    });
 
     if (userInput) {
         userInput.addEventListener('input', debounce(getSuggestions, 300));
@@ -787,7 +777,122 @@ document.addEventListener('DOMContentLoaded', function () {
             hideFeedbackPopup();
         });
     });
+    const requestReviewBtn = document.getElementById('request-review-btn');
+    const designReviewModal = new bootstrap.Modal(document.getElementById('designReviewModal'));
+
+    if (requestReviewBtn) {
+        requestReviewBtn.addEventListener('click', function () {
+            designReviewModal.show();
+        });
+    }
+
+    const designReviewForm = document.getElementById('design-review-form');
+    if (designReviewForm) {
+        designReviewForm.addEventListener('submit', async function (event) {
+            event.preventDefault();
+
+            const formData = new FormData(designReviewForm);
+            const response = await fetch('/api/design_review', {
+                method: 'POST',
+                body: formData,
+            });
+
+            if (response.ok) {
+                alert('Design Review request submitted successfully!');
+                designReviewModal.hide();
+            } else {
+                alert('Failed to submit Design Review request.');
+            }
+        });
+    }
 });
+
+// Attach the scoring calculation to the form submission
+document.getElementById('review-form').addEventListener('submit', function (event) {
+    calculateScore();
+});
+
+function calculateScore() {
+    const form = document.getElementById('review-form');
+    const completenessScore = calculateCompletenessScore(form);
+    const skillLevelScore = calculateSkillLevelScore(form.skillLevel.value);
+    const applicationStatusScore = calculateApplicationStatusScore(form.applicationStatus.value);
+    const useCaseScore = calculateUseCaseScore(form);
+    const dataVolumeScore = calculateDataVolumeScore(form.dataVolume.value);
+    const uptimeSlaScore = calculateUptimeSlaScore(form.uptimeSla.value);
+    const previousInteractionScore = calculatePreviousInteractionScore(form.previousInteraction.value);
+    
+    const totalScore = completenessScore + skillLevelScore + applicationStatusScore + useCaseScore + dataVolumeScore + uptimeSlaScore + previousInteractionScore;
+    
+    form['completeness-score'].value = completenessScore;
+    form['skill-level-score'].value = skillLevelScore;
+    form['application-status-score'].value = applicationStatusScore;
+    form['use-case-score'].value = useCaseScore;
+    form['data-volume-score'].value = dataVolumeScore;
+    form['uptime-sla-score'].value = uptimeSlaScore;
+    form['previous-interaction-score'].value = previousInteractionScore;
+    form['total-score'].value = totalScore;
+}
+
+function calculateCompletenessScore(form) {
+    let score = 0;
+    if (form.name.value) score += 5;
+    if (form.contactDetails.value) score += 5;
+    if (form.company.value) score += 5;
+    if (form.applicationDetails.value) score += 5;
+    if (form.sampleDocuments.value) score += 5;
+    if (form.sampleQueries.value) score += 5;
+    return score;
+}
+
+function calculateSkillLevelScore(skillLevel) {
+    switch (skillLevel) {
+        case 'Expert': return 15;
+        case 'Intermediate': return 10;
+        case 'Beginner': return 5;
+        default: return 0;
+    }
+}
+
+function calculateApplicationStatusScore(status) {
+    switch (status) {
+        case 'In production': return 15;
+        case 'In design phase': return 10;
+        case 'Not started': return 0;
+    }
+}
+
+function calculateUseCaseScore(form) {
+    let score = 0;
+    if (form.transactionalGuarantees.checked) score += 2;
+    if (form.fullTextSearch.checked) score += 2;
+    if (form.crossRegionHa.checked) score += 2;
+    if (form.cloudToOnPrem.checked) score += 2;
+    if (form.timeSeriesCapabilities.checked) score += 2;
+    if (form.dataTiering.checked) score += 2;
+    if (form.multiCloud.checked) score += 2;
+    if (form.dataModelingGuidance.checked) score += 2;
+    if (form.developmentAssistance.checked) score += 2;
+    if (form.edgeDatabase.checked) score += 2;
+    return score;
+}
+
+function calculateDataVolumeScore(dataVolume) {
+    if (dataVolume >= 1000) return 10;
+    if (dataVolume >= 100) return 5;
+    return 0;
+}
+
+function calculateUptimeSlaScore(uptimeSla) {
+    if (uptimeSla >= 99.99) return 5;
+    return 0;
+}
+
+function calculatePreviousInteractionScore(previousInteraction) {
+    // Assume a simple mechanism based on predefined criteria
+    if (previousInteraction) return 5;
+    return 0;
+}
 
 // Ensure `marked` is correctly loaded
 document.addEventListener('DOMContentLoaded', () => {
@@ -813,6 +918,17 @@ document.addEventListener('DOMContentLoaded', () => {
     } else {
         console.error('User input or send button not found');
     }
+    let selectedModule = '';
+
+    moduleItems.forEach(item => {
+        item.addEventListener('click', function(event) {
+            event.preventDefault();
+            selectedModule = this.getAttribute('data-value');
+            moduleSelect.textContent = this.textContent;
+            moduleItems.forEach(i => i.classList.remove('active'));
+            this.classList.add('active');
+        });
+    });
 });
 
 function handleSendMessage(message) {

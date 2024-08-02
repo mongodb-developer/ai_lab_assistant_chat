@@ -13,17 +13,6 @@
     color: var(--mongodb-gray-dark);
     background-color: var(--mongodb-gray-light);
   }
-  
-  .btn-primary {
-    background-color: var(--mongodb-blue);
-    border-color: var(--mongodb-blue);
-    color: white;
-  }
-  
-  .btn-primary:hover {
-    background-color: #0051c3;
-    border-color: #0051c3;
-  }
 
 /* Primary buttons */
 .btn-primary {
@@ -42,8 +31,8 @@
 
 /* Secondary buttons */
 .btn-secondary {
-    background-color: var(--mongodb-light-blue);
-    border-color: var(--mongodb-light-blue);
+    background-color: #027532;
+    border-color: #035324;
     color: white;
 }
 

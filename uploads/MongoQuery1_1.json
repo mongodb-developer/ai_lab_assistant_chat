@@ -1,0 +1,313 @@
+[
+  {
+    $match: { $and: [{ snapshotId: 1704067200 }] }
+  },
+  {
+    $facet: {
+      messagesArray: [
+        {
+          $group: {
+            _id: null,
+            messagesArray: {
+              $push: "$messages"
+            },
+            messagesIsDefined: {
+              $max: {
+                $cond: [
+                  {
+                    $ne: ["$messages", []]
+                  },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        },
+        {
+          $addFields: {
+            messages: {
+              $reduce: {
+                input: "$messagesArray",
+                initialValue: [],
+                in: {
+                  $concatArrays: [
+                    "$$value",
+                    "$$this"
+                  ]
+                }
+              }
+            }
+          }
+        },
+        {
+          $project: {
+            messages: 1,
+            messagesIsDefined: 1
+          }
+        }
+      ],
+      positionArray: [
+        {
+          $group: {
+            _id: null,
+            position: {
+              $sum: "$position"
+            },
+            positionIsDefined: {
+              $max: {
+                $cond: [
+                  {
+                    $gt: ["$position", null]
+                  },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        }
+      ],
+      spotArray: [
+        {
+          $group: {
+            _id: null,
+            valueSet: {
+              $addToSet: "$spot"
+            }
+          }
+        },
+        {
+          $addFields: {
+            spot: {
+              $cond: [
+                {
+                  $gt: [
+                    {
+                      $size: "$valueSet"
+                    },
+                    1
+                  ]
+                },
+                null,
+                {
+                  $arrayElemAt: ["$valueSet", 0]
+                }
+              ]
+            },
+            spotIsDefined: {
+              $cond: [
+                {
+                  $gt: [
+                    {
+                      $size: "$valueSet"
+                    },
+                    1
+                  ]
+                },
+                0,
+                1
+              ]
+            }
+          }
+        },
+        {
+          $project: {
+            _id: 1,
+            spot: 1,
+            spotIsDefined: 1
+          }
+        }
+      ],
+      vegaArray: [
+        {
+          $group: {
+            _id: null,
+            vega: {
+              $sum: {
+                $abs: "$vega"
+              }
+            },
+            vegaIsDefined: {
+              $max: {
+                $cond: [
+                  {
+                    $gt: ["$vega", null]
+                  },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  },
+  {
+    $project: {
+      merged: {
+        $reduce: {
+          input: {
+            $concatArrays: [
+              "$messagesArray",
+              "$positionArray",
+              "$spotArray",
+              "$vegaArray"
+            ]
+          },
+          initialValue: {
+            values: [],
+            mapping: []
+          },
+          in: {
+            $cond: [
+              {
+                $in: [
+                  "$$this._id",
+                  "$$value.mapping.key"
+                ]
+              },
+              {
+                values: {
+                  $map: {
+                    input: "$$value.values",
+                    as: "arrValue",
+                    in: {
+                      $cond: [
+                        {
+                          $eq: [
+                            "$$arrValue._id",
+                            "$$this._id"
+                          ]
+                        },
+                        {
+                          $mergeObjects: [
+                            "$$arrValue",
+                            "$$this"
+                          ]
+                        },
+                        "$$arrValue"
+                      ]
+                    }
+                  }
+                },
+                mapping: "$$value.mapping"
+              },
+              {
+                values: {
+                  $concatArrays: [
+                    "$$value.values",
+                    ["$$this"]
+                  ]
+                },
+                mapping: {
+                  $concatArrays: [
+                    "$$value.mapping",
+                    [
+                      {
+                        key: "$$this._id",
+                        value: {
+                          $size: "$$value.mapping"
+                        }
+                      }
+                    ]
+                  ]
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  {
+    $project: {
+      mergedResults: "$merged.values"
+    }
+  },
+  {
+    $unwind: "$mergedResults"
+  },
+  {
+    $replaceRoot: {
+      newRoot: "$mergedResults"
+    }
+  },
+  {
+    $project: {
+      rowId: {
+        $concat: []
+      },
+      messages: {
+        $cond: [
+          {
+            $gt: ["$messagesIsDefined", 0]
+          },
+          "$messages",
+          null
+        ]
+      },
+      position: {
+        $cond: [
+          {
+            $gt: ["$positionIsDefined", 0]
+          },
+          "$position",
+          null
+        ]
+      },
+      spot: {
+        $cond: [
+          {
+            $gt: ["$spotIsDefined", 0]
+          },
+          "$spot",
+          null
+        ]
+      },
+      vega: {
+        $cond: [
+          {
+            $gt: ["$vegaIsDefined", 0]
+          },
+          "$vega",
+          null
+        ]
+      }
+    }
+  },
+  {
+    $sort: {
+      openClosedFXExposure: 1,
+      instrument: 1,
+      underlying: 1,
+      expiryDate: 1,
+      strike: 1
+    }
+  },
+  {
+    $facet: {
+      totalRowCount: [
+        {
+          $count: "total"
+        }
+      ],
+      rows: [
+        {
+          $project: {
+            _id: 0
+          }
+        }
+      ]
+    }
+  },
+  {
+    $project: {
+      totalRowCount: {
+        $arrayElemAt: ["$totalRowCount.total", 0]
+      },
+      rows: 1
+    }
+  }
+]

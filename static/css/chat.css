@@ -13,28 +13,7 @@
     margin-bottom: 60px; /* Adjust this value to account for the input container height */
 }
 
-.chat-header {
-    background-color: #f8f9fa;
-    border-bottom: 1px solid #e0e0e0;
-    width: 100%;
-}
-
-.chat-header h1 {
-    margin: 0;
-    font-size: 1.5rem;
-    color: #333;
-}
-
-.chat-container-wrapper {
-    display: flex;
-    flex-direction: column;
-    height: auto;
-    border: 1px solid #e0e0e0;
-    border-radius: 10px;
-    margin-top: 10px;
-}
-
-.chat-container {
+#chat-container {
     position: relative;
     flex-grow: 1;
     overflow-y: auto;
@@ -78,23 +57,20 @@
 
 .input-group {
     display: flex;
-    max-width: 800px;
-    margin: 0 auto;
+    align-items: center;
     width: 100%;
+    max-width: 800px;
 }
 
 #user-input {
     flex-grow: 1;
-    border-radius: 20px 0 0 20px;
     border: 1px solid #ced4da;
     padding: 0.5rem 1rem;
     font-size: 16px;
-    width: 100%;
+    margin-right: 10px;
 }
 
-.input-group .btn,
 #send-button {
-    border-radius: 0 20px 20px 0;
     background-color: #00a35c;
     color: white;
     border: none;
@@ -120,7 +96,6 @@
     width: 100%;
     margin-bottom: 1em;
     background-color: #93dcd2;
-
 }
 
 .chat-bubble.assistant th,
@@ -192,26 +167,20 @@
 #mic-button.active, #voiceover-toggle.active {
     background-color: #e0e0e0;
     border-radius: 50%;
-  }
-  
+}
 
-  .input-container {
-    display: flex;
-    align-items: center;
-  }
-  
-  .input-wrapper {
+.input-wrapper {
     position: relative;
     flex-grow: 1;
     margin-right: 10px;
-  }
-  
-  #user-input {
+}
+
+#user-input {
     width: 100%;
     padding-right: 30px; /* Make room for the mic button */
-  }
-  
-  #mic-button {
+}
+
+#mic-button {
     position: absolute;
     right: 5px;
     top: 50%;
@@ -220,20 +189,63 @@
     border: none;
     font-size: 20px;
     cursor: pointer;
-  }
-  
-  #send-button, #voiceover-toggle {
-    /* your existing styles */
-    margin-left: 5px;
-  }
+}
 
-  .carousel-item img {
+#send-button, #voiceover-toggle {
+    margin-left: 5px;
+}
+
+.carousel-item img {
     object-fit: cover;
     height: 400px; /* Adjust this value as needed */
-  }
-  
-  .carousel-caption {
+}
+
+.carousel-caption {
     background-color: rgba(0,0,0,0.5);
     padding: 20px;
     border-radius: 10px;
-  }
+}
+.dropdown-menu.show {
+    display: block;
+}
+
+.dropdown-menu {
+    display: none;
+}
+
+.dropdown-menu.show {
+    display: block;
+}
+.autocomplete-wrapper {
+    position: absolute;
+    bottom: 90%; /* Position above the input */
+    left: 0;
+    right: 0;
+    z-index: 1001; /* Higher than the input-container */
+}
+
+.autocomplete-dropdown {
+    max-height: 300px;
+    overflow-y: auto;
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    border-bottom: none;
+    border-radius: 4px 4px 0 0;
+    box-shadow: 0 -4px 6px rgba(0,0,0,0.1);
+}
+
+.autocomplete-item {
+    padding: 10px;
+    cursor: pointer;
+    background-color: #eee;
+    border-bottom: 1px solid #ced4da;
+}
+
+.autocomplete-item:hover,
+.autocomplete-item:focus {
+    background-color: #f8f9fa;
+}
+
+.autocomplete-active {
+    background-color: #e9ecef;
+}

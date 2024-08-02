@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Chat - AI Lab Assistant{% endblock %}
+{% block css %}
+<link href="{{ url_for('static', filename='css/chat.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/banner.css') }}" rel="stylesheet">
+<link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
+{% endblock %}
+{% block content %}
+<div id="review-banner" class="review-banner">
+    <i class="fas fa-pencil-alt"></i>
+    <span>Book a Design Review - Have your app reviewed by MongoDB Experts</span>
+    <button id="book-review-btn" class="btn btn-sm btn-light ml-2">Book Now</button>
+</div>
+<div class="container-fluid">
+    <div class="row">
+        <div class="chat-page">
+            <div class="chat-content">
+                <div id="chat-container" class="chat-container"></div>
+            </div>
+            <div id="input-container" class="input-container">
+                <div class="d-flex align-items-center w-100">
+                    <!-- In chat.html -->
+                    <div class="dropdown me-2">
+                        <button class="btn btn-secondary dropdown-toggle" type="button" id="moduleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
+                        Select a Module
+                        </button>
+                        <ul class="dropdown-menu" aria-labelledby="moduleDropdown">
+                        <li><a class="dropdown-item" href="#" data-value="Atlas Setup">Atlas Setup</a></li>
+                        <li><a class="dropdown-item" href="#" data-value="Data Modeling">Data Modeling</a></li>
+                        <li><a class="dropdown-item" href="#" data-value="Aggregation Framework">Aggregation Framework</a></li>
+                        <li><a class="dropdown-item" href="#" data-value="Atlas Search">Atlas Search</a></li>
+                        <li><a class="dropdown-item" href="#" data-value="Atlas Vector Search">Atlas Vector Search</a></li>
+                        <li><a class="dropdown-item" href="#" data-value="AI / RAG">AI / RAG</a></li>
+                        <li><a class="dropdown-item" href="#" data-value="Library Management Application">Library Management Application</a></li>
+                        </ul>
+                    </div>
+                    <div class="autocomplete-wrapper">
+                        <div id="autocomplete-dropdown" class="autocomplete-dropdown" style="display: none;"></div>
+                    </div>
+                    <input type="text" id="user-input" class="form-control me-2" placeholder="Type your question here..." aria-label="Text input with dropdown button">
+                    <button id="send-button" class="btn btn-primary">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/chat1.js') }}"></script>
+<script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
+<script src="//cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.2/jquery-ui.js"></script>
+
+{% endblock %}

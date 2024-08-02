@@ -29,12 +29,25 @@ def init_oauth(app):
 
 class User(UserMixin):
     def __init__(self, user_id, email, name, profile_pic, is_admin=False, last_login=None):
+
         self.id = str(user_id)
         self.email = email
         self.name = name
         self.profile_pic = profile_pic
         self.is_admin = is_admin
         self.last_login = last_login
+        
+    @staticmethod
+    def get_current_user():
+        # Implementation to return the current user object
+        pass
+
+    @staticmethod
+    def get_current_user_email():
+        user = User.get_current_user()
+        if user:
+            return user.email
+        return None
 
 @login_manager.user_loader
 @with_db_connection

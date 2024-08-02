@@ -1,0 +1,2998 @@
+WEBVTT
+
+1
+00:00:05.040 --> 00:00:07.229
+Kristina Wyton: Okay, there we go. We can jump in now.
+
+2
+00:00:07.830 --> 00:00:19.550
+rateb: Sounds good. So any preference how we start in this meeting I know the agenda to start with overview of of the system. So that the direction, or any other preference.
+
+3
+00:00:19.860 --> 00:00:29.190
+Michael Lynn: Yes, so sorry I was kinda getting my docs set up and ready to go, so help me understand how to pronounce your name. Is it Retib Ratib.
+
+4
+00:00:29.965 --> 00:00:30.740
+rateb: Ratted.
+
+5
+00:00:30.890 --> 00:00:32.052
+Michael Lynn: Rat Hib. Okay.
+
+6
+00:00:32.724 --> 00:00:36.685
+Michael Lynn: great to meet you. I don't know if we've met previously. You look familiar, maybe.
+
+7
+00:00:37.320 --> 00:00:55.530
+Michael Lynn: we were on a call before. But anyway, so what's gonna happen today is we're gonna go through an overview of the system that you're working on. I'm gonna ask you a bunch of questions hopefully uncover all of the formative details about the application you're you're either building or have built.
+
+8
+00:00:55.800 --> 00:01:05.830
+Michael Lynn: And and then we'll go through questions that you have, and hopefully illuminate some best practices around Mongodb. I'm going to prepare a
+
+9
+00:01:06.367 --> 00:01:16.769
+Michael Lynn: a design review report with all of the the things that I hear from you. And and then I'm gonna give you some recommendations just based on the information that I get back.
+
+10
+00:01:16.980 --> 00:01:22.750
+Michael Lynn: So there are some. We'll call it metadata that we need to capture ahead of time.
+
+11
+00:01:23.329 --> 00:01:26.679
+Michael Lynn: So I'm gonna ask you a couple of questions. If that's okay.
+
+12
+00:01:26.680 --> 00:01:27.146
+rateb: Yes, sir.
+
+13
+00:01:27.380 --> 00:01:31.179
+Michael Lynn: Yeah, so is this a new application or an existing one?
+
+14
+00:01:31.580 --> 00:01:32.850
+rateb: No, it will be new one.
+
+15
+00:01:32.850 --> 00:01:37.749
+Michael Lynn: A new one. Okay, great. And what is the name of the project?
+
+16
+00:01:38.459 --> 00:01:45.840
+rateb: It's called stp, hub is straight through processing like, it's yeah. Just the name, right? Is it? Stp, hub.
+
+17
+00:01:45.840 --> 00:01:46.500
+Michael Lynn: Okay.
+
+18
+00:01:46.940 --> 00:01:48.060
+Michael Lynn: straight through
+
+19
+00:01:48.200 --> 00:01:49.160
+Michael Lynn: processing.
+
+20
+00:01:51.170 --> 00:01:57.620
+Michael Lynn: Okay, and is the application today leveraging Mongodb, you're planning on using Mongodb.
+
+21
+00:01:57.750 --> 00:02:00.580
+rateb: Yes, I am planning to use Mongodb correct.
+
+22
+00:02:00.580 --> 00:02:03.290
+Michael Lynn: Okay. And will you be using Mongo to be in Atlas.
+
+23
+00:02:03.960 --> 00:02:04.690
+rateb: Yes.
+
+24
+00:02:04.690 --> 00:02:05.780
+Michael Lynn: Okay? Great.
+
+25
+00:02:06.160 --> 00:02:08.900
+Michael Lynn: Alright. So
+
+26
+00:02:11.270 --> 00:02:12.430
+Michael Lynn: think that's
+
+27
+00:02:13.680 --> 00:02:23.770
+Michael Lynn: pretty much it, do we? Haven't. I saw some notes about one to 2 GB? Is that the total volume size for the application.
+
+28
+00:02:24.110 --> 00:02:28.739
+rateb: For phase one which is gonna be implemented by end of this year in December.
+
+29
+00:02:29.343 --> 00:02:35.830
+rateb: Yes, for phase one, we are expecting only the size, but by the time
+
+30
+00:02:35.930 --> 00:02:41.349
+rateb: it may go away like it can go more at this moment is not clear. It depends
+
+31
+00:02:41.360 --> 00:02:44.670
+rateb: how many flow we are willing to add to this project.
+
+32
+00:02:44.940 --> 00:02:45.680
+Michael Lynn: Okay.
+
+33
+00:02:47.356 --> 00:02:49.740
+Michael Lynn: alright. And do we
+
+34
+00:02:49.750 --> 00:02:55.439
+Michael Lynn: do we expect, what does the growth rate look like for the application data?
+
+35
+00:02:56.672 --> 00:03:22.820
+rateb: So this this is about still, not key, because it's really depends. When when I start explaining the solution, it's it's kind of generic solution to connect different workflow to handle mo multiple workflows. It depends in the workflow itself. So at this time we are looking for 2 simple workflow which can require between 75,000 transaction per month.
+
+36
+00:03:23.070 --> 00:03:29.619
+rateb: And and that way I came from when I did, my calculation, based on my schema and my, the data I gonna have.
+
+37
+00:03:29.710 --> 00:03:51.770
+rateb: It's between one to 2. Kick maximum for this, the 2 simple to flow. But once we start adding more complicated flow. There's a chance that can change and and depend in the flow itself, like how many transaction can happen for that flow? Maybe some, some flow will be having more than way. More than that, maybe less, so that that the part is not clear at this moment.
+
+38
+00:03:52.000 --> 00:04:03.759
+Michael Lynn: Okay, okay, great. Well, that's helpful. So nothing sounds like massive scale. I know it's a relative term, but it doesn't sound like massive scale to me. So I think we should have some some really good
+
+39
+00:04:03.940 --> 00:04:06.279
+Michael Lynn: best practices to share with you.
+
+40
+00:04:06.390 --> 00:04:11.329
+Michael Lynn: So can you give me an overview of the application. What is it? And what does it do?
+
+41
+00:04:11.530 --> 00:04:12.255
+rateb: Right?
+
+42
+00:04:13.350 --> 00:04:16.329
+rateb: I'm gonna share my screen. That will help me to
+
+43
+00:04:17.965 --> 00:04:18.450
+rateb: short
+
+44
+00:04:21.686 --> 00:04:28.089
+rateb: I don't think I would be able. Is it. Okay, if I quick and reopen it again, just because you know the access issue.
+
+45
+00:04:28.090 --> 00:04:29.160
+Michael Lynn: Oh, sure. Yeah.
+
+46
+00:04:29.160 --> 00:04:30.789
+rateb: Okay. Sorry. He will join soon.
+
+47
+00:04:34.510 --> 00:04:36.222
+Michael Lynn: So far so good.
+
+48
+00:04:40.930 --> 00:04:45.530
+Michael Lynn: So I've already gone through and documented a bunch of best practices around the
+
+49
+00:04:46.100 --> 00:04:51.149
+Michael Lynn: the key details. And this is the doc, so I'll share this with you.
+
+50
+00:05:06.390 --> 00:05:07.380
+Michael Lynn: Be sent.
+
+51
+00:05:07.380 --> 00:05:11.000
+rateb: Sorry for that. Okay, I'm gonna share now.
+
+52
+00:05:21.060 --> 00:05:25.729
+rateb: I I was able to see the sharepoint button before giving it a permission.
+
+53
+00:05:26.180 --> 00:05:28.170
+rateb: Where that goes.
+
+54
+00:05:28.660 --> 00:05:35.419
+Kristina Wyton: Bottom center, green Arrow. If you don't see it, maybe you need to make it wider on your screen or hit more on the right.
+
+55
+00:05:36.070 --> 00:05:37.439
+rateb: Or change my glasses.
+
+56
+00:05:40.630 --> 00:05:43.550
+rateb: That's all for that. Okay? And
+
+57
+00:05:45.370 --> 00:05:49.490
+rateb: alright. So this is our solution. So in high level, it's an.
+
+58
+00:05:49.490 --> 00:05:51.280
+Michael Lynn: No, I don't. I don't see your screen.
+
+59
+00:05:51.760 --> 00:05:54.330
+rateb: Oh, let's share the second one.
+
+60
+00:06:02.890 --> 00:06:03.669
+Michael Lynn: There we go!
+
+61
+00:06:03.900 --> 00:06:06.179
+rateb: Oh, perfect. Alright, so.
+
+62
+00:06:07.660 --> 00:06:23.277
+rateb: yeah. So it's this is, we are in the middle. This is what is that help? That is our solution in the middle. And you can see we are just like a bridge. We are just trying to connect to like multiple system together.
+
+63
+00:06:23.940 --> 00:06:33.630
+rateb: And we. We are using event driven structure. So we have application who are sending the request so that we call them the publisher on the left side.
+
+64
+00:06:33.770 --> 00:06:39.500
+rateb: And we have system. Who's gonna handle the request? We have them in the right side. We call them the subscribers.
+
+65
+00:06:39.670 --> 00:06:40.050
+Michael Lynn: We, we.
+
+66
+00:06:40.381 --> 00:06:51.649
+rateb: So that is why we are the middle. So we are trying to connect this to system and decouple them to allow them to do like the work, flow, or any kind of transaction.
+
+67
+00:06:51.680 --> 00:06:59.470
+rateb: and that system is as a missions built and event driven to make it more reposed. Fault, tolerance and
+
+68
+00:07:00.100 --> 00:07:01.960
+rateb: and resilient system.
+
+69
+00:07:02.492 --> 00:07:24.349
+rateb: So right now the flows we have is to allow our customers. We I came from area that we are selling insurance life insurance to the clients. And we, we have an existing systems. Allow the customer to do update in their policies. For example, update the address. So you have
+
+70
+00:07:24.380 --> 00:07:45.600
+rateb: purchased, and a life insurance for one of our system, and you are willing to change your address. So you send that request. So this can came from multiple system multiple ui system. For example, this one is called Css, and they can send that request anytime during the time like the customer can look into that system 24 by 7 and send the request.
+
+71
+00:07:46.110 --> 00:07:50.610
+rateb: But the actual system, who's gonna handle that is
+
+72
+00:07:51.390 --> 00:08:18.339
+rateb: is not available all the time, like there is some downtime or batch processing, or some schedule for these system, so it would not be available. So our system will be taking this request, and it would know if the consumer, the subscriber is available to handle it or not. So if it's not available, we will keep it within our solution. To be processed once that system is available again to handle the request.
+
+73
+00:08:18.742 --> 00:08:26.560
+rateb: Now, yeah, one of them. The address change. Also, we can allow them to do changes in their bank information.
+
+74
+00:08:28.034 --> 00:08:48.825
+rateb: And that is what we are allowing. So where? Before going to the schema, so where we are using our database, so you can see, once we are allowing them to send. The request came to our queue. This is just like, in the event driven, I will be more focusing in this flow in where we, I'm using the database
+
+75
+00:08:49.170 --> 00:09:05.755
+rateb: So so once we get the request, you can see we are handling it, based on the event driven based on specific work of flow. We are sending a different messages from from the system. So,
+
+76
+00:09:06.390 --> 00:09:20.880
+rateb: So yeah. So here, once it's been process, you can see. I am sending a message to the system who's supposed to handle it. And also I am S. Keeping a copy of that message within my database.
+
+77
+00:09:21.740 --> 00:09:41.756
+rateb: So every time I have a request I am creating it in my database, because, you know, the queue is not that real? There's a chance that queue can lost that that like it's message or etc. So I'm using the Mongodb here to keep another copy of that message. So just in case something went wrong, I can retrieve it back from the database
+
+78
+00:09:42.414 --> 00:09:57.649
+rateb: and also I am more rely on the Mongodb for the Dr. So if something went wrong in the solution, because I am having it in Atlas so I will have all the messages has been sent to the Dr. Server.
+
+79
+00:09:58.406 --> 00:09:58.893
+Michael Lynn: Okay.
+
+80
+00:09:59.560 --> 00:10:14.689
+rateb: And also, yeah. So every time I have a request, you can see every time I am changing the status of the response, like, I got the response, for example, from that server also I I came back to the database to let them know. Hey, the message you took
+
+81
+00:10:14.920 --> 00:10:27.369
+rateb: for that request. Now it has been processed. So I am keeping the state or the status of the request like if it's handled, if not, if something went wrong. So all this events is being tracked in in the database.
+
+82
+00:10:28.946 --> 00:10:47.040
+rateb: So yeah, so this is one of the used cases. I am all like keeping the database as a second source for me for the information for the messages, and keep updating the state or the status of that message within the Mongodb. So
+
+83
+00:10:47.040 --> 00:10:59.230
+rateb: the reason for that, as I told you, I want to keep like if something went wrong with my system I can use the Mongodr to know what the message has not been processed yet, so I can pre process them.
+
+84
+00:11:00.480 --> 00:11:08.150
+Michael Lynn: Okay? And when you say you can use the Mongodb, Dr, are you just talking about the fact that Mongodb is highly resilient?
+
+85
+00:11:08.860 --> 00:11:11.320
+Michael Lynn: Or are you talking about something more specific?
+
+86
+00:11:11.740 --> 00:11:35.650
+rateb: No, it's yeah. It's just like the I I've like. There will be a different instance in my setup to like to like have the like. Have it in sync like it. Maybe I will use it in different data center and keep have what I have in the 1st data center in sync in the second data center. So just in case my my system failed
+
+87
+00:11:35.730 --> 00:11:44.050
+rateb: in the 1st data center, I can restore it from the second data center and and and start working in the pending requests.
+
+88
+00:11:44.260 --> 00:11:45.140
+Michael Lynn: Okay?
+
+89
+00:11:46.206 --> 00:11:49.619
+Michael Lynn: Okay. So you're you're looking to implement a
+
+90
+00:11:50.336 --> 00:11:55.070
+Michael Lynn: highly available solution in Atlas that leverages multiple regions.
+
+91
+00:11:55.260 --> 00:11:55.900
+rateb: Right.
+
+92
+00:11:55.900 --> 00:11:57.220
+Michael Lynn: Your availability.
+
+93
+00:11:57.260 --> 00:12:01.329
+Michael Lynn: Okay? Good. Yeah. So the good. The good news is that that's
+
+94
+00:12:01.660 --> 00:12:06.470
+Michael Lynn: easily configurable with Atlas right out of the box. There's no, no, major
+
+95
+00:12:06.640 --> 00:12:09.480
+Michael Lynn: challenges associated with that
+
+96
+00:12:10.450 --> 00:12:16.187
+Michael Lynn: as you as you update, we'll want to make sure that you're keeping in mind.
+
+97
+00:12:19.722 --> 00:12:22.247
+Michael Lynn: transactional guarantees and
+
+98
+00:12:25.025 --> 00:12:26.000
+Michael Lynn: write
+
+99
+00:12:26.620 --> 00:12:28.280
+Michael Lynn: the word is escaping me.
+
+100
+00:12:30.786 --> 00:12:43.289
+Michael Lynn: Right preference, so that you, as your rights, are submitted to the primary. Okay, so I'm not sure what degree you understand Mongodb's deployment infrastructure. I'll explain it very briefly.
+
+101
+00:12:43.550 --> 00:12:50.410
+Michael Lynn: Mongodb and Atlas is always deployed in highly available fashion. There are always at least 3
+
+102
+00:12:50.730 --> 00:12:52.250
+Michael Lynn: cluster members.
+
+103
+00:12:52.520 --> 00:12:57.789
+Michael Lynn: So we, we deploy Mongodb in what's known as a replica set.
+
+104
+00:12:57.840 --> 00:13:02.549
+Michael Lynn: So there are 3 nodes in a replica set always at least, and at a minimum.
+
+105
+00:13:02.750 --> 00:13:06.817
+Michael Lynn: you can increase the number, but they at a minimum minimum there. 3.
+
+106
+00:13:07.230 --> 00:13:11.389
+Michael Lynn: One of those will be primary. As your application
+
+107
+00:13:11.410 --> 00:13:18.559
+Michael Lynn: commits rights. Those rights are received always by one primary member
+
+108
+00:13:19.160 --> 00:13:21.370
+Michael Lynn: in the in the replica set.
+
+109
+00:13:21.680 --> 00:13:46.390
+Michael Lynn: the application will receive an acknowledgement based on your right preference. So this is key, and it, it should match your your consistency preference. So, as your application writes with a right preference of 0, it's automatically going to indicate to your application that the right has been committed, even though it's only been received by the primary.
+
+110
+00:13:46.390 --> 00:13:52.600
+Michael Lynn: you can increase the consistency guarantee by increasing your right preference
+
+111
+00:13:52.920 --> 00:13:54.430
+Michael Lynn: to majority.
+
+112
+00:13:54.560 --> 00:13:55.590
+Michael Lynn: So
+
+113
+00:13:55.760 --> 00:13:58.979
+Michael Lynn: if you set the right preference to a majority.
+
+114
+00:13:59.010 --> 00:14:10.800
+Michael Lynn: as your application writes, sends it off to the to the Mongodb database, it will wait until a majority of the nodes have received the update in the journal, then it will acknowledge the write.
+
+115
+00:14:10.940 --> 00:14:12.980
+Michael Lynn: and your application will continue.
+
+116
+00:14:13.130 --> 00:14:17.310
+Michael Lynn: Now, obviously this is super for resilience.
+
+117
+00:14:17.460 --> 00:14:29.909
+Michael Lynn: but it does have an impact on speed, because obviously, if you have to wait for that, commit to be replicated to, you know, the the remaining nodes or a majority of them.
+
+118
+00:14:30.190 --> 00:14:35.752
+Michael Lynn: There's gonna be a fraction of time incremented. When that happens. So
+
+119
+00:14:36.650 --> 00:14:40.325
+Michael Lynn: just and just a note on that, it's typically milliseconds, but
+
+120
+00:14:40.880 --> 00:14:45.270
+Michael Lynn: But depending on the frequency of the rights, you'll want to keep that in mind.
+
+121
+00:14:46.710 --> 00:14:53.439
+Michael Lynn: is the application primarily read or write centric, it would appear to me to be, write centric.
+
+122
+00:14:54.561 --> 00:14:59.530
+rateb: That that good question. So let me one second.
+
+123
+00:15:03.700 --> 00:15:07.099
+rateb: Let me share this here
+
+124
+00:15:09.650 --> 00:15:10.500
+rateb: can't come
+
+125
+00:15:11.980 --> 00:15:13.219
+rateb: trying to share this.
+
+126
+00:15:25.530 --> 00:15:27.360
+rateb: I can tell I'm new on zoom.
+
+127
+00:15:30.070 --> 00:15:31.350
+rateb: Okay? So
+
+128
+00:15:33.860 --> 00:15:34.730
+rateb: alright.
+
+129
+00:15:35.392 --> 00:15:39.489
+rateb: perfect. Yeah. Are you able to see my screen again?
+
+130
+00:15:40.193 --> 00:15:40.626
+Michael Lynn: Yes.
+
+131
+00:15:41.060 --> 00:15:47.781
+rateb: So. Yes, I did. Some use cases to show your assumption is is right.
+
+132
+00:15:48.714 --> 00:15:54.410
+rateb: Most probably we are going to be more right heavy than read
+
+133
+00:15:55.440 --> 00:15:56.360
+rateb: as
+
+134
+00:16:02.400 --> 00:16:11.179
+rateb: right? So this is the most of the use cases we have. As you can see, we once we have a message has been created.
+
+135
+00:16:12.080 --> 00:16:20.139
+rateb: The 1st thing I'm do, I am sending it to the database to be written, so I assume I will get like a 1 message be your second.
+
+136
+00:16:20.615 --> 00:16:24.190
+rateb: based on the workload that I have right now and then
+
+137
+00:16:24.280 --> 00:16:32.090
+rateb: for each message you can see I am keep updating its date. It's I, for example, the 1st date sending it to the consumer
+
+138
+00:16:32.540 --> 00:16:49.790
+rateb: for the consumer, get the response from their consumer, fail to get the response from the consumer. So all this is state and status. I keep updating Mongodb for it. So for each request that came in one second, I believe I'm gonna an average. I'm gonna send a tree request for the event, update.
+
+139
+00:16:51.090 --> 00:16:51.750
+Michael Lynn: Okay.
+
+140
+00:16:52.040 --> 00:17:04.385
+rateb: So this is the mainly rights happening. There's no other rights happening. But now, for the read must probably it will be happening. So, as I told you, I am using the Mongodb
+
+141
+00:17:05.450 --> 00:17:13.770
+rateb: to handle situation where the message has been lost. So I have a service that is running every day in the morning
+
+142
+00:17:13.880 --> 00:17:19.060
+rateb: to check. Give me the messages that has been failed to be processed.
+
+143
+00:17:19.960 --> 00:17:21.770
+rateb: And that's happening once a day.
+
+144
+00:17:21.770 --> 00:17:26.160
+Michael Lynn: What is your your message? Bus? How are you? How are you queuing.
+
+145
+00:17:26.849 --> 00:17:29.379
+rateb: I'm using a storage queue from azure.
+
+146
+00:17:29.940 --> 00:17:32.389
+Michael Lynn: Okay? Azure storage queue. Okay. Gotcha
+
+147
+00:17:33.700 --> 00:17:34.340
+Michael Lynn: The.
+
+148
+00:17:34.350 --> 00:17:35.670
+rateb: Cheap, super.
+
+149
+00:17:36.130 --> 00:17:38.760
+Michael Lynn: Is that? Is that fixed? You, you pretty set on that.
+
+150
+00:17:39.913 --> 00:17:47.846
+rateb: Yeah, because, yeah, I yeah, for sure. If you have another opinion, I'm I am happy to hear. But the reason we went with that.
+
+151
+00:17:48.621 --> 00:17:50.228
+rateb: You know, it's it's
+
+152
+00:17:51.416 --> 00:18:07.623
+rateb: it's because, mo, we are like kind of more integrated with Microsoft. So having this native integration between azure function and you. This is one of the feature or the benefit. But yeah, I am. I am okay. If you have.
+
+153
+00:18:08.000 --> 00:18:12.545
+Michael Lynn: A absolutely don't wanna make any suggestions that for things that are working for you.
+
+154
+00:18:13.370 --> 00:18:22.110
+Michael Lynn: If you wanted to simplify and and lean on your investment in Mongodb we have an offering called
+
+155
+00:18:22.340 --> 00:18:24.450
+Michael Lynn: Mongodb atlas streams.
+
+156
+00:18:24.660 --> 00:18:27.880
+Michael Lynn: So it it functions very much like
+
+157
+00:18:29.150 --> 00:18:32.330
+Michael Lynn: Like most streams processing
+
+158
+00:18:32.884 --> 00:18:41.369
+Michael Lynn: it gives you the ability to queue. It gives you interrogation prior to persistence. In the same way that azure
+
+159
+00:18:41.910 --> 00:18:44.909
+Michael Lynn: azure does the the the
+
+160
+00:18:44.920 --> 00:18:49.130
+Michael Lynn: offerings from azure, but obviously offered by by Mongodb.
+
+161
+00:18:50.177 --> 00:18:54.080
+Michael Lynn: So yeah, just keep that in mind. But if it's working for you, that's that's fine.
+
+162
+00:18:54.460 --> 00:19:05.970
+rateb: Yeah, sure I can. I can read more about it. I I will be more looking, or maybe you, if you know the answer. Now, is it also have that native integration with azure function? What I mean by native integration is
+
+163
+00:19:06.273 --> 00:19:26.149
+rateb: you know, right. Now, if something went wrong with the queue like. Sorry if my my azure function is handling right is handling the their message handling the queue. And if something went wrong, so it's it's already built in with azure function. It will know to return back that that message to the queue and make it available again. I don't have to write any code for that
+
+164
+00:19:26.686 --> 00:19:37.129
+rateb: and if it's being processed successfully, also, it's by natively azure cli. Runtime will dq that message and make it like delete the message from the queue.
+
+165
+00:19:37.130 --> 00:19:37.870
+Michael Lynn: Yeah.
+
+166
+00:19:37.870 --> 00:19:38.620
+rateb: So that's a problem.
+
+167
+00:19:38.620 --> 00:19:43.730
+Michael Lynn: There won't. There won't be that level of native integration with azure from Atlas streams.
+
+168
+00:19:43.850 --> 00:19:45.270
+Michael Lynn: I see. Yeah.
+
+169
+00:19:45.770 --> 00:20:00.844
+rateb: Okay, thanks. Thanks for confirming. So yeah, so coming back to the read used cases. So for the read use cases is as I told you like, I will have one function that's run once every day to Fitch. All the messages that fail to be processed from Mongodb.
+
+170
+00:20:01.140 --> 00:20:01.740
+Michael Lynn: Hmm.
+
+171
+00:20:02.840 --> 00:20:10.669
+rateb: and that why, Mongodb will be like kind of source of truth for me. Because it's more consistent than Q.
+
+172
+00:20:11.105 --> 00:20:34.019
+rateb: And the other read case is like some business users will be generating reports from from this. So some business user will be using some tools to genet them. Reports like, Give me the total transaction has been sent in today, and how many success and how many failed, and that can happen once a day.
+
+173
+00:20:34.020 --> 00:20:35.339
+Michael Lynn: Hmm, okay.
+
+174
+00:20:35.340 --> 00:20:39.769
+rateb: So that confirm your assumption. Our solution is more right heavy than read.
+
+175
+00:20:39.770 --> 00:20:40.320
+Michael Lynn: Yeah.
+
+176
+00:20:40.790 --> 00:20:45.870
+Michael Lynn: Okay, so the read use case, you may want to consider
+
+177
+00:20:45.900 --> 00:20:50.019
+Michael Lynn: a setting which enables you to read from secondaries.
+
+178
+00:20:50.400 --> 00:20:55.320
+Michael Lynn: This will give you the ability to alleviate the read workflow, workload.
+
+179
+00:20:56.910 --> 00:21:04.750
+Michael Lynn: alleviate impacting the the primary with that. So if it's a if it's primarily analytics.
+
+180
+00:21:05.030 --> 00:21:08.550
+Michael Lynn: Or you know, read. Only you can.
+
+181
+00:21:09.080 --> 00:21:14.439
+Michael Lynn: That part of the application can specify, you know. Read from secondaries that way.
+
+182
+00:21:14.805 --> 00:21:20.499
+Michael Lynn: You're kinda you're avoiding impacting the primary with that. So I'll include some information to that
+
+183
+00:21:20.710 --> 00:21:22.970
+Michael Lynn: on that in the in the review.
+
+184
+00:21:23.570 --> 00:21:30.009
+rateb: And and that also, do you think would be needed, even if I have that like low volume like.
+
+185
+00:21:30.570 --> 00:21:34.479
+Michael Lynn: I don't think so like I I don't. I. Once you scale up.
+
+186
+00:21:34.630 --> 00:21:35.760
+Michael Lynn: and your
+
+187
+00:21:36.110 --> 00:21:39.629
+Michael Lynn: your analytics and reporting activity increases.
+
+188
+00:21:40.132 --> 00:21:45.500
+Michael Lynn: That might become something that you want to implement. But it doesn't sound like the volume at the moment
+
+189
+00:21:45.730 --> 00:21:48.670
+Michael Lynn: is is going to be problematic.
+
+190
+00:21:48.850 --> 00:22:00.729
+rateb: Nice sounds good. But yeah, but please share these details. I'm still interested to see, because suddenly, can, things can can can increase in our situation, because it's not clear for us at this moment.
+
+191
+00:22:02.960 --> 00:22:10.054
+rateb: Sounds good. So, yeah, so this is the used cases. Do you want me? To move now to the schema design or.
+
+192
+00:22:10.350 --> 00:22:14.109
+Michael Lynn: Yes, absolutely. Yeah. Let's let's go to the to the document model.
+
+193
+00:22:15.210 --> 00:22:16.160
+rateb: Perfect.
+
+194
+00:22:17.750 --> 00:22:18.590
+rateb: Okay?
+
+195
+00:22:21.630 --> 00:22:23.040
+rateb: alright.
+
+196
+00:22:24.280 --> 00:22:26.627
+rateb: So yeah. So
+
+197
+00:22:28.540 --> 00:22:29.420
+rateb: it's here.
+
+198
+00:22:31.840 --> 00:22:34.529
+rateb: So yes, for this part. Oh, shoot.
+
+199
+00:22:35.320 --> 00:22:47.470
+rateb: Yeah. So for for this part is, I try to go with the documentation and the learning courses that you have in Mongodb website about schema design.
+
+200
+00:22:48.887 --> 00:22:58.069
+rateb: I tried to like, see what are the best practices, and and try to implement it here. So so the 1st one.
+
+201
+00:22:58.800 --> 00:23:23.010
+rateb: as as I told you, like, we have to work a flow when to allow the user to do an address change and bank change for their policy, and they found many shared fields between these 2 workflow, and hopefully I would be able to do the same for the upcoming workflow, which is, I don't know at this moment. So, for example, for all of them, I found I still need an object. Id. So I created this
+
+202
+00:23:23.010 --> 00:23:41.110
+rateb: as the parent like I'm I'm trying to use a polymorphism or the inheritance in in the schema design. So I try to. Yeah. So for all of them, I believe I need the object. Id. I need the work type. So work type would tell me if this request of this message. It's an address, change a bank change.
+
+203
+00:23:41.890 --> 00:23:42.909
+rateb: With a string
+
+204
+00:23:42.930 --> 00:23:48.823
+rateb: data type. And then for sure, the policy number. Because I need that policy number to know
+
+205
+00:23:49.320 --> 00:23:56.980
+rateb: which policy to update which that address request for which policy and then source system, who the system sent that
+
+206
+00:23:57.030 --> 00:24:00.369
+rateb: and which systems should process that message.
+
+207
+00:24:00.640 --> 00:24:02.645
+rateb: So I have it also here.
+
+208
+00:24:03.230 --> 00:24:04.407
+rateb: And the owner
+
+209
+00:24:06.390 --> 00:24:27.040
+rateb: right? And yeah, I will, let's leave the event for now, I will come to it later, then I have some other flag. If it's an Stbb secure through process, or or need some manual just like a flag for me, for my system. The result, the response I get from the consumer or the system who's supposed to handle this message?
+
+210
+00:24:27.940 --> 00:24:40.209
+rateb: And also I have, like some other fields like created, add updated. Add collaboration, Id for logging, and I found also one of the best practices to keep the scheme open.
+
+211
+00:24:40.500 --> 00:24:46.326
+Michael Lynn: Yes, I love it. You are the 1st customer that has come with a a schema version.
+
+212
+00:24:46.650 --> 00:24:48.030
+rateb: Oh, nice!
+
+213
+00:24:48.720 --> 00:24:51.070
+Michael Lynn: So tell me so tell me.
+
+214
+00:24:52.340 --> 00:25:00.880
+Michael Lynn: in the schema version it'll just be a number that you create and update as you modify the document, model right?
+
+215
+00:25:01.180 --> 00:25:01.770
+rateb: Right
+
+216
+00:25:02.950 --> 00:25:04.720
+Michael Lynn: Do you have any
+
+217
+00:25:04.900 --> 00:25:07.190
+Michael Lynn: need to
+
+218
+00:25:08.300 --> 00:25:12.330
+Michael Lynn: for auditing purposes to identify
+
+219
+00:25:12.540 --> 00:25:23.689
+Michael Lynn: anything further in the document model that changes. So sometimes people use instead of a scalar instead of a single value. Number and integer.
+
+220
+00:25:24.040 --> 00:25:29.200
+Michael Lynn: Sometimes customers will leverage schema version as an object or a document.
+
+221
+00:25:29.350 --> 00:25:33.390
+Michael Lynn: and we'll incorporate additional changes about what
+
+222
+00:25:33.770 --> 00:25:36.310
+Michael Lynn: you know what's happening in this schema version.
+
+223
+00:25:36.520 --> 00:25:41.610
+Michael Lynn: Not necessary. But it's just something to consider as you
+
+224
+00:25:41.730 --> 00:25:47.920
+Michael Lynn: as you think about the the life cycle of your application going forward. And the reason I mention that is
+
+225
+00:25:48.830 --> 00:25:51.379
+Michael Lynn: as you change your application.
+
+226
+00:25:51.400 --> 00:26:09.329
+Michael Lynn: you you're going to. You'll leverage polymorphism, and the document model may change, and, as you know, day one. If I have screen schema version one and my application runs, and I have a thousand records generated day 2. I increment the schema version, and I change the document model, and I write another 1,000 on day 2.
+
+227
+00:26:09.340 --> 00:26:16.639
+Michael Lynn: Those 1,000 are going to exist in the collection as they were written, they will be unaffected by the schema increment.
+
+228
+00:26:16.860 --> 00:26:38.940
+Michael Lynn: so you can simply leverage the the scalar value. If you wanted to to go back and update those previous documents. You could use that as an indicator. But sometimes people like to load that with a little bit more information about what changed, or some semantic information about the the schema version. So it's just a, you know, just kind of a note to to think about.
+
+229
+00:26:39.800 --> 00:26:42.379
+rateb: Agree. Thanks for sharing it. Yeah, it's good point.
+
+230
+00:26:45.100 --> 00:26:46.240
+Michael Lynn: Okay, to continue that.
+
+231
+00:26:46.240 --> 00:26:53.880
+rateb: And and did you find the schema version need to be in the child or the parents? Maybe maybe the child or does not matter. Sorry. It's an.
+
+232
+00:26:53.880 --> 00:26:59.170
+Michael Lynn: Well, each collection is going to have a unique document model.
+
+233
+00:26:59.310 --> 00:27:02.809
+Michael Lynn: so I find it valuable to incorporate a schema version
+
+234
+00:27:02.860 --> 00:27:08.989
+Michael Lynn: for each, and it may be, you know, depending on the the relationship between the parent and the child.
+
+235
+00:27:09.100 --> 00:27:12.180
+Michael Lynn: You may want to have some type of indicator
+
+236
+00:27:13.127 --> 00:27:16.629
+Michael Lynn: if a child is impacted by the parents.
+
+237
+00:27:16.760 --> 00:27:22.659
+Michael Lynn: Schema change. You may want to incorporate like I said, a document or an object that has.
+
+238
+00:27:22.940 --> 00:27:27.279
+Michael Lynn: you know, more than just a scalar, just a document that includes the parent
+
+239
+00:27:27.440 --> 00:27:32.640
+Michael Lynn: schema version and the child schema version. If that's important, I don't know if you're going to need that.
+
+240
+00:27:33.090 --> 00:27:33.750
+rateb: Yeah.
+
+241
+00:27:34.260 --> 00:27:36.890
+rateb: yeah, I would go through it more and see.
+
+242
+00:27:36.950 --> 00:27:40.239
+rateb: But yes, still still like a valid point to consider.
+
+243
+00:27:41.380 --> 00:27:54.529
+rateb: Sounds good. So, yeah, so now, this is the parents. So now the child's, what would they will do? Like, yeah. So here, because we have address change. So this child, and if the work type is insurance that oh, sorry.
+
+244
+00:27:55.720 --> 00:27:58.229
+rateb: We have different type of policies.
+
+245
+00:27:58.260 --> 00:28:05.059
+rateb: We can do the address, change some of them. We call them insurance, which is belong to the insurance field.
+
+246
+00:28:05.130 --> 00:28:07.889
+rateb: and some of them belong to investment.
+
+247
+00:28:08.180 --> 00:28:33.619
+rateb: So so you can see the shot can be different, like the schema design can be different, based on that child type. So here in, if it's an insurance address change, you will see I will have more fields. So, for example, it's a future dated like I can. You can send an address, update your policy, but you want that to be next month, so that will be the future request. You can do that in the insurance, but you cannot do that in the investment.
+
+248
+00:28:34.080 --> 00:28:34.495
+Michael Lynn: Okay.
+
+249
+00:28:35.090 --> 00:28:36.980
+Michael Lynn: So tell me.
+
+250
+00:28:37.575 --> 00:28:40.900
+Michael Lynn: these are separate collections, investment, address, change and.
+
+251
+00:28:41.300 --> 00:28:42.020
+rateb: But
+
+252
+00:28:42.180 --> 00:28:43.070
+rateb: we're all these.
+
+253
+00:28:43.070 --> 00:28:44.060
+Michael Lynn: And collection.
+
+254
+00:28:44.300 --> 00:28:47.110
+rateb: What I am thinking to keep them under one.
+
+255
+00:28:47.740 --> 00:28:55.719
+rateb: Option that that what I am thinking and and based work type, I would be able to distinguish between these 2
+
+256
+00:28:56.100 --> 00:28:58.510
+rateb: like, I have a work type in the parent.
+
+257
+00:29:00.030 --> 00:29:01.450
+rateb: That can tell me if it's an additional.
+
+258
+00:29:01.450 --> 00:29:04.689
+Michael Lynn: There a reference back to the parent from these
+
+259
+00:29:04.920 --> 00:29:06.350
+Michael Lynn: these children.
+
+260
+00:29:10.470 --> 00:29:17.060
+Michael Lynn: So, for example, if I if so, let me just clarify the scroll up a bit.
+
+261
+00:29:18.270 --> 00:29:20.999
+Michael Lynn: That collection there the message collection.
+
+262
+00:29:22.720 --> 00:29:25.730
+Michael Lynn: are you storing the investment address, change
+
+263
+00:29:26.200 --> 00:29:28.940
+Michael Lynn: in the same collection as the messages.
+
+264
+00:29:29.440 --> 00:29:30.960
+rateb: That what I am thinking.
+
+265
+00:29:31.240 --> 00:29:31.980
+Michael Lynn: Okay.
+
+266
+00:29:32.540 --> 00:29:38.130
+Michael Lynn: will you ever need to to just query for investment address changes.
+
+267
+00:29:44.170 --> 00:29:45.209
+Michael Lynn: Like, the the.
+
+268
+00:29:45.210 --> 00:29:46.470
+rateb: That's cool, and then.
+
+269
+00:29:46.470 --> 00:29:49.590
+Michael Lynn: Message contains a change. Definition, right?
+
+270
+00:29:49.980 --> 00:29:51.389
+rateb: Right, the work type.
+
+271
+00:29:51.590 --> 00:29:53.090
+Michael Lynn: Okay, so
+
+272
+00:29:53.100 --> 00:29:56.960
+Michael Lynn: the relationship between an investment address change
+
+273
+00:29:57.280 --> 00:29:59.059
+Michael Lynn: and the message itself.
+
+274
+00:29:59.890 --> 00:30:02.309
+Michael Lynn: how are they different? And how are they related.
+
+275
+00:30:03.310 --> 00:30:05.529
+rateb: It's 1 to one. So.
+
+276
+00:30:06.300 --> 00:30:14.779
+Michael Lynn: Would you? Would you? Would you embed the investment, address, change in the primary document rather than putting a new document.
+
+277
+00:30:14.960 --> 00:30:16.690
+rateb: Right that that's what I'm.
+
+278
+00:30:16.690 --> 00:30:22.930
+Michael Lynn: Oh, okay, so yeah, so that's great. Okay? So you're you're these are embeddings that you're I see at the bottom.
+
+279
+00:30:23.510 --> 00:30:28.590
+rateb: Right. So this will be. Yes, so all this 3, I am thinking to have them under same collection.
+
+280
+00:30:29.200 --> 00:30:38.939
+Michael Lynn: Okay, but the message is the primary document. And within the message there's going to be another field. That is the investment address. Change.
+
+281
+00:30:38.940 --> 00:30:40.290
+rateb: Right gotcha.
+
+282
+00:30:40.290 --> 00:30:43.527
+Michael Lynn: Okay, perfect. That that makes sense. Yeah.
+
+283
+00:30:43.990 --> 00:30:54.199
+rateb: And same thing here, like what will, for example, if I have a message for insurance address. So the schema design it will include all this field, plus what I have here.
+
+284
+00:30:54.200 --> 00:31:10.820
+Michael Lynn: Okay? All right. So then, I want to look at the insurance address, change type of of document that'll be embedded, and where you have address and old address. Is it always going to be a 1 for one where there was a previous and a current.
+
+285
+00:31:10.820 --> 00:31:11.450
+rateb: Bright.
+
+286
+00:31:11.640 --> 00:31:12.560
+rateb: Okay.
+
+287
+00:31:12.780 --> 00:31:14.190
+rateb: Okay. Gotcha.
+
+288
+00:31:14.190 --> 00:31:16.880
+Michael Lynn: They'll never be. There'll never be like a history.
+
+289
+00:31:17.530 --> 00:31:23.890
+rateb: Oh, no, just the because each request it will allow you to change like from to.
+
+290
+00:31:24.370 --> 00:31:25.659
+Michael Lynn: Okay? Good.
+
+291
+00:31:26.250 --> 00:31:31.429
+Michael Lynn: Yep, yeah. So, typically where we see addresses and documents, we
+
+292
+00:31:31.815 --> 00:31:42.539
+Michael Lynn: we put them in an array. Because you can have multiple app addresses. But in this case it's it's a 1-to-one relationship, old address and new address. So we're good.
+
+293
+00:31:42.900 --> 00:31:43.500
+rateb: Right?
+
+294
+00:31:44.910 --> 00:31:46.460
+rateb: yeah. And
+
+295
+00:31:46.620 --> 00:31:48.540
+rateb: same thing for the bank.
+
+296
+00:31:48.750 --> 00:31:51.739
+rateb: which will also also be embedded, is.
+
+297
+00:31:51.750 --> 00:31:57.790
+rateb: you can see it will include everything that they have in the message plus the bank information fields.
+
+298
+00:31:58.810 --> 00:31:59.580
+Michael Lynn: Yeah.
+
+299
+00:32:00.230 --> 00:32:22.260
+rateb: And and the reason I'm thinking, to keep that as under one collection is to help me mainly on the self healing like. When I told you I will have function that's run every day the morning to fitch the messages that has failed. So that function is generic does not care about the workflow. It's care more what's being processed or not.
+
+300
+00:32:22.410 --> 00:32:22.920
+Michael Lynn: Who.
+
+301
+00:32:22.920 --> 00:32:27.750
+rateb: I did them as an embedded. So that will help me, I will be, do a lookup from the same collection
+
+302
+00:32:27.790 --> 00:32:29.190
+rateb: instead of multiple.
+
+303
+00:32:30.810 --> 00:32:35.119
+Michael Lynn: Okay, that's that's good. I like that. So far, everything looks great.
+
+304
+00:32:35.890 --> 00:33:03.539
+rateb: Oh, nice, perfect. So, yeah, so this is for the schema design for the 2 work flow. Now for the events, as as I told you. For each message I got, there's a chance. 3 event will be updating that message, and it was, keep thinking between, keep them embedded, or have a different collection for the events. So I went through the criteria that also mentioned in Mongodb documentation, where, to use referencing or embedded.
+
+305
+00:33:03.540 --> 00:33:06.209
+rateb: and most of the fields was
+
+306
+00:33:06.470 --> 00:33:22.810
+rateb: showing it should be embedded. It's unlike. It will not be an an unbounded array like every time my event will be like small set sets like, it can go like, yeah, maybe it can go up to more than 3, but I don't think it will exceed something like 10.
+
+307
+00:33:22.960 --> 00:33:26.180
+rateb: I don't think it will have more than 10 events for the same request.
+
+308
+00:33:28.680 --> 00:33:35.230
+rateb: So I don't think it will be that in that situation, like, if you have a social media account like it can have, like Fo, millions of followers.
+
+309
+00:33:35.570 --> 00:33:35.910
+Michael Lynn: Yeah.
+
+310
+00:33:36.238 --> 00:33:49.711
+rateb: I I don't think that that would be in my situation. No, it will be low, and also why I am thinking about embedded again for the same reason for that function that I I told you. That's run every day
+
+311
+00:33:50.180 --> 00:34:02.169
+rateb: that messages had failed. So it will be looking into that event. Array it. Oh, sorry I I have it as a subdocuments. It will be looking in that subdocuments of the events.
+
+312
+00:34:02.430 --> 00:34:04.010
+Michael Lynn: Help me understand.
+
+313
+00:34:04.020 --> 00:34:06.860
+Michael Lynn: there's multiple event ids per message.
+
+314
+00:34:08.850 --> 00:34:09.679
+rateb: Yes.
+
+315
+00:34:09.940 --> 00:34:15.580
+Michael Lynn: Okay. So then, in the definition that you have here, as it as it's shown on the screen.
+
+316
+00:34:15.820 --> 00:34:17.610
+Michael Lynn: it would appear to be.
+
+317
+00:34:17.639 --> 00:34:23.020
+Michael Lynn: it's a a singular event. Id document sub document.
+
+318
+00:34:23.270 --> 00:34:23.909
+rateb: Oh!
+
+319
+00:34:24.380 --> 00:34:28.230
+Michael Lynn: I mean, it just looks like event. Id. And then there's a sub document.
+
+320
+00:34:28.890 --> 00:34:32.310
+Michael Lynn: What I might suggest is just for documentation purposes
+
+321
+00:34:32.489 --> 00:34:35.109
+Michael Lynn: somehow indicate that the events
+
+322
+00:34:35.310 --> 00:34:36.350
+Michael Lynn: R.
+
+323
+00:34:36.460 --> 00:34:41.890
+Michael Lynn: In an array. So you could. You could maybe create a field on that main document called events.
+
+324
+00:34:42.199 --> 00:34:48.440
+Michael Lynn: and that would be a an array type field with a sub document for each event id
+
+325
+00:34:48.880 --> 00:34:53.469
+Michael Lynn: right right there. So instead of having that event, Id be at the top level.
+
+326
+00:34:53.770 --> 00:34:56.189
+Michael Lynn: it would then be in an array.
+
+327
+00:34:57.780 --> 00:35:00.100
+Michael Lynn: So yeah, does that make sense.
+
+328
+00:35:00.360 --> 00:35:02.160
+rateb: So it's not sub documents. Then.
+
+329
+00:35:03.715 --> 00:35:04.929
+rateb: It's a ray.
+
+330
+00:35:04.930 --> 00:35:07.299
+Michael Lynn: Subdocuments, but it's an array of sub.
+
+331
+00:35:07.300 --> 00:35:07.980
+rateb: Okay.
+
+332
+00:35:08.120 --> 00:35:09.080
+rateb: Okay. Gotcha.
+
+333
+00:35:09.560 --> 00:35:14.840
+Michael Lynn: So so I would say, like events. And then, next to that curly brace, put a square bracket.
+
+334
+00:35:17.270 --> 00:35:17.889
+rateb: You mean him.
+
+335
+00:35:18.165 --> 00:35:18.990
+Michael Lynn: The other side.
+
+336
+00:35:18.990 --> 00:35:19.889
+rateb: Okay. Here.
+
+337
+00:35:19.890 --> 00:35:21.520
+Michael Lynn: Yeah, yeah, you got it.
+
+338
+00:35:23.390 --> 00:35:25.730
+rateb: So this will be the main, and this will.
+
+339
+00:35:25.990 --> 00:35:29.160
+Michael Lynn: The top. The 1st one will be a square bracket.
+
+340
+00:35:30.140 --> 00:35:31.186
+rateb: Oh, sprite!
+
+341
+00:35:31.710 --> 00:35:33.279
+Michael Lynn: That's indicating an array.
+
+342
+00:35:34.750 --> 00:35:35.470
+rateb: Gotcha.
+
+343
+00:35:35.470 --> 00:35:36.100
+Michael Lynn: Yeah.
+
+344
+00:35:36.870 --> 00:35:38.660
+rateb: And this is right, or I need.
+
+345
+00:35:38.660 --> 00:35:42.619
+Michael Lynn: Yeah, yeah, yeah, that that's for I would put a a colon next to that. Id.
+
+346
+00:35:42.700 --> 00:35:43.960
+Michael Lynn: yeah, there you go.
+
+347
+00:35:46.050 --> 00:35:49.810
+Michael Lynn: Yeah. I you know the same thing that you have, next to the event source.
+
+348
+00:35:51.640 --> 00:35:54.179
+Michael Lynn: that that 2 2 colon thing there you go.
+
+349
+00:35:54.180 --> 00:35:55.620
+rateb: So, sorry. Okay, yeah.
+
+350
+00:35:55.620 --> 00:35:56.902
+Michael Lynn: You got it.
+
+351
+00:35:58.410 --> 00:35:59.319
+rateb: Okay? So
+
+352
+00:36:00.040 --> 00:36:02.069
+rateb: yes. So my query now.
+
+353
+00:36:02.760 --> 00:36:10.769
+rateb: okay, so my query will be based on the event. So actually, what's it's important to my, to my function to find what's events had failed.
+
+354
+00:36:10.910 --> 00:36:15.800
+rateb: Should I move the State to be the main in this case, or
+
+355
+00:36:18.040 --> 00:36:23.619
+rateb: like I, I would that function will be asking, give me all the events. Had that failed.
+
+356
+00:36:25.170 --> 00:36:31.520
+rateb: So does this structure would be good for the read. In that case or this something I can
+
+357
+00:36:32.560 --> 00:36:36.539
+Michael Lynn: Yeah, so you'll you'll index on events, dot
+
+358
+00:36:37.030 --> 00:36:38.340
+Michael Lynn: event.
+
+359
+00:36:38.550 --> 00:36:39.850
+Michael Lynn: id
+
+360
+00:36:40.460 --> 00:36:42.070
+Michael Lynn: and dot state.
+
+361
+00:36:43.580 --> 00:36:47.789
+Michael Lynn: So you'll you'll be indexing that entire array of event ids
+
+362
+00:36:47.800 --> 00:36:51.429
+Michael Lynn: and their states so that you can query them effectively.
+
+363
+00:36:52.070 --> 00:36:54.780
+Michael Lynn: I'm gonna put this in the doc and I'll what I'll do is I'll
+
+364
+00:36:55.020 --> 00:36:57.570
+Michael Lynn: I'll include a note
+
+365
+00:36:58.500 --> 00:37:02.370
+Michael Lynn: about. Okay, let's see here, where am I putting this
+
+366
+00:37:03.610 --> 00:37:05.829
+Michael Lynn: for that document?
+
+367
+00:37:05.890 --> 00:37:10.177
+A H: Yeah. So this array event array. It's
+
+368
+00:37:11.444 --> 00:37:13.809
+A H: You're intended to keep all the
+
+369
+00:37:13.920 --> 00:37:14.930
+A H: event
+
+370
+00:37:16.060 --> 00:37:18.640
+A H: like event history. Is that what you're.
+
+371
+00:37:19.490 --> 00:37:19.870
+Michael Lynn: Yes.
+
+372
+00:37:19.870 --> 00:37:22.620
+A H: Intended to do. Oh, okay, so
+
+373
+00:37:22.920 --> 00:37:23.890
+A H: how?
+
+374
+00:37:24.481 --> 00:37:27.609
+A H: How? I guess your your query will be
+
+375
+00:37:28.060 --> 00:37:29.580
+A H: for the current
+
+376
+00:37:31.100 --> 00:37:32.560
+A H: events. Right?
+
+377
+00:37:34.140 --> 00:37:39.810
+A H: Cause. This is event history. How or do you always consider the 1st one or the last one as a
+
+378
+00:37:39.900 --> 00:37:41.879
+A H: but the 1st one has a current event.
+
+379
+00:37:42.100 --> 00:37:44.449
+rateb: Yeah, I see what you mean. So actually.
+
+380
+00:37:45.396 --> 00:37:49.393
+rateb: I believe you. You are referring to only to the current. It's only one right.
+
+381
+00:37:49.660 --> 00:37:54.779
+A H: The current event will be the one. Yeah. But this event is your history.
+
+382
+00:37:54.980 --> 00:37:56.210
+A H: Starting from.
+
+383
+00:37:56.530 --> 00:37:58.090
+rateb: So what
+
+384
+00:37:58.390 --> 00:38:01.469
+rateb: what one of the use? Cases that I found
+
+385
+00:38:01.910 --> 00:38:12.490
+rateb: it can needs me to do to check for 2 events, or maybe more. So, for example, let's assume yeah, it would be like worst case scenario. Let's assume I am sending
+
+386
+00:38:12.590 --> 00:38:20.180
+rateb: my event to send to Awd and my event to send to Mainframe, and both of them are failed.
+
+387
+00:38:20.430 --> 00:38:22.739
+rateb: so if I keep it only one.
+
+388
+00:38:22.930 --> 00:38:24.840
+rateb: I will miss the other field
+
+389
+00:38:25.010 --> 00:38:26.330
+rateb: events. So.
+
+390
+00:38:26.400 --> 00:38:39.030
+rateb: in other words, I am sending to event, at the same time sending one to a destination system called Awd, and another one to destination system called minframe, and both of them has failed.
+
+391
+00:38:40.040 --> 00:38:40.590
+rateb: Okay.
+
+392
+00:38:40.935 --> 00:38:41.280
+A H: Sue.
+
+393
+00:38:41.500 --> 00:38:48.559
+A H: would you consider those as an event, or those are the requests.
+
+394
+00:38:50.220 --> 00:38:51.440
+rateb: Can you, Speaker?
+
+395
+00:38:51.470 --> 00:38:56.769
+rateb: So event will be so. You would. I will have in this case I will have to entry.
+
+396
+00:38:56.840 --> 00:39:01.039
+rateb: so let's say the event. Number one, it will say, event source.
+
+397
+00:39:01.400 --> 00:39:06.189
+rateb: where, for example, yeah. Event source, which will say, awd, requester
+
+398
+00:39:06.480 --> 00:39:08.240
+rateb: and State failed.
+
+399
+00:39:09.240 --> 00:39:19.599
+rateb: and then also I will have another entry here, saying, event source mainframe requester, for example, and state filled. So you can see I have 2 entry
+
+400
+00:39:19.730 --> 00:39:24.220
+rateb: under the events that has failed, and I need to retry in both of them.
+
+401
+00:39:26.240 --> 00:39:27.000
+A H: Oh.
+
+402
+00:39:31.650 --> 00:39:33.600
+A H: So this is
+
+403
+00:39:34.410 --> 00:39:39.160
+A H: this whole schema is is for the message request? Right? So the the
+
+404
+00:39:39.570 --> 00:39:45.659
+A H: initial message. So what? What would the initial message look like in the intake
+
+405
+00:39:47.470 --> 00:39:50.789
+A H: does have? Does it have any events in it?
+
+406
+00:39:51.360 --> 00:39:54.040
+rateb: You mean? Once it's came to the system for the 1st time.
+
+407
+00:39:54.040 --> 00:39:54.650
+A H: Yeah.
+
+408
+00:39:54.920 --> 00:39:58.809
+rateb: No, it will not it I that the system will be creating it.
+
+409
+00:40:01.060 --> 00:40:01.490
+A H: Okay.
+
+410
+00:40:01.920 --> 00:40:04.539
+rateb: Based on the events happening, on the on the.
+
+411
+00:40:04.830 --> 00:40:12.019
+A H: Okay. So for for any event, it would change the message. I assume it would change the message. State.
+
+412
+00:40:12.300 --> 00:40:15.489
+rateb: Right. So, for example, what is the design?
+
+413
+00:40:16.237 --> 00:40:22.610
+rateb: So, for example, we get the message here for the 1st time, it will not have events. But let's say, for example.
+
+414
+00:40:22.630 --> 00:40:46.070
+rateb: now I have to send one for mainframe, one for awd. So what will happen? It will create. It will update like, yeah, let's say for 1st time, it will be pure without any event, but it will, once I move it to awd queue and mainframe queue. So this function will go to the database and say, Yeah, now I am calling Mainframe. So add an events for that.
+
+415
+00:40:46.180 --> 00:40:55.659
+rateb: and same at the same time. Awd is also going to kill call awd. So it will go to the Mongodb. Add an event for calling awd.
+
+416
+00:40:55.710 --> 00:41:01.000
+rateb: and once we get the response you can see, it will update that state to say, like, Yeah, it's completed or not.
+
+417
+00:41:04.590 --> 00:41:05.480
+A H: Okay.
+
+418
+00:41:06.980 --> 00:41:08.250
+A H: so those are the
+
+419
+00:41:08.290 --> 00:41:10.340
+A H: 2 events.
+
+420
+00:41:10.630 --> 00:41:11.970
+rateb: Happening at the same time.
+
+421
+00:41:12.770 --> 00:41:13.660
+A H: Hecknink.
+
+422
+00:41:14.290 --> 00:41:16.100
+A H: So what's the
+
+423
+00:41:17.050 --> 00:41:19.049
+A H: what's what's the type of that event?
+
+424
+00:41:20.450 --> 00:41:21.510
+A H: Request.
+
+425
+00:41:21.820 --> 00:41:23.979
+rateb: Oh, yeah, could could be address change? Yeah. Because in.
+
+426
+00:41:23.980 --> 00:41:26.570
+A H: I don't know. Address changes work type, right?
+
+427
+00:41:26.640 --> 00:41:31.209
+A H: Like this, your Uc work type. But from the generic event
+
+428
+00:41:31.510 --> 00:41:34.039
+A H: you're sending aw d
+
+429
+00:41:34.620 --> 00:41:36.570
+A H: a event for
+
+430
+00:41:39.080 --> 00:41:40.080
+A H: for to be
+
+431
+00:41:41.902 --> 00:41:43.530
+A H: describe that event.
+
+432
+00:41:46.540 --> 00:41:48.850
+A H: Event.
+
+433
+00:41:49.320 --> 00:41:52.010
+A H: But normal event will trigger the action.
+
+434
+00:41:52.760 --> 00:41:53.370
+rateb: Kate.
+
+435
+00:41:54.650 --> 00:41:55.710
+A H: So.
+
+436
+00:41:55.710 --> 00:41:59.989
+rateb: Oh, I see what you mean. It will be executing for that that you mean the state.
+
+437
+00:42:04.740 --> 00:42:08.800
+A H: Yeah. So event is not this date event.
+
+438
+00:42:09.400 --> 00:42:12.919
+A H: There's maybe you can change that state into event type.
+
+439
+00:42:13.830 --> 00:42:14.910
+rateb: You mean this one.
+
+440
+00:42:15.730 --> 00:42:16.450
+A H: Yeah.
+
+441
+00:42:17.470 --> 00:42:21.180
+rateb: On this. What do you mean by event type? Here.
+
+442
+00:42:21.850 --> 00:42:26.930
+A H: So it's just the state is the result from the event.
+
+443
+00:42:27.240 --> 00:42:29.790
+A H: Event should not have the state
+
+444
+00:42:29.860 --> 00:42:33.939
+A H: event just. Something happened.
+
+445
+00:42:34.590 --> 00:42:36.130
+A H: for instance.
+
+446
+00:42:37.370 --> 00:42:38.460
+A H: the
+
+447
+00:42:40.680 --> 00:42:42.880
+A H: A message arrived in the
+
+448
+00:42:43.290 --> 00:42:45.590
+A H: intake. That is one event
+
+449
+00:42:45.790 --> 00:42:47.200
+A H: or message
+
+450
+00:42:47.720 --> 00:42:50.230
+A H: put into the processor.
+
+451
+00:42:51.050 --> 00:42:52.639
+A H: It's another event.
+
+452
+00:42:54.210 --> 00:42:58.310
+A H: but then the the event will result
+
+453
+00:42:58.380 --> 00:43:00.670
+A H: some actions of
+
+454
+00:43:01.050 --> 00:43:04.490
+A H: finds that in the intake
+
+455
+00:43:04.730 --> 00:43:07.500
+A H: event, then they will resolve some actions
+
+456
+00:43:07.910 --> 00:43:11.530
+A H: that, like picking up and picking up the message, and
+
+457
+00:43:11.790 --> 00:43:13.480
+A H: and sent to the next date.
+
+458
+00:43:13.840 --> 00:43:15.330
+A H: So that's the action.
+
+459
+00:43:15.470 --> 00:43:16.290
+A H: So.
+
+460
+00:43:16.490 --> 00:43:18.510
+A H: and then also the result will be the
+
+461
+00:43:18.780 --> 00:43:19.930
+A H: the state
+
+462
+00:43:20.770 --> 00:43:22.680
+A H: state change
+
+463
+00:43:23.160 --> 00:43:24.640
+A H: from that event.
+
+464
+00:43:26.080 --> 00:43:27.149
+A H: I guess we
+
+465
+00:43:27.460 --> 00:43:31.370
+A H: it's probably the terminology. We're not on the same page.
+
+466
+00:43:31.840 --> 00:43:33.140
+rateb: I see?
+
+467
+00:43:34.520 --> 00:43:35.500
+rateb: so
+
+468
+00:43:35.750 --> 00:43:37.369
+rateb: so the main idea
+
+469
+00:43:37.450 --> 00:43:42.879
+rateb: would be is if I'm sending an a message to the Awd.
+
+470
+00:43:43.594 --> 00:43:50.129
+rateb: I I what I'm looking for is to have something to track. It's being sent to awd.
+
+471
+00:43:51.350 --> 00:43:52.500
+A H: Yeah, so
+
+472
+00:43:53.150 --> 00:43:56.269
+A H: is it. I thought you want to
+
+473
+00:43:56.990 --> 00:43:58.379
+A H: do it as us
+
+474
+00:43:59.260 --> 00:44:00.510
+A H: sequence.
+
+475
+00:44:00.870 --> 00:44:01.820
+A H: First, st
+
+476
+00:44:02.590 --> 00:44:04.170
+A H: it's the same message
+
+477
+00:44:04.360 --> 00:44:07.300
+A H: 1st settled in the
+
+478
+00:44:07.640 --> 00:44:12.710
+A H: mainframe, and then once it's successful, then you send to the awd
+
+479
+00:44:13.070 --> 00:44:14.330
+A H: as archive.
+
+480
+00:44:14.520 --> 00:44:18.639
+A H: If it's not successful, it would need to retry or maybe augment
+
+481
+00:44:18.990 --> 00:44:20.749
+A H: the the request
+
+482
+00:44:21.110 --> 00:44:22.180
+A H: when it's a
+
+483
+00:44:23.300 --> 00:44:25.020
+A H: for the second
+
+484
+00:44:26.300 --> 00:44:29.470
+A H: processing to awd, I mean after the
+
+485
+00:44:29.530 --> 00:44:33.839
+A H: mainframe settled, and then you send to the Awd. This will be
+
+486
+00:44:34.920 --> 00:44:37.059
+A H: a new message.
+
+487
+00:44:37.420 --> 00:44:38.100
+A H: but
+
+488
+00:44:38.250 --> 00:44:39.680
+A H: the same work type.
+
+489
+00:44:40.300 --> 00:44:44.110
+A H: I guess, but sorry. Maybe there's even different work type. But I don't.
+
+490
+00:44:46.440 --> 00:44:47.839
+A H: So are you. Are you going to
+
+491
+00:44:47.880 --> 00:44:49.480
+A H: loop through this
+
+492
+00:44:49.990 --> 00:44:50.870
+A H: or ye
+
+493
+00:44:51.130 --> 00:44:58.289
+A H: you're considering like in parallel, you're going to send multiple messages depending on this is this is like a sub message
+
+494
+00:44:58.770 --> 00:45:00.720
+A H: with the same message.
+
+495
+00:45:01.020 --> 00:45:02.780
+A H: You spin off 2
+
+496
+00:45:04.040 --> 00:45:07.060
+A H: and sent to a 2 different work.
+
+497
+00:45:07.710 --> 00:45:08.370
+rateb: Right?
+
+498
+00:45:08.620 --> 00:45:09.490
+rateb: Yeah.
+
+499
+00:45:10.136 --> 00:45:20.040
+rateb: you're right. So there, that is yeah, to handle, like, everything's happened in the message. And you can see art like the main idea is
+
+500
+00:45:21.205 --> 00:45:23.979
+rateb: is for that function
+
+501
+00:45:24.510 --> 00:45:26.640
+rateb: once it's to the local
+
+502
+00:45:27.020 --> 00:45:29.159
+rateb: to find what
+
+503
+00:45:29.900 --> 00:45:34.800
+rateb: step has not been completed successfully. So, for example, you have
+
+504
+00:45:35.330 --> 00:45:39.420
+rateb: step, for, as we discussed, like step to call awd.
+
+505
+00:45:39.470 --> 00:45:49.099
+rateb: not completed successfully. Step 4 mainframe not completed successfully, so that function will know this to step has failed. So we have to Retry.
+
+506
+00:45:50.690 --> 00:45:51.580
+A H: Right?
+
+507
+00:46:00.270 --> 00:46:02.309
+A H: okay, let me think. What?
+
+508
+00:46:02.610 --> 00:46:03.580
+A H: What should we?
+
+509
+00:46:04.730 --> 00:46:05.610
+A H: So
+
+510
+00:46:07.640 --> 00:46:09.791
+A H: if you go to that diagram?
+
+511
+00:46:10.390 --> 00:46:13.209
+A H: I want to show you some of initial
+
+512
+00:46:13.950 --> 00:46:16.660
+A H: discussion. If you go to that diagram.
+
+513
+00:46:17.060 --> 00:46:17.830
+A H: catch up.
+
+514
+00:46:18.656 --> 00:46:19.839
+rateb: You send me something.
+
+515
+00:46:19.840 --> 00:46:21.899
+A H: At is there a
+
+516
+00:46:22.120 --> 00:46:24.578
+A H: is it? Well? Yes, state background.
+
+517
+00:46:25.210 --> 00:46:26.200
+A H: That the tap.
+
+518
+00:46:26.420 --> 00:46:26.930
+rateb: Okay. Yeah.
+
+519
+00:46:26.930 --> 00:46:29.530
+A H: If you but not this one
+
+520
+00:46:29.690 --> 00:46:32.739
+A H: below further right.
+
+521
+00:46:32.980 --> 00:46:34.490
+A H: there's a state diagram.
+
+522
+00:46:34.850 --> 00:46:35.892
+rateb: Okay, got it?
+
+523
+00:46:36.650 --> 00:46:54.880
+A H: So if you look at there 2 messages, I mean, sorry. 2 schemas. I well, this isn't really not nothing. It's just for discussion. It's not the final schema. So that schema, you see, there's a there's this event, and then there's a request. So
+
+524
+00:46:56.030 --> 00:46:58.109
+A H: I was thinking at that times is
+
+525
+00:46:58.350 --> 00:47:07.850
+A H: the request, and events are 2 separate, but it's totally fine that putting event as part of the request, as an event history
+
+526
+00:47:07.960 --> 00:47:09.700
+A H: that go along with the
+
+527
+00:47:09.860 --> 00:47:10.850
+A H: request
+
+528
+00:47:11.060 --> 00:47:13.489
+A H: as I embedded the document.
+
+529
+00:47:13.590 --> 00:47:17.780
+A H: That's no problem. But if you look at the events right? So
+
+530
+00:47:18.160 --> 00:47:20.910
+A H: that event does not have the
+
+531
+00:47:21.390 --> 00:47:25.349
+A H: the state, it only has the initial state
+
+532
+00:47:25.830 --> 00:47:28.330
+A H: and the destination stage.
+
+533
+00:47:31.500 --> 00:47:34.270
+A H: and then some event happen would change this.
+
+534
+00:47:36.150 --> 00:47:40.170
+A H: I guess that that that state, too. You you don't have to even
+
+535
+00:47:41.700 --> 00:47:43.500
+A H: save that. In that event.
+
+536
+00:47:43.580 --> 00:47:47.590
+A H: schema it it only the event happened will
+
+537
+00:47:49.200 --> 00:47:52.220
+A H: when some certain state
+
+538
+00:47:53.110 --> 00:47:54.710
+A H: and the event will happen.
+
+539
+00:47:55.170 --> 00:47:56.100
+A H: Exceed.
+
+540
+00:47:56.730 --> 00:48:02.309
+A H: Yeah, that that was. And then the you take this as an example, that
+
+541
+00:48:02.400 --> 00:48:05.669
+A H: the State from its intake. So when
+
+542
+00:48:06.100 --> 00:48:09.320
+A H: a request message arrived in the intake
+
+543
+00:48:09.670 --> 00:48:10.870
+A H: folder.
+
+544
+00:48:11.100 --> 00:48:11.940
+A H: and then.
+
+545
+00:48:12.260 --> 00:48:14.040
+A H: or or Q.
+
+546
+00:48:14.220 --> 00:48:16.440
+A H: And then the event.
+
+547
+00:48:17.450 --> 00:48:19.780
+A H: There's an event happened. This event happened
+
+548
+00:48:19.980 --> 00:48:21.629
+A H: so event will be
+
+549
+00:48:21.660 --> 00:48:29.109
+A H: intake, function, app, or maybe the source. This is event, and then the the source will
+
+550
+00:48:29.920 --> 00:48:31.380
+A H: generate that event.
+
+551
+00:48:31.560 --> 00:48:33.060
+A H: and then the event
+
+552
+00:48:33.845 --> 00:48:34.210
+A H: a
+
+553
+00:48:34.890 --> 00:48:36.620
+A H: eventually was
+
+554
+00:48:36.650 --> 00:48:41.520
+A H: will move the State from intake to pending. But that that's the
+
+555
+00:48:41.530 --> 00:48:43.479
+A H: the the result of the event.
+
+556
+00:48:45.000 --> 00:48:46.410
+rateb: Which is the result account.
+
+557
+00:48:47.410 --> 00:48:47.920
+rateb: It's a.
+
+558
+00:48:47.920 --> 00:48:50.910
+A H: But is our result? Event would be, change the state to
+
+559
+00:48:51.310 --> 00:48:53.210
+A H: pending. So this is a.
+
+560
+00:48:53.210 --> 00:48:53.939
+rateb: And see.
+
+561
+00:48:53.940 --> 00:48:55.636
+A H: Hey? But but I'm
+
+562
+00:48:56.830 --> 00:48:58.850
+A H: Toby. I'm I'm not very
+
+563
+00:48:59.560 --> 00:49:01.110
+A H: sure about.
+
+564
+00:49:01.400 --> 00:49:02.859
+A H: This is at the right
+
+565
+00:49:04.270 --> 00:49:07.010
+A H: approach. As as you were thinking.
+
+566
+00:49:07.810 --> 00:49:08.350
+rateb: Right.
+
+567
+00:49:08.350 --> 00:49:09.010
+A H: Maybe.
+
+568
+00:49:09.210 --> 00:49:10.279
+A H: maybe, my
+
+569
+00:49:10.780 --> 00:49:14.519
+A H: Michael, if you you have more experience in this.
+
+570
+00:49:16.400 --> 00:49:17.320
+A H: I don't want it.
+
+571
+00:49:17.320 --> 00:49:19.999
+Michael Lynn: I I'm not. I'm not sure what the the question is.
+
+572
+00:49:20.100 --> 00:49:22.659
+A H: So. So if you look at this
+
+573
+00:49:22.810 --> 00:49:32.179
+A H: event, and well, we do have a 2 separate the document, but it's totally fine, save that event into the request. But to me what I
+
+574
+00:49:32.290 --> 00:49:34.630
+A H: understand the events is.
+
+575
+00:49:36.110 --> 00:49:37.610
+A H: if something happened
+
+576
+00:49:37.870 --> 00:49:40.120
+A H: to the current request.
+
+577
+00:49:40.200 --> 00:49:41.819
+A H: So the request
+
+578
+00:49:41.980 --> 00:49:43.130
+A H: is the
+
+579
+00:49:43.870 --> 00:49:48.560
+A H: it's, it's it's the actual message, it's not, it's not the event.
+
+580
+00:49:48.830 --> 00:49:51.159
+A H: The message is the request.
+
+581
+00:49:51.360 --> 00:49:53.709
+A H: and then the the event
+
+582
+00:49:53.950 --> 00:49:55.040
+A H: will happen.
+
+583
+00:49:55.230 --> 00:49:57.289
+A H: While this request.
+
+584
+00:49:57.500 --> 00:50:01.299
+A H: looping, going through a different state
+
+585
+00:50:01.860 --> 00:50:03.050
+A H: of
+
+586
+00:50:03.480 --> 00:50:05.180
+A H: of this workflow.
+
+587
+00:50:05.240 --> 00:50:10.460
+A H: and then at at each stage some event happened will move the State to next state.
+
+588
+00:50:11.130 --> 00:50:13.379
+A H: I'm I'm not is that
+
+589
+00:50:14.200 --> 00:50:17.249
+A H: you normally do for events? Well, I think.
+
+590
+00:50:17.250 --> 00:50:21.790
+Michael Lynn: Depends on the consumer side of the the event data.
+
+591
+00:50:22.090 --> 00:50:26.140
+Michael Lynn: And and what you are going to do with that data. So.
+
+592
+00:50:26.140 --> 00:50:26.840
+A H: Okay.
+
+593
+00:50:26.840 --> 00:50:30.649
+Michael Lynn: There may be value storing all of the messages in their
+
+594
+00:50:30.900 --> 00:50:34.210
+Michael Lynn: in their original state, in their original form.
+
+595
+00:50:34.450 --> 00:50:35.650
+Michael Lynn: I'm not okay.
+
+596
+00:50:36.000 --> 00:50:42.060
+rateb: So so just to confirm art. I believe we are on the same page. We are looking to to have a way.
+
+597
+00:50:42.960 --> 00:50:46.589
+rateb: Events has failed for this function to retry right? That is our scope.
+
+598
+00:50:46.810 --> 00:50:48.570
+rateb: or or you have a different
+
+599
+00:50:50.510 --> 00:50:52.259
+rateb: workflow for that or different case.
+
+600
+00:50:52.260 --> 00:50:56.769
+A H: No, it's it's the same. It's just that the terminology is the not the.
+
+601
+00:50:56.770 --> 00:50:57.939
+rateb: Right? So yeah, so then.
+
+602
+00:50:57.940 --> 00:50:59.839
+A H: We consider the event as a
+
+603
+00:50:59.980 --> 00:51:02.370
+A H: is it event? Fail, or is it is? It
+
+604
+00:51:03.460 --> 00:51:07.119
+A H: is a filled state of the request.
+
+605
+00:51:07.330 --> 00:51:17.750
+rateb: Yes, it would, it would be one of the steps. So you you are referring one of the step to be like 1 1 of the step like can be find by the State right.
+
+606
+00:51:18.640 --> 00:51:20.449
+rateb: that who that failed.
+
+607
+00:51:21.180 --> 00:51:22.780
+A H: Yeah. So if either.
+
+608
+00:51:24.620 --> 00:51:29.919
+A H: if it failed in the result, you can, there's a failed result.
+
+609
+00:51:30.000 --> 00:51:32.560
+A H: Do you consider that as a
+
+610
+00:51:33.280 --> 00:51:34.989
+A H: as an event, or as a
+
+611
+00:51:35.750 --> 00:51:36.540
+A H: some.
+
+612
+00:51:37.050 --> 00:51:39.610
+A H: I guess what what I wasn't wasn't sure
+
+613
+00:51:40.760 --> 00:51:42.889
+A H: how you defined event
+
+614
+00:51:43.120 --> 00:51:44.080
+A H: in this. Aye.
+
+615
+00:51:44.490 --> 00:51:55.149
+rateb: Maybe it's more. It's like the step of of the solution, more than like, for example, for each step that's happening. I'm updating that array.
+
+616
+00:51:57.270 --> 00:51:58.729
+rateb: for for that step.
+
+617
+00:51:59.010 --> 00:52:04.779
+rateb: So, for example, we have, like we have, a step to make a call to the Awd, for example.
+
+618
+00:52:05.180 --> 00:52:10.152
+rateb: so that we're could get a record in that array.
+
+619
+00:52:10.730 --> 00:52:19.239
+rateb: to know I am trying to make a call, and let's say awd was down. So what will happen? It will
+
+620
+00:52:19.310 --> 00:52:24.979
+rateb: create that record in that array, saying, that step has failed.
+
+621
+00:52:25.456 --> 00:52:48.650
+rateb: And and that how this function would be able to know what step has failed to retry. That is that main objective. Yeah, maybe I see what you mean. Maybe that is not like actual event, or or the terminology is not in sync, but you can see the main objective to have an way to find what steps has failed during the process, and do the retry.
+
+622
+00:52:50.910 --> 00:52:51.640
+A H: Okay.
+
+623
+00:52:54.700 --> 00:52:58.569
+A H: e, even the fail would have a multiple
+
+624
+00:52:59.410 --> 00:53:03.080
+A H: places that could fail right? So initially, when you.
+
+625
+00:53:03.080 --> 00:53:04.460
+rateb: Request yes.
+
+626
+00:53:04.460 --> 00:53:05.490
+A H: But same request.
+
+627
+00:53:05.660 --> 00:53:07.590
+A H: So how is it?
+
+628
+00:53:08.330 --> 00:53:12.610
+A H: I guess you could still define that as an event like a failed.
+
+629
+00:53:13.380 --> 00:53:14.000
+rateb: Right.
+
+630
+00:53:14.340 --> 00:53:15.500
+A H: Event.
+
+631
+00:53:15.680 --> 00:53:28.210
+rateb: Right. So I believe your question now are, to Michael, what is the right schema? What is the recommended schema we build for this to be able to handle that kind of scenario.
+
+632
+00:53:28.390 --> 00:53:29.730
+A H: Yeah, yeah.
+
+633
+00:53:30.970 --> 00:53:35.789
+Michael Lynn: It almost sounds like you need a separate collection for raw messages that come in.
+
+634
+00:53:36.720 --> 00:53:39.620
+rateb: Nice, so it's better to keep it as
+
+635
+00:53:39.730 --> 00:53:42.530
+rateb: a separate collection, instead of embedding.
+
+636
+00:53:42.530 --> 00:53:46.420
+Michael Lynn: Yeah, yeah, I because the each
+
+637
+00:53:46.580 --> 00:53:50.370
+Michael Lynn: individual event well, I can't. I don't want to use the word event
+
+638
+00:53:50.712 --> 00:53:53.439
+Michael Lynn: it's let's call it a message that comes in
+
+639
+00:53:54.427 --> 00:53:56.070
+Michael Lynn: you may want
+
+640
+00:53:56.310 --> 00:53:59.280
+Michael Lynn: you. You may just want the raw messages.
+
+641
+00:53:59.980 --> 00:54:02.049
+Michael Lynn: and then in this
+
+642
+00:54:02.210 --> 00:54:04.509
+Michael Lynn: a message may be an event.
+
+643
+00:54:05.630 --> 00:54:06.580
+Michael Lynn: And
+
+644
+00:54:09.860 --> 00:54:13.489
+Michael Lynn: yeah, I guess it really depends on how you're processing.
+
+645
+00:54:13.760 --> 00:54:15.850
+rateb: Yeah. So processing would be.
+
+646
+00:54:16.150 --> 00:54:19.100
+rateb: this would go to the Mongodb.
+
+647
+00:54:19.910 --> 00:54:24.940
+rateb: Give me the steps that failed because I gonna want to retry
+
+648
+00:54:25.900 --> 00:54:30.460
+rateb: and and retry. That mean, I need also the message itself.
+
+649
+00:54:31.362 --> 00:54:32.510
+rateb: The whole message.
+
+650
+00:54:33.595 --> 00:54:34.270
+rateb: So.
+
+651
+00:54:34.270 --> 00:54:41.579
+Michael Lynn: So could you not include in your current structure? Could you not include details from the message in that embedded document?
+
+652
+00:54:41.950 --> 00:54:51.490
+rateb: Yes, and that what Art and I, we are like thinking what exactly should be the schema to be able to handle that requirement for this
+
+653
+00:54:51.920 --> 00:54:54.180
+rateb: array. So this array.
+
+654
+00:54:54.990 --> 00:54:56.870
+rateb: Would needed to include
+
+655
+00:54:57.030 --> 00:55:22.650
+rateb: the steps that failed. So we can quickly from the same collection. Or, like, you know, I I'm just coming from that rule that you have if you are reading information together, together. But for sure, if there's a good use case to keep them in separate collection would do, but now assume they are under the same collection. And and the reason we need in the same collection, so I can fish the message itself because I need the message itself for the retry.
+
+656
+00:55:23.190 --> 00:55:23.800
+Michael Lynn: Yes.
+
+657
+00:55:23.800 --> 00:55:26.910
+rateb: They need this all this information again, for the Retry.
+
+658
+00:55:27.220 --> 00:55:32.020
+Michael Lynn: Yeah. And it it seems to me like this, the current schema that you've defined here.
+
+659
+00:55:32.320 --> 00:55:36.870
+Michael Lynn: It seems like that could support it. So if I get, if I understand the requirement.
+
+660
+00:55:37.190 --> 00:55:46.846
+Michael Lynn: you not need not only to be able to write efficiently right? So we're gonna have one single collection, we'll have an embedded document. All of that will work from a best practice perspective.
+
+661
+00:55:47.150 --> 00:55:53.529
+Michael Lynn: Then, on the flip side, on the on the read side, you need to be able to read and efficiently query
+
+662
+00:55:53.790 --> 00:55:57.280
+Michael Lynn: events that have, or messages that have failed, events.
+
+663
+00:55:57.510 --> 00:55:58.060
+rateb: Exact.
+
+664
+00:55:58.470 --> 00:56:10.640
+Michael Lynn: And be able to re queue those. So what I would look to do is ensure that the schema has not only all of the information here, the event source the event type in in an array.
+
+665
+00:56:11.395 --> 00:56:14.620
+Michael Lynn: But where is the event
+
+666
+00:56:14.670 --> 00:56:17.849
+Michael Lynn: status indicating that it's a failure.
+
+667
+00:56:19.318 --> 00:56:24.370
+rateb: I was thinking about state, but I believe part saying this should not
+
+668
+00:56:24.570 --> 00:56:26.550
+rateb: be the state we should.
+
+669
+00:56:28.340 --> 00:56:29.479
+rateb: Okay, so
+
+670
+00:56:29.810 --> 00:56:31.420
+rateb: yeah, maybe
+
+671
+00:56:32.120 --> 00:56:35.815
+rateb: I believe you are asking for the flag or the field that can.
+
+672
+00:56:36.100 --> 00:56:44.890
+Michael Lynn: How are you going to? What's your query going to look like to to help you efficiently? Query for all failed. Messages failed, event messages.
+
+673
+00:56:44.890 --> 00:56:50.019
+rateb: Right. Yeah, sorry. I just remember now what I did. So I was actually looking for this field completed at.
+
+674
+00:56:50.360 --> 00:56:53.260
+Michael Lynn: Okay, and if it doesn't have a completed app, then it failed.
+
+675
+00:56:53.420 --> 00:56:54.160
+rateb: Exactly.
+
+676
+00:56:54.160 --> 00:56:55.429
+Michael Lynn: Yeah. Yeah. Okay.
+
+677
+00:56:56.480 --> 00:56:57.320
+Michael Lynn: So
+
+678
+00:56:57.906 --> 00:57:00.130
+Michael Lynn: it can be tricky
+
+679
+00:57:00.420 --> 00:57:03.140
+Michael Lynn: to query for the absence of something.
+
+680
+00:57:03.210 --> 00:57:08.289
+Michael Lynn: because the absence of something doesn't necessarily indicate the presence of something.
+
+681
+00:57:08.290 --> 00:57:09.060
+rateb: Exactly.
+
+682
+00:57:09.060 --> 00:57:14.050
+Michael Lynn: So I would I would look to modify Ken. Do you have access
+
+683
+00:57:14.060 --> 00:57:15.449
+Michael Lynn: to the writer
+
+684
+00:57:15.920 --> 00:57:20.990
+Michael Lynn: so that it can build that event, array the array of objects
+
+685
+00:57:22.770 --> 00:57:27.629
+Michael Lynn: and indicate the state. Do you know the State? If it hasn't completed.
+
+686
+00:57:28.817 --> 00:57:30.130
+rateb: There is some.
+
+687
+00:57:30.560 --> 00:57:34.460
+rateb: Yes, for sure there will be sometimes straightforward. So, for example.
+
+688
+00:57:34.880 --> 00:57:38.979
+rateb: we are calling like a destination like a system right.
+
+689
+00:57:39.060 --> 00:57:41.039
+rateb: and that system could be down
+
+690
+00:57:41.200 --> 00:57:44.610
+rateb: so, and at that time I can immediately know.
+
+691
+00:57:44.640 --> 00:57:51.020
+rateb: like we have some logic to retry for 3 times, but after 3 times failed. I'm done like I cannot retry anymore today.
+
+692
+00:57:51.020 --> 00:57:51.800
+Michael Lynn: Yeah, okay.
+
+693
+00:57:51.800 --> 00:57:56.500
+rateb: So that that step has failed. So for this use case, you can see straightforward.
+
+694
+00:57:56.660 --> 00:58:01.740
+Michael Lynn: Yeah, so I would. I would just look to. I would build the system
+
+695
+00:58:01.920 --> 00:58:09.779
+Michael Lynn: with clear indications in the data that a failure has occurred, rather than leaving it to like the absence of a completed app.
+
+696
+00:58:10.090 --> 00:58:10.760
+rateb: Nice.
+
+697
+00:58:11.160 --> 00:58:12.309
+rateb: So, maybe.
+
+698
+00:58:13.270 --> 00:58:14.140
+rateb: okay.
+
+699
+00:58:14.890 --> 00:58:19.040
+Michael Lynn: And you can leave completed at and have it be blank. But I would.
+
+700
+00:58:19.090 --> 00:58:23.840
+Michael Lynn: I would maybe include another flag that, or a field that indicates
+
+701
+00:58:23.900 --> 00:58:27.040
+Michael Lynn: for certain that you have retried 3 times, and it's a failure.
+
+702
+00:58:30.870 --> 00:58:31.879
+rateb: Something like this.
+
+703
+00:58:32.440 --> 00:58:33.100
+Michael Lynn: Yeah.
+
+704
+00:58:33.450 --> 00:58:35.170
+Michael Lynn: yeah, there you go.
+
+705
+00:58:38.160 --> 00:58:43.920
+Michael Lynn: Yeah. And then we just wanna make sure that because we're going to be reading from this that we
+
+706
+00:58:44.694 --> 00:58:50.499
+Michael Lynn: that, we create an efficient, indexing structure. And that's fairly simple. It looks like
+
+707
+00:58:51.360 --> 00:58:54.290
+Michael Lynn: for that structure. It's going to look like this.
+
+708
+00:58:55.980 --> 00:58:58.890
+Michael Lynn: have it as state. But I think it's going to be is complete.
+
+709
+00:59:03.610 --> 00:59:08.379
+Michael Lynn: So it's gonna be. You see how you you dot notate in your in your this is a
+
+710
+00:59:09.540 --> 00:59:09.870
+Michael Lynn: good.
+
+711
+00:59:10.790 --> 00:59:16.750
+Michael Lynn: No, it's not a compound. It's a an embedded index creation.
+
+712
+00:59:17.090 --> 00:59:20.699
+Michael Lynn: right? So we're gonna we're gonna deeply embed into that
+
+713
+00:59:20.800 --> 00:59:21.850
+Michael Lynn: document
+
+714
+00:59:21.960 --> 00:59:25.390
+Michael Lynn: into the array so that we can efficiently query.
+
+715
+00:59:26.150 --> 00:59:32.106
+rateb: Nice and yes, I am interested to read more about that indexing. Would you be able share some documentation like.
+
+716
+00:59:32.390 --> 00:59:34.430
+Michael Lynn: Absolutely. That'll be included in the report.
+
+717
+00:59:35.190 --> 00:59:35.890
+rateb: Nice.
+
+718
+00:59:37.070 --> 00:59:43.929
+rateb: So now, yeah, if we have a step filled, so I will be using this flag to tell me if it's failed.
+
+719
+00:59:44.819 --> 00:59:45.450
+rateb: Then
+
+720
+00:59:45.760 --> 00:59:48.629
+rateb: this will tell me which step has failed.
+
+721
+00:59:49.683 --> 00:59:52.356
+rateb: Maybe art, right? Maybe we don't need this now at all.
+
+722
+00:59:53.340 --> 00:59:56.030
+rateb: So yes. So this is
+
+723
+00:59:56.920 --> 01:00:00.060
+rateb: like, yeah, this is Tip that failed. If it's completed or not.
+
+724
+01:00:01.470 --> 01:00:07.993
+rateb: Okay, so that is for the straightforward cases. Sorry. I see we are over the time. Are you okay?
+
+725
+01:00:08.730 --> 01:00:11.459
+Michael Lynn: Actually, I have a 3 that I'm late for.
+
+726
+01:00:11.660 --> 01:00:24.069
+rateb: No, no worries. Okay, so yeah, yeah, maybe maybe I will take it more discuss, like the different scenario, how to do that. And is it okay? If we came back to you by email or for another meeting to continue that discussion for this part only.
+
+727
+01:00:24.613 --> 01:00:41.559
+Michael Lynn: Yes. So we can continue over email. But I wanna make sure that we include jigar. Who is your solutions, architect? So we'll bring him up to speed on what we discussed. I'll share the design review report with him, and then my availability to to respond is gonna be fairly limited.
+
+728
+01:00:41.958 --> 01:00:50.500
+Michael Lynn: Just because I'm on the road. So much so I wanna make sure there's some continuity with the the essay, so he can kind of pick up if I'm not able to respond.
+
+729
+01:00:50.790 --> 01:00:52.900
+rateb: So sounds good. Okay, let's do that. Then.
+
+730
+01:00:52.900 --> 01:00:56.620
+Michael Lynn: Yeah, terrific. Okay? So if if I've missed any
+
+731
+01:00:57.119 --> 01:01:07.369
+Michael Lynn: major questions that you have or major concerns we'll want to raise those over email, and we'll try and address those and possibly even schedule another
+
+732
+01:01:07.850 --> 01:01:09.110
+Michael Lynn: another session.
+
+733
+01:01:11.110 --> 01:01:14.690
+Michael Lynn: but I want, I want to stress the value of
+
+734
+01:01:16.240 --> 01:01:28.629
+Michael Lynn: professional services these guys like like people say, you know that I've got a lot of knowledge at Mongodb. I've been here at 10 years, and and I've been doing these design reviews for quite a bit. And
+
+735
+01:01:28.800 --> 01:01:35.579
+Michael Lynn: and I feel like I'm I'm pretty expert in in Mongodb. But the professional services guys, these guys are just
+
+736
+01:01:35.860 --> 01:01:38.689
+Michael Lynn: phenomenal, really great. I can't stress the value of
+
+737
+01:01:38.730 --> 01:01:48.810
+Michael Lynn: a Ps engagement to kind of help secure the implementation. And Christina will have details about how you might get that done. If you're interested
+
+738
+01:01:49.305 --> 01:01:53.430
+Michael Lynn: we'll try and answer all your questions. In the meantime.
+
+739
+01:01:53.490 --> 01:02:01.599
+Michael Lynn: so I think I have enough information. I'll prepare a report and then, like, I said, if we've left anything, Major, out, let Christina know. And
+
+740
+01:02:02.110 --> 01:02:03.779
+Michael Lynn: and we'll continue via email.
+
+741
+01:02:04.360 --> 01:02:05.989
+rateb: Perfect, sounds, good, then.
+
+742
+01:02:05.990 --> 01:02:07.230
+Michael Lynn: Yeah, thank you so much for your time.
+
+743
+01:02:07.230 --> 01:02:17.690
+Kristina Wyton: I'll I'll be here to help with continuity. So either whether it's Michael or Jig or our professional services team, just use me as your 1st point of contact, and we'll go from there.
+
+744
+01:02:18.010 --> 01:02:18.809
+rateb: Sounds good.
+
+745
+01:02:18.950 --> 01:02:19.670
+Michael Lynn: Terrific, level.
+
+746
+01:02:19.670 --> 01:02:20.050
+rateb: Tina.
+
+747
+01:02:20.050 --> 01:02:21.600
+Michael Lynn: Thanks. Enjoy the rest of your day.
+
+748
+01:02:21.600 --> 01:02:22.649
+rateb: You guys will. Bye.
+
+749
+01:02:23.055 --> 01:02:23.460
+Kristina Wyton: I.
+

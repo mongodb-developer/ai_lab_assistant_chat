@@ -1,0 +1,59 @@
+{
+    "_id" : ObjectId("6185fb6f9f96593d9ab823d6"),
+    "eventId" : "133928815111",
+    "ETAs" : {},
+    "createdDateTime" : ISODate("2021-11-06T03:50:07.187Z"),
+    "customerId" : "1220",
+    "equipment" : {
+        "equipmentId" : "EMHU205452",
+        "bookingDateTime" : {
+            "dateTime" : Date(-62135596800000),
+            "timezone" : "AMERICA/CHICAGO"
+        }
+    },
+    "eventCode" : "EI",
+    "eventCreateDateTime" : {
+        "dateTime" : ISODate("2021-11-06T03:26:29.000Z"),
+        "timezone" : "AMERICA/CHICAGO"
+    },
+    "eventDateTime" : {
+        "dateTime" : ISODate("2021-11-06T03:03:00.000Z"),
+        "timezone" : "AMERICA/NEW_YORK",
+        "localDateTime" : 20211105230300.0
+    },
+    "eventSequence" : 111,
+    "eventSource" : "3",
+    "location" : {
+        "locationMasterID" : "L511322520",
+        "tpsLocationID" : "37634",
+        "businessLocationID" : "RAIL_RAMP_NSJACVL",
+        "type" : "RAMP",
+        "status" : "",
+        "domainName" : "CORP",
+        "cleanseStatusID" : "CLEANSE_VERIFIED",
+        "name" : "N S INTERMODAL RAMP",
+        "address1" : "4267 EDGEWOOD DR",
+        "address2" : null,
+        "city" : "JACKSONVILLE",
+        "stateProvinceCode" : "FL",
+        "countryCode" : "USA",
+        "postalCode" : "32254",
+        "latitude" : 30.37059,
+        "longitude" : -81.734112,
+        "geoPoint" : {
+            "type" : "POINT",
+            "coordinates" : [ 
+                -81.734112, 
+                30.37059
+            ]
+        },
+        "rampMarket" : "JACVL",
+        "timeZone" : "AMERICA/NEW_YORK"
+    },
+    "modifiedDateTime" : ISODate("2021-11-06T03:50:07.187Z"),
+    "orderId" : "133928815",
+    "shipmentId" : "133928815",
+    "sourceSystem" : "TPS",
+    "stopSequence" : 3,
+    "stopType" : "RAIL"
+}
