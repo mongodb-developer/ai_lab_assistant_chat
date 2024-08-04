@@ -1,4 +1,6 @@
 
+import { escapeHTML, showError, unescapeHTML } from './utils.js';
+
 /**
  * Displays the event settings interface and initializes the event data.
  * @function
@@ -372,6 +374,8 @@ export function displayEventMap(events) {
                 title: title
             });
         } else {
+            console.warn('AdvancedMarkerElement not available, falling back to Marker');
+
             return new google.maps.Marker({
                 map: map,
                 position: position,

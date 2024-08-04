@@ -1,6 +1,6 @@
 let currentPage = 1;
 const perPage = 10;
-
+import { escapeHTML, showError, unescapeHTML } from './utils.js';
 function debounce(func, wait) {
     let timeout;
     return function executedFunction(...args) {
@@ -758,20 +758,7 @@ searchButton.addEventListener('click', function () {
         });
 });
 
-// Escape HTML special characters in a string
-export function escapeHTML(str) {
-    if (typeof str !== 'string') {
-        console.warn('escapeHTML received a non-string value:', str);
-        return '';
-    }
-    return str.replace(/[&<>'"]/g, tag => ({
-        '&': '&amp;',
-        '<': '&lt;',
-        '>': '&gt;',
-        "'": '&#39;',
-        '"': '&quot;'
-    }[tag] || tag));
-}
+
 
 const unansweredQuestionsTab = document.querySelector('[onclick="showUnansweredQuestions()"]');
 if (unansweredQuestionsTab) {
@@ -788,17 +775,4 @@ export function truncateText(text, maxLength = 50) {
         return text.substring(0, maxLength) + '...';
     }
     return text || '';
-}
-export function unescapeHTML(str) {
-    if (typeof str !== 'string') {
-        console.warn('unescapeHTML received a non-string value:', str);
-        return '';
-    }
-    return str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, tag => ({
-        '&amp;': '&',
-        '&lt;': '<',
-        '&gt;': '>',
-        '&#39;': "'",
-        '&quot;': '"'
-    }[tag] || tag));
 }

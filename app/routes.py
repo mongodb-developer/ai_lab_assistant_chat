@@ -42,9 +42,10 @@ from app.utils import (
     format_events_response,
     get_db_connection,
     update_user_login_info
-
 )
 from werkzeug.exceptions import HTTPException
+
+
 
 main = Blueprint('main', __name__)
 
@@ -473,6 +474,7 @@ def admin():
     total_questions = get_documents_collection().count_documents({})
     
     return render_template('admin.html', 
+                           google_maps_api_key=Config.GOOGLE_MAPS_API_KEY,
                            total_users=total_users, 
                            total_questions=total_questions)
 
@@ -502,22 +504,56 @@ def feedback():
         current_app.logger.error(f"Error in feedback route: {str(e)}")
         return jsonify({"error": "An internal error occurred"}), 500
 
-@main.route('/api/feedback', methods=['POST'])
-def receive_feedback():
+@main.route('/api/app_feedback', methods=['POST'])
+def receive_app_feedback():
     data = request.json
     rating = data.get('rating')
     
-    if rating:
-        # Store the feedback in the database
+    if rating is not None:
         feedback = {
             'rating': rating,
             'timestamp': datetime.now()
         }
         get_feedback_collection().insert_one(feedback)
-        return jsonify({"message": "Feedback received"}), 200
+        return jsonify({"message": "Application feedback received"}), 200
     else:
         return jsonify({"error": "Invalid feedback"}), 400
+@main.route('/api/message_feedback', methods=['POST'])
+@login_required
+def submit_message_feedback():
+    data = request.json
+    print("Received feedback data:", data)  # Debug print
+    
+    question_id = data.get('question_id')
+    original_question = data.get('original_question')
+    proposed_answer = data.get('proposed_answer')
+    is_positive = data.get('is_positive')
 
+    if not all([original_question, proposed_answer, is_positive is not None]):
+        print("Invalid feedback data:", data)  # Debug print
+        return jsonify({'error': 'Invalid feedback data'}), 400
+
+    try:
+        feedback_entry = {
+            'user_id': ObjectId(current_user.id),
+            'original_question': original_question,
+            'proposed_answer': proposed_answer,
+            'is_positive': is_positive,
+            'timestamp': datetime.now()
+        }
+        
+        if question_id:
+            feedback_entry['matched_question_id'] = ObjectId(question_id)
+
+        get_answer_feedback_collection().insert_one(feedback_entry)
+        
+        print("Feedback submitted successfully:", feedback_entry)  # Debug print
+        return jsonify({'message': 'Message feedback submitted successfully'}), 200
+    except Exception as e:
+        print("Error submitting feedback:", str(e))  # Debug print
+        current_app.logger.error(f"Error submitting message feedback: {str(e)}")
+        return jsonify({'error': 'An error occurred while submitting message feedback'}), 500
+    
 @main.route('/about')
 def about():
     try:

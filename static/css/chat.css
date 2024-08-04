@@ -80,16 +80,34 @@
 
 .chat-bubble {
     max-width: 80%;
-    padding: 10px;
-    border-radius: 20px;
-    margin-bottom: 10px;
-    word-wrap: break-word;
+    margin-bottom: 15px;
+    padding: 10px 15px;
+    border-radius: 18px;
+    position: relative;
+    clear: both;
 }
 
 .chat-bubble.user {
     background-color: #dcf8c6;
     align-self: flex-end;
 }
+
+.user {
+    background-color: #dcf8c6;
+    float: right;
+    border-bottom-right-radius: 0;
+}
+
+.assistant {
+    background-color: #faf1c9;
+    float: left;
+    border-bottom-left-radius: 0;
+}
+
+.bubble-content {
+    word-wrap: break-word;
+}
+
 
 .chat-bubble.assistant table {
     border-collapse: collapse;
@@ -248,4 +266,39 @@
 
 .autocomplete-active {
     background-color: #e9ecef;
+}
+
+.feedback-icon {
+    border: none;
+    background: none;
+    font-size: 18px;
+    color: #777;
+    opacity: 0.7;
+    transition: opacity 0.3s ease, color 0.3s ease;
+    cursor: pointer;
+    padding: 5px;
+    margin: 0 5px;
+}
+
+.feedback-icon:hover {
+    opacity: 1;
+}
+
+.thumbs-up:hover {
+    color: #4CAF50;
+}
+
+.thumbs-down:hover {
+    color: #F44336;
+}
+
+.feedback-container {
+    display: flex;
+    justify-content: flex-end;
+    margin-top: 5px;
+}
+
+.feedback-text {
+    color: #666;
+    margin-right: 10px;
 }

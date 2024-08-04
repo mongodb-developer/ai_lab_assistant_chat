@@ -17,56 +17,24 @@ import {
     showAnswerQuestionForm,
     deleteQuestion,
     deleteUnansweredQuestion,
-    truncateText,
-    unescapeHTML
+    truncateText
 } from './adminQuestions.js';
 import { 
     fetchAndDisplayStatistics, 
     showStatistics
 } from './adminStatistics.js';
-import { 
-    showConversations, 
-    loadConversations, 
-    updateConversationPagination, 
-    viewConversation, 
-    createConversationModal 
-} from './adminConversations.js';
-import {
-    showEventSettings,
-    fetchEvents,
-    populateEventsTable,
-    showAddEventForm,
-    saveEvent,
-    updateEvent,
-    editEvent,
-    deleteEvent,
-    displayEventMap
-} from './adminEvents.js';
+import * as adminConversations from './adminConversations.js';
+import * as adminEvents from './adminEvents.js';
 import * as adminSources from './adminSources.js';
-
 import {
     showDesignReviews,
     deleteReview,
     showEditReviewModal,
     updateReview
 } from './adminReviews.js';
+import { escapeHTML, showError, unescapeHTML } from './utils.js';
+import * as adminStatistics from './adminStatistics.js';
 
-/**
- * Escapes HTML special characters in a string to prevent XSS attacks.
- *
- * @function
- * @name escapeHtml
- * @param {string} unsafe - The string containing potentially unsafe HTML.
- * @returns {string} The input string with HTML special characters escaped.
- */
-export function escapeHtml(unsafe) {
-    return unsafe
-        .replace(/&/g, "&amp;")
-        .replace(/</g, "&lt;")
-        .replace(/>/g, "&gt;")
-        .replace(/"/g, "&quot;")
-        .replace(/'/g, "&#039;");
-}
 
 
 /**
@@ -112,7 +80,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     case 'showEvents':
                         console.log('Calling showEvents');
-                        adminEvents.showEvents();
+                        adminEvents.showEventSettings();
                         break;
                     case 'showQuestionSources':
                         console.log('Calling showQuestionSources');

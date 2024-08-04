@@ -2,6 +2,8 @@
 
 let currentPage = 1;
 const perPage = 10;
+import { escapeHTML, showError, unescapeHTML } from './utils.js';
+
 const viewConversationsLink = document.getElementById('view-conversations-link');
 if (viewConversationsLink) {
     viewConversationsLink.addEventListener('click', function (e) {

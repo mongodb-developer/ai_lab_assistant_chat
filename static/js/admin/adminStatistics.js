@@ -1,3 +1,4 @@
+import { escapeHTML, showError, unescapeHTML } from './utils.js';
 
 const statisticsTab = document.querySelector('[onclick="showAnswerFeedbackStats()"]');
 if (statisticsTab) {

@@ -9,6 +9,7 @@ import logging
 from app.utils import update_user_login_info
 from .utils import init_db  # Add this import
 from .config import Config
+from flask_wtf.csrf import CSRFProtect
 
 def create_app(config_class=Config):
     app = Flask(__name__,
@@ -19,6 +20,10 @@ def create_app(config_class=Config):
     
     CORS(app, resources={r"/*": {"origins": ["https://lab-assistant.localhost.com", "https://lab-ai-assistant.ue.r.appspot.com"]}}, supports_credentials=True)
     init_db(app)  # Add this line
+    # csrf = CSRFProtect()
+
+    app.config['WTF_CSRF_CHECK_DEFAULT'] = False
+    app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken']
 
     # Configure logging
     logging.basicConfig(level=logging.DEBUG)

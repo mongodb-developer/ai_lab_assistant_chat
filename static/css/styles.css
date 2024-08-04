@@ -530,7 +530,7 @@ body {
 }
 
 /* Feedback container */
-#feedback-container {
+#feedback-container button {
     position: fixed;
     bottom: 0;
     right: 0;
@@ -1002,3 +1002,24 @@ body.chat-page {
 body.chat-page .navbar {
     top: 22px; /* Adjust based on your banner height */
 }
+
+.feedback-icon {
+    border: none;
+    background: none;
+    font-size: 18px; /* Adjust size as needed */
+    color: #777; /* A soft gray color */
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+  }
+  
+  .feedback-icon:hover {
+    opacity: 1;
+  }
+  
+  .thumbs-up:hover {
+    color: #4CAF50; /* Soft green on hover */
+  }
+  
+  .thumbs-down:hover {
+    color: #F44336; /* Soft red on hover */
+  }

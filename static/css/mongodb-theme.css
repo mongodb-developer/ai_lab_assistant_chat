@@ -193,3 +193,53 @@
     background-color: var(--mongodb-gray);
     color: var(--mongodb-dark-blue);
   }
+
+  .mongodb-loader {
+    width: 60px;
+    height: 60px;
+    position: relative;
+    margin: 20px auto;
+}
+
+.mongodb-loader:before,
+.mongodb-loader:after {
+    content: '';
+    position: absolute;
+    background-color: #4DB33D; /* MongoDB green color */
+}
+
+.mongodb-loader:before {
+    width: 80%;
+    height: 80%;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    left: 10%;
+    top: 10%;
+    animation: pulse 1s infinite ease-in-out;
+}
+
+.mongodb-loader:after {
+    width: 40%;
+    height: 40%;
+    border-radius: 50%;
+    background-color: #fff; /* White circle */
+    top: 30%;
+    left: 30%;
+    animation: pulse 1s infinite ease-in-out;
+}
+
+@keyframes pulse {
+    0%, 100% {
+        transform: scale(0.9);
+    }
+    50% {
+        transform: scale(1.1);
+    }
+}
+.loader-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80px;
+    background-color: transparent !important;
+}
