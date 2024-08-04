@@ -49,7 +49,7 @@ export async function fetchQuestions(page = 1) {
         updatePagination(data);
     } catch (error) {
         console.error('Error fetching questions:', error);
-        alert('Failed to fetch questions. Please try again.');
+        showError('Failed to fetch questions. Please try again.');
     }
 }
 /**
@@ -74,27 +74,44 @@ export function populateQuestionsTable(questions) {
 
         const row = document.createElement('tr');
         row.innerHTML = `
-                <td>${escapeHTML(title)}</td>
-                <td>${escapeHTML(truncateText(question.question))}</td>
-                <td>${escapeHTML(summary)}</td>
-                <td>${escapeHTML(answer)}</td>
-                <td class="text-center">
-                    <button class="btn btn-sm btn-outline-primary me-2" 
-                        data-id="${question._id}" 
-                        data-question="${escapeHTML(question.question)}" 
-                        data-title="${escapeHTML(question.title || '')}" 
-                        data-summary="${escapeHTML(question.summary || '')}" 
-                        data-answer="${escapeHTML(question.answer || '')}" 
-                        data-references="${escapeHTML(question.references || '')}" 
-                        onclick="showEditQuestionForm(this)">
-                        <i class="fas fa-edit"></i> Edit
-                    </button>
-                    <button class="btn btn-sm btn-outline-danger" onclick="deleteQuestion('${question._id}')">
-                        <i class="fas fa-trash"></i> Delete
-                    </button>
-                </td>
-            `;
+            <td>${escapeHTML(title)}</td>
+            <td>${escapeHTML(truncateText(question.question))}</td>
+            <td>${escapeHTML(summary)}</td>
+            <td>${escapeHTML(answer)}</td>
+            <td class="text-center">
+                <button class="btn btn-sm btn-outline-primary me-2 edit-question-btn" 
+                    data-id="${question._id}" 
+                    data-question="${escapeHTML(question.question)}" 
+                    data-title="${escapeHTML(question.title || '')}" 
+                    data-summary="${escapeHTML(question.summary || '')}" 
+                    data-answer="${escapeHTML(question.answer || '')}" 
+                    data-references="${escapeHTML(question.references || '')}">
+                    <i class="fas fa-edit"></i> Edit
+                </button>
+                <button class="btn btn-sm btn-outline-danger delete-question-btn" data-id="${question._id}">
+                    <i class="fas fa-trash"></i> Delete
+                </button>
+            </td>
+        `;
         tableBody.appendChild(row);
+    });
+
+    addQuestionTableEventListeners();
+}
+function addQuestionTableEventListeners() {
+    const editButtons = document.querySelectorAll('.edit-question-btn');
+    const deleteButtons = document.querySelectorAll('.delete-question-btn');
+
+    editButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            showEditQuestionForm(this);
+        });
+    });
+
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            deleteQuestion(this.getAttribute('data-id'));
+        });
     });
 }
 
@@ -116,26 +133,41 @@ function updatePagination(data) {
 
     let paginationHTML = '';
     for (let i = 1; i <= totalPages; i++) {
-        paginationHTML += `<li class="page-item ${i === currentPage ? 'active' : ''}">
-                <a class="page-link" href="#" onclick="fetchQuestions(${i}); return false;">${i}</a>
+        paginationHTML += `
+            <li class="page-item ${i === currentPage ? 'active' : ''}">
+                <a class="page-link pagination-link" href="#" data-page="${i}">${i}</a>
             </li>`;
     }
 
     paginationHTML = `
-            <nav aria-label="Questions pagination">
-                <ul class="pagination justify-content-center">
-                    <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
-                        <a class="page-link" href="#" onclick="fetchQuestions(${currentPage - 1}); return false;">Previous</a>
-                    </li>
-                    ${paginationHTML}
-                    <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
-                        <a class="page-link" href="#" onclick="fetchQuestions(${currentPage + 1}); return false;">Next</a>
-                    </li>
-                </ul>
-            </nav>
-        `;
+        <nav aria-label="Questions pagination">
+            <ul class="pagination justify-content-center">
+                <li class="page-item ${currentPage === 1 ? 'disabled' : ''}">
+                    <a class="page-link pagination-link" href="#" data-page="${currentPage - 1}">Previous</a>
+                </li>
+                ${paginationHTML}
+                <li class="page-item ${currentPage === totalPages ? 'disabled' : ''}">
+                    <a class="page-link pagination-link" href="#" data-page="${currentPage + 1}">Next</a>
+                </li>
+            </ul>
+        </nav>
+    `;
 
     paginationElement.innerHTML = paginationHTML;
+    addPaginationEventListeners();
+}
+
+function addPaginationEventListeners() {
+    const paginationLinks = document.querySelectorAll('.pagination-link');
+    paginationLinks.forEach(link => {
+        link.addEventListener('click', function(event) {
+            event.preventDefault();
+            const page = parseInt(this.getAttribute('data-page'));
+            if (!isNaN(page)) {
+                fetchQuestions(page);
+            }
+        });
+    });
 }
 /**
 * Searches for questions based on the input query.
@@ -353,22 +385,41 @@ export function populateUnansweredQuestionsTable(unansweredQuestions) {
             <td>${escapeHTML(questionText)}</td>
             <td>${escapeHTML(userName)}</td>
             <td>
-                <button class="btn btn-sm btn-primary" 
+                <button class="btn btn-sm btn-primary answer-question" 
                     data-id="${question._id}" 
                     data-answer="${question.answer}" 
                     data-title="${question.title}" 
                     data-summary="${question.summary}" 
                     data-references="${question.references}" 
-                    data-question="${escapeHTML(questionText)}" 
-                    onclick="showAnswerQuestionForm(this)">
+                    data-question="${escapeHTML(questionText)}">
                     <i class="fas fa-edit"></i> Answer
                 </button>
-                <button class="btn btn-sm btn-danger" onclick="deleteUnansweredQuestion('${question._id}')">
+                <button class="btn btn-sm btn-danger delete-unanswered-question" data-id="${question._id}">
                     <i class="fas fa-trash"></i> Delete
                 </button>
             </td>
         `;
         tableBody.appendChild(row);
+    });
+
+    // Add event listeners after populating the table
+    addUnansweredQuestionEventListeners();
+}
+
+function addUnansweredQuestionEventListeners() {
+    const answerButtons = document.querySelectorAll('.answer-question');
+    const deleteButtons = document.querySelectorAll('.delete-unanswered-question');
+
+    answerButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            showAnswerQuestionForm(this);
+        });
+    });
+
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            deleteUnansweredQuestion(this.getAttribute('data-id'));
+        });
     });
 }
 /**
@@ -431,7 +482,6 @@ export async function showEditQuestionForm(button) {
     let answer = button.getAttribute('data-answer');
     let references = button.getAttribute('data-references');
 
-
     // If we don't have all the data, fetch it
     if (!title || !summary || !answer || !references) {
         try {
@@ -447,7 +497,7 @@ export async function showEditQuestionForm(button) {
             references = data.references;
         } catch (error) {
             console.error('Error fetching question details:', error);
-            alert('Failed to fetch question details. Please try again.');
+            showError('Failed to fetch question details. Please try again.');
             return;
         }
     }
@@ -456,7 +506,7 @@ export async function showEditQuestionForm(button) {
     document.getElementById('question-input').value = question || '';
     document.getElementById('title-input').value = title || '';
     document.getElementById('summary-input').value = summary || '';
-    document.getElementById('answer-input').value = answer || '';  // Changed from mainAnswer
+    document.getElementById('answer-input').value = answer || '';
     document.getElementById('references-input').value = references || '';
 
     const form = document.getElementById('question-form');
