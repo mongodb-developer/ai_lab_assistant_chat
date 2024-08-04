@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
                         break;
                     case 'showDesignReviews':
                         console.log('Calling showDesignReviews');
-                        adminReviews.showDesignReviews();
+                        showDesignReviews();
                         break;
                     default:
                         console.error('Unknown action:', action);
