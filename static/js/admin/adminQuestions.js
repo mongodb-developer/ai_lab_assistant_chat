@@ -217,8 +217,8 @@ export function showUnansweredQuestions() {
     content.innerHTML = `
         <div id="unanswered-questions-content">
             <h2>Unanswered Questions</h2>
-            <div class="table-responsive">
-                <table class="table table">
+                <div class="table-responsive mt-3">
+                <table class="table table-bordered table-striped">
                     <thead>
                         <tr>
                             <th>Question</th>
@@ -787,7 +787,9 @@ searchButton.addEventListener('click', function () {
             if (data.error) {
                 searchResults.innerHTML = `<p class="text-danger">${data.error}</p>`;
             } else {
-                let resultsHtml = '<table class="table"><thead><tr><th>Question</th><th>Title</th><th>Answer Preview</th><th>Score</th></tr></thead><tbody>';
+
+
+                let resultsHtml = '<div class="table-responsive mt-3"><table class="table table-bordered table-striped"><thead><tr><th>Question</th><th>Title</th><th>Answer Preview</th><th>Score</th></tr></thead><tbody>';
                 data.forEach(item => {
                     resultsHtml += `
                             <tr>
@@ -798,7 +800,7 @@ searchButton.addEventListener('click', function () {
                             </tr>
                         `;
                 });
-                resultsHtml += '</tbody></table>';
+                resultsHtml += '</tbody></table></div>';
                 searchResults.innerHTML = resultsHtml;
             }
         })

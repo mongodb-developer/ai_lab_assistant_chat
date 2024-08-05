@@ -18,7 +18,7 @@ export function showQuestionSources() {
     const questionSourcesContainer = document.createElement('div');
     questionSourcesContainer.id = 'question-sources';
     questionSourcesContainer.innerHTML = `
-            <h2>Add Questions from Sources</h2>
+        <h2>Add Questions from Sources</h2>
 
         <div class="alert alert-info" role="alert">
                 <p>This feature allows you to easily import questions and answers from various sources, enhancing your knowledge base efficiently.</p>

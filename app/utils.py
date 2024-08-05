@@ -398,6 +398,8 @@ def get_documents_collection():
     return get_collection('documents')
 
 def store_message(user_id, message, sender, conversation_id=None):
+    current_app.logger.debug(f"Storing message for user {user_id}, sender {sender}, conversation_id {conversation_id}")
+
     if not conversation_id:
         conversation_id = get_or_create_conversation(user_id)
     
@@ -425,24 +427,32 @@ def store_message(user_id, message, sender, conversation_id=None):
         # Assuming current_user.name is available
         update_data['$set']['user_name'] = current_user.name
     
-    get_conversation_collection().update_one(
+    result = get_conversation_collection().update_one(
         {'_id': ObjectId(conversation_id)},
         update_data
     )
+    current_app.logger.debug(f"Update result: matched={result.matched_count}, modified={result.modified_count}")
     
     update_conversation_context(conversation_id)
     
     return conversation_id
 
-def get_or_create_conversation(user_id):
-    active_conversation = get_conversation_collection().find_one(
+def get_active_conversation(user_id):
+    conversation_collection = get_conversation_collection()
+    return conversation_collection.find_one(
         {'user_id': user_id, 'status': 'active'},
         sort=[('last_updated', -1)]
     )
-    
-    if active_conversation:
-        return str(active_conversation['_id'])
-    
+
+
+def close_active_conversations(user_id):
+    get_conversation_collection().update_many(
+        {'user_id': user_id, 'status': 'active'},
+        {'$set': {'status': 'closed', 'closed_at': datetime.now()}}
+    )
+
+def create_new_conversation(user_id):
+    close_active_conversations(user_id)
     new_conversation = {
         'user_id': user_id,
         'title': 'New Conversation',
@@ -462,9 +472,31 @@ def get_or_create_conversation(user_id):
         'created_at': datetime.utcnow(),
         'last_updated': datetime.utcnow()
     }
-    
     result = get_conversation_collection().insert_one(new_conversation)
     return str(result.inserted_id)
+
+def get_or_create_conversation(user_id):
+    current_app.logger.debug(f"Getting or creating conversation for user {user_id}")
+    
+    # Check for an active conversation
+    active_conversation = get_conversation_collection().find_one(
+        {'user_id': user_id, 'status': 'active'},
+        sort=[('last_updated', -1)]
+    )
+    
+    if active_conversation:
+        current_app.logger.debug(f"Found active conversation: {active_conversation['_id']}")
+        # Check if the conversation has messages
+        if active_conversation.get('messages', []):
+            current_app.logger.debug("Active conversation has messages. Creating a new one.")
+            # If it has messages, create a new conversation
+            return create_new_conversation(user_id)
+        else:
+            current_app.logger.debug("Active conversation has no messages. Using it.")
+            return str(active_conversation['_id'])
+    else:
+        current_app.logger.debug("No active conversation found. Creating a new one.")
+        return create_new_conversation(user_id)
 
 def extract_topics(text, top_n=5):
     # Tokenize the text

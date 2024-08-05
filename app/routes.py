@@ -14,7 +14,7 @@ from .question_generator import process_content, save_to_mongodb, fetch_content_
 import requests
 from werkzeug.utils import secure_filename
 import pytz
-from app.utils import get_collection, get_or_create_conversation, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity
+from app.utils import get_collection, get_or_create_conversation, create_new_conversation, close_active_conversations, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity
 from bson.son import SON
 import openai
 import PyPDF2
@@ -35,6 +35,7 @@ from app.utils import (
     get_conversation_messages,
     get_conversation_context,
     generate_potential_answer_v2,
+    get_active_conversation,
     start_new_conversation,  # Ensure this is imported
     add_unanswered_question,  # Ensure this is imported
     is_event_related_question,
@@ -44,8 +45,6 @@ from app.utils import (
     update_user_login_info
 )
 from werkzeug.exceptions import HTTPException
-
-
 
 main = Blueprint('main', __name__)
 
@@ -81,17 +80,26 @@ SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is floa
 
 @main.route('/')
 def home():
-    return render_template('home.html')
+    try:
+        current_app.logger.debug("Entering home route")
+        return render_template('home.html')
+    except Exception as e:
+        current_app.logger.error(f"Error in home route: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return "An error occurred", 500
 
 @main.route('/chat')
-def chat_view():
+@login_required
+def chat():
+    current_app.logger.debug(f"Request received for chat route")
+
     return render_template('chat.html')
 
 # Route: Index
 # Description: Renders the main page of the application
 # Parameters: None
 # Returns: Rendered index.html template
-@main.route('/old')
+@main.route('/')
 def index():
     current_app.logger.debug("Starting index route")
     
@@ -137,20 +145,20 @@ def index():
         current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"error": "An internal error occurred"}), 500
 
-# Route: Chat
-# Description: Renders the chat page of the application
-# Parameters: None
-# Returns: Rendered index.html template with is_chat=True
-@main.route('/chat')
-@login_required
-def chat():
-    try:
-        current_app.logger.debug(f"Request received for chat route")
+# # Route: Chat
+# # Description: Renders the chat page of the application
+# # Parameters: None
+# # Returns: Rendered index.html template with is_chat=True
+# @main.route('/chat')
+# @login_required
+# def chat():
+#     try:
+#         current_app.logger.debug(f"Request received for chat route")
         
-        return render_template('index.html', is_chat=True)
-    except Exception as e:
-        current_app.logger.error(f"Error in chat route: {str(e)}")
-        return jsonify({"error": "An internal error occurred"}), 500
+#         return render_template('index.html', is_chat=True)
+#     except Exception as e:
+#         current_app.logger.error(f"Error in chat route: {str(e)}")
+#         return jsonify({"error": "An internal error occurred"}), 500
     
 @main.route('/api/chat', methods=['POST'])
 @login_required
@@ -166,16 +174,22 @@ def chat_api():
             raise ValueError("Missing 'question' in request payload")
 
         user_question = request.json['question']
-        selected_module = request.json.get('module', '')  # Get the selected module, default to empty string if not provided
+        selected_module = request.json.get('module', '')
+        force_new_conversation = request.json.get('force_new_conversation', False)
+        
         logging.info(f"Searching for similar questions to: {user_question}")
         user_id = current_user.get_id()
         user_name = current_user.name
 
-        # Generate a title for the conversation
-        title = user_question[:50]
-
-        # Start a new conversation if no active conversation exists
-        conversation_id = get_or_create_conversation(user_id)
+        # Check for active conversation or create a new one
+        active_conversation = get_active_conversation(user_id)
+        
+        if force_new_conversation or not active_conversation:
+            conversation_id = create_new_conversation(user_id)
+            logging.info(f"Created new conversation: {conversation_id}")
+        else:
+            conversation_id = str(active_conversation['_id'])
+            logging.info(f"Using existing conversation: {conversation_id}")
 
         store_message(user_id, user_question, 'User', conversation_id)
 
@@ -231,6 +245,8 @@ def chat_api():
             add_unanswered_question(user_id, user_name, user_question, response_data, selected_module)
 
         store_message(user_id, response_message, 'Assistant', conversation_id)
+        
+        response_data['conversation_id'] = conversation_id
         return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
     except ValueError as e:
         logger.error(f"Value error in chat route: {str(e)}")
@@ -241,6 +257,7 @@ def chat_api():
         debug_info['error'] = str(e)
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
+
 # Route: Get Questions
 # Description: Retrieves all questions from the database
 # Parameters: None
