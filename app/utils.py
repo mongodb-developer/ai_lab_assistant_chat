@@ -229,8 +229,23 @@ from bson import ObjectId
 # def search_similar_questions(db, question_embedding, query_text=None, similarity_threshold=0.8):
 @with_db_connection
 def search_similar_questions(db, question_embedding, user_question, module, similarity_threshold=SIMILARITY_THRESHOLD):
+    # Step 1: Try exact match (case-insensitive)
+    exact_match_query = {
+        "question": {"$regex": f"^{re.escape(user_question)}$", "$options": "i"}
+    }
+    # if module:
+    #     exact_match_query["module"] = module
 
-    pipeline = [
+    exact_matches = list(get_documents_collection().find(exact_match_query))
+
+    if exact_matches:
+        for match in exact_matches:
+            match['exact_match'] = True
+            match['combined_score'] = 1.0  # Highest possible score
+        return exact_matches[:5]  # Return up to 5 exact matches
+
+    # Step 2: If no exact match, try vector search
+    vector_search_stage = [
         {
             '$vectorSearch': {
                 'index': 'question_index',
@@ -247,71 +262,58 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
                 'title': 1,
                 'summary': 1,
                 'references': 1,
-                'vector_score': {'$meta': 'vectorSearchScore'}
+                'vector_score': {'$meta': 'vectorSearchScore'},
             }
         }
     ]
+    # if module:
+    #     vector_search_stage.insert(1, {'$match': {'module': module}})
 
+    vector_results = list(get_documents_collection().aggregate(vector_search_stage))
 
-    if module:
-        pipeline.insert(1, {
-            '$match': {
-                'module': module
-            }
-        })
-    
-    vector_results = list(get_documents_collection().aggregate(pipeline))
-    
-    # Text search stage
-    text_search_stage = [
-        {
-            '$search': {
-                'index': 'default',
-                'text': {
-                    'query': user_question,
-                    'path': {
-                        'wildcard': '*'
-                    },
-                    'fuzzy': {
-                        'maxEdits': 2
+    # Step 3: If vector search doesn't yield good results, try text search
+    if not vector_results or vector_results[0]['vector_score'] < similarity_threshold:
+        text_search_stage = [
+            {
+                '$search': {
+                    'index': 'default',
+                    'text': {
+                        'query': user_question,
+                        'path': 'question',
+                        'fuzzy': {'maxEdits': 2}
                     }
                 }
+            },
+            {
+                '$project': {
+                    'question': 1,
+                    'answer': 1,
+                    'title': 1,
+                    'summary': 1,
+                    'references': 1,
+                    'text_score': {'$meta': 'searchScore'},
+                }
             }
-        },
-        {
-            '$project': {
-                'question': 1,
-                'answer': 1,
-                'title': 1,
-                'summary': 1,
-                'references': 1,
-                'text_score': {'$meta': 'searchScore'}
-            }
-        }
-    ]
-    
-    if module:
-        text_search_stage.insert(1, {
-            '$match': {
-                'module': module
-            }
-        })
-    text_results = list(get_documents_collection().aggregate(text_search_stage))
+        ]
+        # if module:
+        #     text_search_stage.insert(1, {'$match': {'module': module}})
 
-    # Combine results
-    all_results = vector_results + text_results
+        text_results = list(get_documents_collection().aggregate(text_search_stage))
+        
+        # Combine vector and text results
+        all_results = vector_results + text_results
+        for result in all_results:
+            result['combined_score'] = result.get('vector_score', 0) * 0.7 + result.get('text_score', 0) * 0.3
+    else:
+        all_results = vector_results
+        for result in all_results:
+            result['combined_score'] = result['vector_score']
 
-    # Process and combine scores
-    for result in all_results:
-        result['vector_score'] = result.get('vector_score', 0)
-        result['text_score'] = result.get('text_score', 0)
-        result['combined_score'] = 0.7 * result['vector_score'] + 0.3 * result['text_score']
+    # Filter and sort results
+    filtered_results = [r for r in all_results if r['combined_score'] >= similarity_threshold]
+    sorted_results = sorted(filtered_results, key=lambda x: x['combined_score'], reverse=True)
 
-    # Sort and filter results
-    sorted_results = sorted(all_results, key=lambda x: x['combined_score'], reverse=True)
-    filtered_results = [r for r in sorted_results if r['combined_score'] >= similarity_threshold]
-
-    return filtered_results[:5]  # Return top 5 results
+    return sorted_results[:5]
 
 
 @with_db_connection

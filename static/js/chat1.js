@@ -267,6 +267,7 @@
             appendMessage('User', message);
             userInput.value = '';
             var bsDropdown = bootstrap.Dropdown.getInstance(bsDropdown);
+            console.log("dropdown: ", bsDropdown)
             if (bsDropdown) {
                 bsDropdown.hide();
             }
