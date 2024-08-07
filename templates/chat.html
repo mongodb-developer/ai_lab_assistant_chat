@@ -27,23 +27,29 @@
                 <div class="d-flex align-items-center w-100">
                     <!-- In chat.html -->
                     <div class="dropdown me-2">
-                        <button class="btn btn-secondary dropdown-toggle" type="button" id="moduleDropdown" data-bs-toggle="dropdown" aria-expanded="false">
-                        Select a Module
+                        <button class="btn btn-secondary dropdown-toggle" type="button" id="moduleDropdown"
+                            data-bs-toggle="dropdown" aria-expanded="false">
+                            Select a Module
                         </button>
                         <ul class="dropdown-menu" aria-labelledby="moduleDropdown">
-                        <li><a class="dropdown-item" href="#" data-value="Atlas Setup">Atlas Setup</a></li>
-                        <li><a class="dropdown-item" href="#" data-value="Data Modeling">Data Modeling</a></li>
-                        <li><a class="dropdown-item" href="#" data-value="Aggregation Framework">Aggregation Framework</a></li>
-                        <li><a class="dropdown-item" href="#" data-value="Atlas Search">Atlas Search</a></li>
-                        <li><a class="dropdown-item" href="#" data-value="Atlas Vector Search">Atlas Vector Search</a></li>
-                        <li><a class="dropdown-item" href="#" data-value="AI / RAG">AI / RAG</a></li>
-                        <li><a class="dropdown-item" href="#" data-value="Library Management Application">Library Management Application</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="Atlas Setup">Atlas Setup</a></li>
+
+                            <li><a class="dropdown-item" href="#" data-value="Data Modeling">Data Modeling</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="Aggregation Framework">Aggregation
+                                    Framework</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="Atlas Search">Atlas Search</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="Atlas Vector Search">Atlas Vector
+                                    Search</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="AI / RAG">AI / RAG</a></li>
+                            <li><a class="dropdown-item" href="#" data-value="Library Management Application">Library
+                                    Management Application</a></li>
                         </ul>
                     </div>
                     <div class="autocomplete-wrapper">
                         <div id="autocomplete-dropdown" class="autocomplete-dropdown" style="display: none;"></div>
                     </div>
-                    <input type="text" id="user-input" class="form-control me-2" placeholder="Type your question here..." aria-label="Text input with dropdown button">
+                    <input type="text" id="user-input" class="form-control me-2"
+                        placeholder="Type your question here..." aria-label="Text input with dropdown button">
                     <button id="send-button" class="btn btn-primary">Send</button>
                 </div>
             </div>
@@ -54,20 +60,23 @@
 <div class="modal fade" id="calendlyModal" tabindex="-1" aria-labelledby="calendlyModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
-        <div class="modal-header">
-            <h5 class="modal-title" id="calendlyModalLabel">Book a Developer Design Review</h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-        <div class="modal-body">
-            <!-- Calendly inline widget begin -->
-            <div class="calendly-inline-widget" data-url="https://docs.google.com/forms/d/1ZtBnW2BE5DTQDJ7hpirikPe4yqTD_ELTuTOhPy134-U/viewform?edit_requested=true" style="min-width:320px;height:700px;"></div>
-            <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
-            <!-- Calendly inline widget end -->
-        </div>
+            <div class="modal-header">
+                <h5 class="modal-title" id="calendlyModalLabel">Book a Developer Design Review</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <!-- Calendly inline widget begin -->
+                <div class="calendly-inline-widget"
+                    data-url="https://docs.google.com/forms/d/1ZtBnW2BE5DTQDJ7hpirikPe4yqTD_ELTuTOhPy134-U/viewform?edit_requested=true"
+                    style="min-width:320px;height:700px;"></div>
+                <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js"
+                    async></script>
+                <!-- Calendly inline widget end -->
+            </div>
         </div>
     </div>
-    </div>
-  
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
@@ -83,10 +92,10 @@
         bookReviewBtn.addEventListener('click', function () {
             calendlyModal.show();
         });
-        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
-        var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
-        return new bootstrap.Dropdown(dropdownToggleEl)
-        })
+        // var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
+        // var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+        //     return new bootstrap.Dropdown(dropdownToggleEl)
+        // })
     });
 </script>
 {% endblock %}

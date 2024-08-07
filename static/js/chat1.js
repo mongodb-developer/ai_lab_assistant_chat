@@ -29,43 +29,37 @@
             hideAutocompleteDropdown();
         }
 
-        var dropdown = document.getElementById('moduleDropdown');
-        var dropdownMenu = dropdown.nextElementSibling;
-        var dropdownItems = document.querySelectorAll('.dropdown-menu .dropdown-item');
-    
-        console.log("Dropdown items found:", dropdownItems.length);
-    
-        dropdown.addEventListener('click', function(event) {
+        var dropdownToggle = document.querySelector('#moduleDropdown');
+        var dropdownMenu = document.querySelector('.dropdown-menu');
+        var dropdownItems = document.querySelectorAll('.dropdown-item');
+        console.log("Dropdown toggle found:", !!dropdownToggle);
+        console.log("Dropdown menu found:", !!dropdownMenu);
+        console.log("Number of dropdown items:", dropdownItems.length);
+        
+        if (!dropdownToggle || !dropdownMenu) {
+            console.error("Dropdown elements not found!");
+            return;
+        }
+
+        dropdownToggle.addEventListener('click', function(event) {
+            console.log("Dropdown toggle clicked");
             event.stopPropagation();
-            var bsDropdown = bootstrap.Dropdown.getInstance(dropdown);
-            if (bsDropdown) {
-                bsDropdown.toggle();
-            } else {
-                bsDropdown = new bootstrap.Dropdown(dropdown);
-                bsDropdown.toggle();
-            }
-            console.log("Dropdown toggled");
+            dropdownMenu.classList.toggle('show');
         });
 
         dropdownItems.forEach(function(item) {
             item.addEventListener('click', function(event) {
+                console.log("Dropdown item clicked:", this.textContent);
                 event.preventDefault();
                 event.stopPropagation();
-                console.log("Dropdown item clicked:", this.textContent);
-                dropdown.textContent = this.textContent;
-                var bsDropdown = bootstrap.Dropdown.getInstance(dropdown);
-                if (bsDropdown) {
-                    bsDropdown.hide();
-                }
+                dropdownToggle.textContent = this.textContent;
+                dropdownMenu.classList.remove('show');
             });
         });
     
         document.addEventListener('click', function(event) {
-            if (!dropdown.contains(event.target)) {
-                var bsDropdown = bootstrap.Dropdown.getInstance(dropdown);
-                if (bsDropdown) {
-                    bsDropdown.hide();
-                }
+            if (!dropdownMenu.contains(event.target) && !dropdownToggle.contains(event.target)) {
+                dropdownMenu.classList.remove('show');
             }
         });
 
@@ -73,7 +67,7 @@
         // const userInput = document.getElementById('user-input');
         if (userInput) {
             userInput.addEventListener('focus', function() {
-                var bsDropdown = bootstrap.Dropdown.getInstance(dropdown);
+                var bsDropdown = bootstrap.Dropdown.getInstance(dropdownMenu);
                 if (bsDropdown) {
                     bsDropdown.hide();
                 }
