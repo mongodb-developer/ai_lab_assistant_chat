@@ -50,10 +50,43 @@
         </div>
     </div>
 </div>
+<!-- Modal for Calendly Widget -->
+<div class="modal fade" id="calendlyModal" tabindex="-1" aria-labelledby="calendlyModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+        <div class="modal-header">
+            <h5 class="modal-title" id="calendlyModalLabel">Book a Developer Design Review</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+        <div class="modal-body">
+            <!-- Calendly inline widget begin -->
+            <div class="calendly-inline-widget" data-url="https://docs.google.com/forms/d/1ZtBnW2BE5DTQDJ7hpirikPe4yqTD_ELTuTOhPy134-U/viewform?edit_requested=true" style="min-width:320px;height:700px;"></div>
+            <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js" async></script>
+            <!-- Calendly inline widget end -->
+        </div>
+        </div>
+    </div>
+    </div>
+  
 {% endblock %}
 {% block scripts %}
+<script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/chat1.js') }}"></script>
 <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.2/jquery-ui.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var bookReviewBtn = document.getElementById('book-review-btn');
+        var calendlyModal = new bootstrap.Modal(document.getElementById('calendlyModal'));
 
+        bookReviewBtn.addEventListener('click', function () {
+            calendlyModal.show();
+        });
+        var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
+        var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
+        return new bootstrap.Dropdown(dropdownToggleEl)
+        })
+    });
+</script>
 {% endblock %}

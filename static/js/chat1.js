@@ -95,7 +95,44 @@
         } else {
             console.error('User input or send button not found');
         }
-    });
+
+        var calendlyModalElement = document.getElementById('calendlyModal');
+        var bookReviewBtn = document.getElementById('book-review-btn');
+        var reviewBanner = document.getElementById('review-banner');
+
+        if (calendlyModalElement && bookReviewBtn && reviewBanner) {
+            // We're on the chat page, set up the banner behavior
+            document.body.classList.add('chat-page');
+
+            var calendlyModal = new bootstrap.Modal(calendlyModalElement);
+
+            // Show/hide banner on scroll
+            let lastScrollTop = 0;
+            window.addEventListener('scroll', function () {
+                let scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+                if (scrollTop > lastScrollTop) {
+                    reviewBanner.classList.add('hidden');
+                } else {
+                    reviewBanner.classList.remove('hidden');
+                }
+                lastScrollTop = scrollTop <= 0 ? 0 : scrollTop;
+            }, false);
+
+            // Open Calendly modal when "Book Now" is clicked
+            bookReviewBtn.addEventListener('click', function () {
+                calendlyModal.show();
+            });
+
+            // Existing modal event listener
+            calendlyModalElement.addEventListener('hidden.bs.modal', function () {
+                document.body.classList.remove('modal-open');
+                var modalBackdrop = document.querySelector('.modal-backdrop');
+                if (modalBackdrop) {
+                    modalBackdrop.remove();
+                }
+            });
+        }
+        });
 
     async function getCurrentUserId() {
         try {
