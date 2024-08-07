@@ -229,22 +229,25 @@ from bson import ObjectId
 # def search_similar_questions(db, question_embedding, query_text=None, similarity_threshold=0.8):
 @with_db_connection
 def search_similar_questions(db, question_embedding, user_question, module, similarity_threshold=SIMILARITY_THRESHOLD):
-    # Step 1: Try exact match (case-insensitive)
-    exact_match_query = {
-        "question": {"$regex": f"^{re.escape(user_question)}$", "$options": "i"}
-    }
-    # if module:
-    #     exact_match_query["module"] = module
+    user_question_lower = user_question.lower()
 
+    # Exact match stage (unchanged)
+    exact_match_query = {
+        "question": {"$regex": f"^{re.escape(user_question_lower)}$", "$options": "i"}
+    }
     exact_matches = list(get_documents_collection().find(exact_match_query))
 
     if exact_matches:
         for match in exact_matches:
             match['exact_match'] = True
-            match['combined_score'] = 1.0  # Highest possible score
-        return exact_matches[:5]  # Return up to 5 exact matches
+            match['combined_score'] = 1000
+        return exact_matches[:5], {
+            "exact_match_query": exact_match_query,
+            "exact_matches_count": len(exact_matches),
+            "search_type": "exact_match"
+        }
 
-    # Step 2: If no exact match, try vector search
+    # Vector search stage with workshop content boosting
     vector_search_stage = [
         {
             '$vectorSearch': {
@@ -252,7 +255,7 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
                 'path': 'question_embedding',
                 'queryVector': question_embedding,
                 'numCandidates': 100,
-                'limit': 10
+                'limit': 20  # Increased limit to get more potential matches
             }
         },
         {
@@ -262,58 +265,114 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
                 'title': 1,
                 'summary': 1,
                 'references': 1,
+                'module': 1,
+                'is_workshop_content': 1,  # New field to indicate workshop content
                 'vector_score': {'$meta': 'vectorSearchScore'},
             }
-        }
-    ]
-    # if module:
-    #     vector_search_stage.insert(1, {'$match': {'module': module}})
-
-    vector_results = list(get_documents_collection().aggregate(vector_search_stage))
-
-    # Step 3: If vector search doesn't yield good results, try text search
-    if not vector_results or vector_results[0]['vector_score'] < similarity_threshold:
-        text_search_stage = [
-            {
-                '$search': {
-                    'index': 'default',
-                    'text': {
-                        'query': user_question,
-                        'path': 'question',
-                        'fuzzy': {'maxEdits': 2}
-                    }
-                }
-            },
-            {
-                '$project': {
-                    'question': 1,
-                    'answer': 1,
-                    'title': 1,
-                    'summary': 1,
-                    'references': 1,
-                    'text_score': {'$meta': 'searchScore'},
+        },
+        {
+            '$addFields': {
+                'boosted_score': {
+                    '$cond': [
+                        {'$eq': ['$is_workshop_content', True]},
+                        {'$multiply': ['$vector_score', 1.5]},  # Boost workshop content
+                        '$vector_score'
+                    ]
                 }
             }
-        ]
-        # if module:
-        #     text_search_stage.insert(1, {'$match': {'module': module}})
+        },
+        {'$sort': {'boosted_score': -1}}
+    ]
 
-        text_results = list(get_documents_collection().aggregate(text_search_stage))
-        
-        # Combine vector and text results
-        all_results = vector_results + text_results
-        for result in all_results:
-            result['combined_score'] = result.get('vector_score', 0) * 0.7 + result.get('text_score', 0) * 0.3
-    else:
-        all_results = vector_results
-        for result in all_results:
-            result['combined_score'] = result['vector_score']
+    # Text search stage with workshop content boosting
+    text_search_stage = [
+        {
+            '$search': {
+                'index': 'default',
+                'compound': {
+                    'must': [{
+                        'text': {
+                            'query': user_question_lower,
+                            'path': 'question',
+                            'fuzzy': {'maxEdits': 2}
+                        }
+                    }],
+                    'should': [{
+                        'text': {
+                            'query': user_question_lower,
+                            'path': 'workshop_keywords',  # New field for workshop-specific keywords
+                            'score': {'boost': {'value': 2}}  # Boost matches in workshop keywords
+                        }
+                    }]
+                }
+            }
+        },
+        {
+            '$project': {
+                'question': 1,
+                'answer': 1,
+                'title': 1,
+                'summary': 1,
+                'references': 1,
+                'module': 1,
+                'is_workshop_content': 1,
+                'text_score': {'$meta': 'searchScore'},
+            }
+        },
+        {
+            '$addFields': {
+                'boosted_score': {
+                    '$cond': [
+                        {'$eq': ['$is_workshop_content', True]},
+                        {'$multiply': ['$text_score', 1.5]},  # Boost workshop content
+                        '$text_score'
+                    ]
+                }
+            }
+        },
+        {'$sort': {'boosted_score': -1}}
+    ]
 
-    # Filter and sort results
-    filtered_results = [r for r in all_results if r['combined_score'] >= similarity_threshold]
-    sorted_results = sorted(filtered_results, key=lambda x: x['combined_score'], reverse=True)
+    # Apply module filter if specified
+    if module and module.lower() != "select a module":
+        module_filter = {'$match': {'module': module}}
+        vector_search_stage.insert(1, module_filter)
+        text_search_stage.insert(1, module_filter)
 
-    return sorted_results[:5]
+    vector_results = list(get_documents_collection().aggregate(vector_search_stage))
+    text_results = list(get_documents_collection().aggregate(text_search_stage))
+
+    # Combine and process results
+    all_results = vector_results + text_results
+    for result in all_results:
+        result['combined_score'] = (result.get('boosted_score', 0) * 2 + 
+                                    result.get('vector_score', 0) * 0.7 + 
+                                    result.get('text_score', 0) * 0.3)
+
+    # Remove duplicates and sort
+    seen_questions = set()
+    unique_results = []
+    for result in sorted(all_results, key=lambda x: x['combined_score'], reverse=True):
+        if result['question'].lower() not in seen_questions:
+            seen_questions.add(result['question'].lower())
+            unique_results.append(result)
+
+    # Filter results
+    filtered_results = [r for r in unique_results if r['combined_score'] >= similarity_threshold]
+
+    debug_info = {
+        "vector_results_count": len(vector_results),
+        "text_results_count": len(text_results),
+        "all_results_count": len(all_results),
+        "unique_results_count": len(unique_results),
+        "filtered_results_count": len(filtered_results),
+        "top_5_scores": [r['combined_score'] for r in filtered_results[:5]],
+        "search_type": "vector_and_text_with_boosting",
+        "module_filter_applied": bool(module and module.lower() != "select a module")
+    }
+
+    return filtered_results[:5], debug_info
+
 
 
 @with_db_connection

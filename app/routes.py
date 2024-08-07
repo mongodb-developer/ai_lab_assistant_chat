@@ -198,7 +198,8 @@ def chat_api():
         debug_info['embedding'] = embed_debug
 
         # Search for similar questions with module consideration
-        similar_questions = search_similar_questions(question_embedding, user_question, selected_module)
+        # similar_questions = search_similar_questions(question_embedding, user_question, selected_module)
+        similar_questions, debug_info = search_similar_questions(question_embedding, user_question, selected_module)
 
         logging.info(f"Found {len(similar_questions)} similar questions")
 
@@ -217,7 +218,9 @@ def chat_api():
                     'summary': best_match.get('summary', ''),
                     'references': best_match.get('references', ''),
                     'source': 'database',
-                    'match_score': round(best_match['combined_score'], 4)
+                    'match_score': round(best_match['combined_score'], 4),
+                    "debug_info": debug_info
+
                 }
             else:
                 logging.info("Best match didn't pass relevance check. Generating new answer.")
@@ -228,7 +231,9 @@ def chat_api():
                     'title': response_message.get('title', ''),
                     'summary': response_message.get('summary', ''),
                     'references': response_message.get('references', ''),
-                    'source': 'LLM'
+                    'source': 'LLM',
+                    "debug_info": debug_info
+
                 }
                 add_unanswered_question(user_id, user_name, user_question, response_data, selected_module)
         else:
@@ -240,7 +245,9 @@ def chat_api():
                 'title': response_message.get('title', ''),
                 'summary': response_message.get('summary', ''),
                 'references': response_message.get('references', ''),
-                'source': 'LLM'
+                'source': 'LLM',
+                "debug_info": debug_info
+
             }
             add_unanswered_question(user_id, user_name, user_question, response_data, selected_module)
 

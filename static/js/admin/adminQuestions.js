@@ -71,6 +71,7 @@ export function populateQuestionsTable(questions) {
         const title = truncateText(question.title || 'No title provided');
         const summary = truncateText(question.summary || 'No summary provided');
         const answer = truncateText(question.answer || question.main_answer || 'No answer provided');
+        const module = truncateText(question.module || 'N/A');
 
         const row = document.createElement('tr');
         row.innerHTML = `
@@ -78,6 +79,7 @@ export function populateQuestionsTable(questions) {
             <td>${escapeHTML(truncateText(question.question))}</td>
             <td>${escapeHTML(summary)}</td>
             <td>${escapeHTML(answer)}</td>
+            <td>${escapeHTML(module)}</td>
             <td class="text-center">
                 <button class="btn btn-sm btn-outline-primary me-2 edit-question-btn" 
                     data-id="${question._id}" 
@@ -85,7 +87,9 @@ export function populateQuestionsTable(questions) {
                     data-title="${escapeHTML(question.title || '')}" 
                     data-summary="${escapeHTML(question.summary || '')}" 
                     data-answer="${escapeHTML(question.answer || '')}" 
-                    data-references="${escapeHTML(question.references || '')}">
+                    data-references="${escapeHTML(question.references || '')}"
+                    data-is-workshop-content="${question.is_workshop_content}"
+                    data-workshop-keywords="${escapeHTML(question.workshop_keywords || '')}">
                     <i class="fas fa-edit"></i> Edit
                 </button>
                 <button class="btn btn-sm btn-outline-danger delete-question-btn" data-id="${question._id}">
@@ -257,6 +261,7 @@ export function showQuestions() {
                             <th>Question</th>
                             <th>Summary</th>
                             <th>Answer</th>
+                            <th>Module</th>
                             <th>Actions</th>
                         </tr>
                     </thead>
@@ -481,9 +486,12 @@ export async function showEditQuestionForm(button) {
     let summary = button.getAttribute('data-summary');
     let answer = button.getAttribute('data-answer');
     let references = button.getAttribute('data-references');
+    let isWorkshopContent = button.getAttribute('data-is-workshop-content') === 'true';
+    let workshopKeywords = button.getAttribute('data-workshop-keywords');
+
 
     // If we don't have all the data, fetch it
-    if (!title || !summary || !answer || !references) {
+    if (!title || !summary || !answer || !references || isWorkshopContent === undefined || !workshopKeywords) {
         try {
             const response = await fetch(`/api/questions/${id}`);
             if (!response.ok) {
@@ -495,6 +503,8 @@ export async function showEditQuestionForm(button) {
             summary = data.summary;
             answer = data.answer;
             references = data.references;
+            isWorkshopContent = data.is_workshop_content;
+            workshopKeywords = data.workshop_keywords;
         } catch (error) {
             console.error('Error fetching question details:', error);
             showError('Failed to fetch question details. Please try again.');
@@ -508,6 +518,9 @@ export async function showEditQuestionForm(button) {
     document.getElementById('summary-input').value = summary || '';
     document.getElementById('answer-input').value = answer || '';
     document.getElementById('references-input').value = references || '';
+    document.getElementById('is-workshop-content-input').checked = isWorkshopContent;
+    document.getElementById('workshop-keywords-input').value = workshopKeywords || '';
+
 
     const form = document.getElementById('question-form');
     form.setAttribute('data-question-id', id);
@@ -615,7 +628,9 @@ export async function addQuestion() {
         answer: document.getElementById('answer-input').value,
         title: document.getElementById('title-input').value,
         summary: document.getElementById('summary-input').value,
-        references: document.getElementById('references-input').value
+        references: document.getElementById('references-input').value,
+        is_workshop_content: document.getElementById('is-workshop-content-input').checked,
+        workshop_keywords: document.getElementById('workshop-keywords-input').value
     };
 
     console.log('Sending question data:', questionData);
@@ -672,7 +687,9 @@ export async function updateQuestion(questionId) {
         title: document.getElementById('title-input').value,
         summary: document.getElementById('summary-input').value,
         answer: document.getElementById('answer-input').value,
-        references: document.getElementById('references-input').value
+        references: document.getElementById('references-input').value,
+        is_workshop_content: document.getElementById('is-workshop-content-input').checked,
+        workshop_keywords: document.getElementById('workshop-keywords-input').value
     };
 
     try {
