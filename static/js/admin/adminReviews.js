@@ -1,11 +1,16 @@
 
 export function showDesignReviews() {
+    console.log('In showDesignReviews...');
+
     const mainContent = document.getElementById('main-content');
+    console.log('mainContent:', mainContent);
+
     if (!mainContent) {
         console.error('Main content element not found');
         return;
     }
-    mainContent.innerHTML = '';
+
+    console.log('Creating design reviews container...');
     // Create design reviews container
     const designReviewsContainer = document.createElement('div');
     designReviewsContainer.id = 'design-reviews';
@@ -30,10 +35,15 @@ export function showDesignReviews() {
         </div>
     `;
 
+    console.log('Appending design reviews container to main content...');
+    mainContent.innerHTML = ''; // Clear existing content
     mainContent.appendChild(designReviewsContainer);
+
+    console.log('Fetching design reviews...');
     fetch('/api/design_reviews')
         .then(response => response.json())
         .then(data => {
+            console.log('Received design reviews data:', data);
             const designReviewsTableBody = document.getElementById('design-reviews-table-body');
             if (!designReviewsTableBody) {
                 console.error('Design reviews table body element not found');
@@ -41,6 +51,7 @@ export function showDesignReviews() {
             }
             designReviewsTableBody.innerHTML = '';
             data.forEach(review => {
+                console.log('Processing review:', review);
                 const row = document.createElement('tr');
                 row.innerHTML = `
                     <td>${review.full_name}</td>
@@ -48,21 +59,31 @@ export function showDesignReviews() {
                     <td>${review.application_status}</td>
                     <td>${review.skill_level}</td>
                     <td>${createScoreIndicator(review.total_score)}</td>
-
                     <td>
-                        <button class="btn btn-sm btn-primary" onclick="editReview('${review._id}')">Edit</button>
-                        <button class="btn btn-sm btn-danger" onclick="deleteReview('${review._id}')">Delete</button>
-                        <button class="btn btn-sm btn-secondary" onclick="reviewDesign('${review._id}')">Review</button>
+                        <button class="btn btn-sm btn-primary edit-review" data-id="${review._id}">Edit</button>
+                        <button class="btn btn-sm btn-danger delete-review" data-id="${review._id}">Delete</button>
+                        <button class="btn btn-sm btn-secondary review-design" data-id="${review._id}">Review</button>
                     </td>
                 `;
                 designReviewsTableBody.appendChild(row);
             });
+            designReviewsTableBody.addEventListener('click', (event) => {
+                const target = event.target;
+                if (target.classList.contains('edit-review')) {
+                    editReview(target.dataset.id);
+                } else if (target.classList.contains('delete-review')) {
+                    deleteReview(target.dataset.id);
+                } else if (target.classList.contains('review-design')) {
+                    reviewDesign(target.dataset.id);
+                }
+            });
+            console.log('Design reviews table populated');
         })
         .catch(error => console.error('Error fetching design reviews:', error));
 }
 
 export function editReview(id) {
-    console.log("Edit Review export function called with id:", id);
+    console.log("Edit Review function called with id:", id);
 
     if (!id) {
         console.error('No review ID provided');
@@ -152,39 +173,108 @@ export function deleteReview(id) {
             })
             .catch(error => console.error('Error deleting design review request:', error));
     }
-
-
 }
 
-export function reviewDesign(id) {
+function uploadAndProcessTranscription(reviewId) {
+    const fileInput = document.getElementById('transcription-upload');
+    const file = fileInput.files[0];
+    if (!file) {
+        alert('Please select a file to upload.');
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('transcript', file);
+
+    fetch(`/api/design_reviews/${reviewId}/upload_transcript`, {
+        method: 'POST',
+        body: formData
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Transcription uploaded and processed:', data);
+        document.getElementById('what-we-heard').value = data.what_we_heard || '';
+        document.getElementById('key-issues').value = data.key_issues || '';
+        document.getElementById('what-we-advise').value = data.what_we_advise || '';
+    })
+    .catch(error => {
+        console.error('Error uploading and processing transcription:', error);
+        alert('Error uploading and processing transcription. Please try again.');
+    });
+}
+
+function saveReview(reviewId) {
+    const reviewData = {
+        what_we_heard: document.getElementById('what-we-heard').value,
+        key_issues: document.getElementById('key-issues').value,
+        what_we_advise: document.getElementById('what-we-advise').value
+    };
+
+    console.log('Saving review data:', reviewData);
+
+    fetch(`/api/design_reviews/${reviewId}`, {
+        method: 'PUT',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(reviewData)
+    })
+    .then(response => {
+        console.log('Response status:', response.status);
+        if (!response.ok) {
+            return response.text().then(text => {
+                throw new Error(`HTTP error! status: ${response.status}, message: ${text}`);
+            });
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Review saved:', data);
+        alert('Review saved successfully!');
+        bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
+        showDesignReviews();  // Refresh the design reviews list
+    })
+    .catch(error => {
+        console.error('Error saving review:', error);
+        alert('Error saving review. Please check the console and try again.');
+    });
+}
+
+// In the showEditReviewModal function:
+const transcriptionUpload = document.getElementById('transcription-upload');
+const reviewDetailsTextarea = document.getElementById('review-details');
+
+if (transcriptionUpload && reviewDetailsTextarea) {
+    transcriptionUpload.addEventListener('change', (event) => {
+        const file = event.target.files[0];
+        const reviewDetails = reviewDetailsTextarea.value;
+        if (file) {
+            console.log("File selected:", file.name);
+            uploadAndProcessTranscription(review._id, file, reviewDetails);
+        }
+    });
+} else {
+    console.error('Transcription upload input or review details textarea not found');
+}
+
+function reviewDesign(id) {
     const reviewModal = new bootstrap.Modal(document.getElementById('reviewModal'));
     const reviewForm = document.getElementById('review-form');
     reviewForm.reset();
-    reviewForm.dataset.reviewId = id; // Store the review ID in the form
+    reviewForm.dataset.reviewId = id;
+
+    const uploadButton = document.getElementById('upload-transcript-btn');
+    const saveButton = document.getElementById('save-review-btn');
+
+    uploadButton.onclick = () => uploadAndProcessTranscription(id);
+    saveButton.onclick = () => saveReview(id);
 
     reviewModal.show();
-
-    reviewForm.onsubmit = function (event) {
-        event.preventDefault();
-        const formData = new FormData(reviewForm);
-        formData.append('id', id);
-
-        fetch(`/api/design_reviews/${id}/upload_transcript`, {
-            method: 'POST',
-            body: formData,
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    alert('Failed to submit review.');
-                } else {
-                    alert('Review submitted successfully!');
-                    reviewModal.hide();
-                    showDesignReviews();
-                }
-            })
-            .catch(error => console.error('Error submitting review:', error));
-    };
 }
 // Any oth/ Helper export function to create a visual score indicator
 export function createScoreIndicator(score) {
@@ -240,17 +330,23 @@ ${review.what_we_advise}
 
 ## Total Score
 ${review.total_score}
-            `;
 
-            // Create a temporary element to hold the report content and select it for copying
-            const tempElement = document.createElement('textarea');
-            tempElement.value = reportContent;
-            document.body.appendChild(tempElement);
-            tempElement.select();
-            document.execCommand('copy');
-            document.body.removeChild(tempElement);
+## Review Details
+${review.review_details}
+    `;
 
-            alert('Report copied to clipboard!');
+            // Create a Blob with the report content
+            const blob = new Blob([reportContent], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+
+            // Create a temporary link and trigger download
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Design_Review_Report_${reviewId}.txt`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
         })
         .catch(error => console.error('Error generating report:', error));
 }
@@ -262,68 +358,88 @@ export function showEditReviewModal(review) {
         return;
     }
 
-    console.log('Modal content:', modal.innerHTML);
+    const modalTitle = modal.querySelector('.modal-title');
+    const modalBody = modal.querySelector('.modal-body');
+    const modalFooter = modal.querySelector('.modal-footer');
 
-    modal.querySelector('.modal-title').textContent = 'Edit Design Review';
-    modal.querySelector('.modal-body').innerHTML = `
-        <form id="edit-review-form">
-            <input type="hidden" id="review-id" value="${review._id}">
-            <div class="mb-3">
-                <label for="full-name" class="form-label">Full Name</label>
-                <input type="text" class="form-control" id="full-name" value="${review.full_name}" required>
-            </div>
-            <div class="mb-3">
-                <label for="company-name" class="form-label">Company Name</label>
-                <input type="text" class="form-control" id="company-name" value="${review.company_name}" required>
-            </div>
-            <div class="mb-3">
-                <label for="application-status" class="form-label">Application Status</label>
-                <select class="form-select" id="application-status" required>
-                    <option value="Not started" ${review.application_status === 'Not started' ? 'selected' : ''}>Not started</option>
-                    <option value="In design phase" ${review.application_status === 'In design phase' ? 'selected' : ''}>In design phase</option>
-                    <option value="In production" ${review.application_status === 'In production' ? 'selected' : ''}>In production</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label for="review-status" class="form-label">Design Review Request Status</label>
-                <select class="form-select" id="review-status" required>
-                    <option value="Pending" ${review.review_status === 'Pending' ? 'selected' : ''}>Pending</option>
-                    <option value="In Progress" ${review.review_status === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                    <option value="Completed" ${review.review_status === 'Completed' ? 'selected' : ''}>Completed</option>
-                    <option value="Rejected" ${review.review_status === 'Rejected' ? 'selected' : ''}>Rejected</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label for="skill-level" class="form-label">Skill Level</label>
-                <select class="form-select" id="skill-level" required>
-                    <option value="Beginner" ${review.skill_level === 'Beginner' ? 'selected' : ''}>Beginner</option>
-                    <option value="Intermediate" ${review.skill_level === 'Intermediate' ? 'selected' : ''}>Intermediate</option>
-                    <option value="Advanced" ${review.skill_level === 'Advanced' ? 'selected' : ''}>Advanced</option>
-                </select>
-            </div>
-            <div class="mb-3">
-                <label for="total-score" class="form-label">Total Score</label>
-                <input type="number" class="form-control" id="total-score" value="${review.total_score || 0}" min="0" max="100" required readonly>
-            </div>
-            <div class="mb-3">
-                <label for="review-details" class="form-label">Review Details</label>
-                <textarea class="form-control" id="review-details" rows="5" required>${review.review_details || ''}</textarea>
-            </div>
-        </form>
+    if (!modalTitle || !modalBody || !modalFooter) {
+        console.error('Modal structure is incomplete');
+        return;
+    }
+
+    modalTitle.textContent = 'Edit Design Review';
+    
+    modalBody.innerHTML = `
+        <div class="mb-3">
+            <label for="full-name" class="form-label">Full Name</label>
+            <input type="text" class="form-control" id="full-name" value="${review.full_name || ''}">
+        </div>
+        <div class="mb-3">
+            <label for="company-name" class="form-label">Company Name</label>
+            <input type="text" class="form-control" id="company-name" value="${review.company_name || ''}">
+        </div>
+        <div class="mb-3">
+            <label for="application-status" class="form-label">Application Status</label>
+            <input type="text" class="form-control" id="application-status" value="${review.application_status || ''}">
+        </div>
+        <div class="mb-3">
+            <label for="skill-level" class="form-label">Skill Level</label>
+            <input type="text" class="form-control" id="skill-level" value="${review.skill_level || ''}">
+        </div>
+        <div class="mb-3">
+            <label for="total-score" class="form-label">Total Score</label>
+            <input type="number" class="form-control" id="total-score" value="${review.total_score || 0}">
+        </div>
+        <div class="mb-3">
+            <label for="transcription-upload" class="form-label">Upload Transcription</label>
+            <input type="file" class="form-control" id="transcription-upload" accept=".txt,.doc,.docx,.pdf">
+        </div>
+        <div class="mb-3">
+            <label for="what-we-heard" class="form-label">What We Heard</label>
+            <textarea class="form-control" id="what-we-heard" rows="3">${review.what_we_heard || ''}</textarea>
+        </div>
+        <div class="mb-3">
+            <label for="key-issues" class="form-label">Key Issues</label>
+            <textarea class="form-control" id="key-issues" rows="3">${review.key_issues || ''}</textarea>
+        </div>
+        <div class="mb-3">
+            <label for="what-we-advise" class="form-label">What We Advise</label>
+            <textarea class="form-control" id="what-we-advise" rows="3">${review.what_we_advise || ''}</textarea>
+        </div>
     `;
-    modal.querySelector('.modal-footer').innerHTML = `
+
+    modalFooter.innerHTML = `
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         <button type="button" class="btn btn-primary" id="updateReviewButton">Save Changes</button>
     `;
 
-    const updateButton = modal.querySelector('#updateReviewButton');
-    if (!updateButton) {
-        console.error('Update button not found in the modal');
-        console.log('Modal footer content:', modal.querySelector('.modal-footer').innerHTML);
-        return;
+    const transcriptionUpload = document.getElementById('transcription-upload');
+    if (transcriptionUpload) {
+        transcriptionUpload.addEventListener('change', (event) => {
+            const file = event.target.files[0];
+            if (file) {
+                console.log("File selected:", file.name); // Add this line for debugging
+                uploadAndProcessTranscription(review._id, file);
+            }
+        });
+    } else {
+        console.error('Transcription upload input not found');
     }
-    updateButton.onclick = updateReview(review._id);
+
+    const updateButton = modal.querySelector('#updateReviewButton');
+    if (updateButton) {
+        updateButton.onclick = updateReview(review._id);
+    } else {
+        console.error('Update button not found in the modal');
+    }
 
     const modalInstance = new bootstrap.Modal(modal);
     modalInstance.show();
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const designReviewModal = document.getElementById('design-review-modal');
+    if (designReviewModal) {
+        new bootstrap.Modal(designReviewModal);
+    }
+});

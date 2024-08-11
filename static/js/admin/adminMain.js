@@ -30,6 +30,7 @@ import {
     showDesignReviews,
     deleteReview,
     showEditReviewModal,
+    editReview,
     updateReview
 } from './adminReviews.js';
 import { escapeHTML, showError, unescapeHTML } from './utils.js';
@@ -132,3 +133,18 @@ export function handleMainContentClick(e) {
         adminConversations.viewConversation(conversationId);
     }
 }
+
+designReviewsTableBody.addEventListener('click', (event) => {
+    console.log('Table body clicked:', event.target);
+    const target = event.target;
+    if (target.classList.contains('edit-review')) {
+        console.log('Edit button clicked');
+        editReview(target.dataset.id);
+    } else if (target.classList.contains('delete-review')) {
+        console.log('Delete button clicked');
+        deleteReview(target.dataset.id);
+    } else if (target.classList.contains('review-design')) {
+        console.log('Review button clicked');
+        reviewDesign(target.dataset.id);
+    }
+});

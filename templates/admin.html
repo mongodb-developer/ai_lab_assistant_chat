@@ -269,7 +269,7 @@
     </div>
 
     <!-- Review Form Modal -->
-    <div id="design-review-modal" class="modal fade" tabindex="-1" aria-labelledby="designReviewModalLabel" aria-hidden="true">
+    <div class="modal fade" id="design-review-modal" tabindex="-1" aria-labelledby="designReviewModalLabel" aria-hidden="true">
         <div class="modal-dialog">
             <div class="modal-content">
                 <div class="modal-header">
@@ -277,55 +277,53 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body">
-                    <form id="review-form" method="post" enctype="multipart/form-data">
-                        <input type="hidden" id="review-id" name="review-id">
-                        <div class="mb-3">
-                            <label for="review-details" class="form-label">Review Details</label>
-                            <textarea class="form-control" id="review-details" name="review-details" rows="5"
-                                required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="transcript" class="form-label">Upload Transcript</label>
-                            <input type="file" class="form-control" id="transcript" name="transcript">
-                        </div>
-                        <button type="submit" class="btn btn-primary">Submit Review</button>
-                    </form>
+                    <!-- Modal body content will be dynamically inserted here -->
+                </div>
+                <div class="modal-footer">
+                    <!-- Modal footer content will be dynamically inserted here -->
                 </div>
             </div>
         </div>
     </div>
 <!-- review design review request -->
-    <div id="reviewModal" class="modal fade" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="reviewModalLabel">Review Design Request</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="review-form" method="post" enctype="multipart/form-data">
-                        <input type="hidden" id="review-id" name="review-id">
-                        <div class="mb-3">
-                            <label for="review-details" class="form-label">Review Details</label>
-                            <textarea class="form-control" id="review-details" name="review-details" rows="5" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="transcript" class="form-label">Upload Transcript</label>
-                            <input type="file" class="form-control" id="transcript" name="transcript">
-                        </div>
-                        <button type="submit" class="btn btn-primary">Submit Review</button>
-                    </form>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                    <button type="button" class="btn btn-primary" onclick="generateReport(document.getElementById('review-form').dataset.reviewId)">Generate Report</button>
-                </div>
-            </div>
+<div class="modal fade" id="reviewModal" tabindex="-1" aria-labelledby="reviewModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title" id="reviewModalLabel">Review Design Request</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
         </div>
+        <div class="modal-body">
+          <form id="review-form">
+            <div class="mb-3">
+              <label for="transcription-upload" class="form-label">Upload Transcription</label>
+              <input type="file" class="form-control" id="transcription-upload" accept=".txt,.doc,.docx,.pdf">
+            </div>
+            <div class="mb-3">
+              <label for="what-we-heard" class="form-label">What We Heard</label>
+              <textarea class="form-control" id="what-we-heard" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="key-issues" class="form-label">Key Issues</label>
+              <textarea class="form-control" id="key-issues" rows="3"></textarea>
+            </div>
+            <div class="mb-3">
+              <label for="what-we-advise" class="form-label">What We Advise</label>
+              <textarea class="form-control" id="what-we-advise" rows="3"></textarea>
+            </div>
+          </form>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+          <button type="button" class="btn btn-primary" id="upload-transcript-btn">Upload & Process Transcript</button>
+          <button type="button" class="btn btn-success" id="save-review-btn">Save Review</button>
+        </div>
+      </div>
     </div>
+  </div>
 
     <div class="modal fade" id="question-modal" tabindex="-1" aria-labelledby="questionModalLabel" aria-hidden="true">
-        <div class="modal-dialog">
+        <div class="modal-dialog wide-modal">
             <div class="modal-content">
                 <div class="modal-header">
                     <h5 class="modal-title" id="questionModalLabel"></h5>
@@ -425,9 +423,9 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    <!-- <script type="module" src="{{ url_for('static', filename='js/admin.js') }}"></script> -->
     <script type="module" src="{{ url_for('static', filename='js/admin/adminMain.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/admin/adminReviews.js') }}"></script>
+
     <script type="module" src="{{ url_for('static', filename='js/admin/adminEvents.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/admin/adminQuestions.js') }}"></script>
     <script type="module" src="{{ url_for('static', filename='js/admin/adminSources.js') }}"></script>

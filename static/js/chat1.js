@@ -93,6 +93,7 @@
         var calendlyModalElement = document.getElementById('calendlyModal');
         var bookReviewBtn = document.getElementById('book-review-btn');
         var reviewBanner = document.getElementById('review-banner');
+        const requestReviewBtn = document.getElementById('request-review-btn');
 
         if (calendlyModalElement && bookReviewBtn && reviewBanner) {
             // We're on the chat page, set up the banner behavior
@@ -192,6 +193,8 @@
             console.error('Invalid data for feedback buttons:', data);
             return;
         }
+        messageElement.setAttribute('data-question-id', data.question_id);
+        messageElement.setAttribute('data-original-question', data.original_question || '');    
     
         const feedbackContainer = document.createElement('div');
         feedbackContainer.classList.add('feedback-container');
@@ -218,36 +221,52 @@
     function generateUniqueId() {
         return 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
     }
-    function provideFeedback(questionId, isPositive, originalQuestion, proposedAnswer) {
+    function provideFeedback(questionId, isPositive) {
+        const csrfToken = getCsrfToken();
+        if (!csrfToken) {
+            showError('CSRF token not available. Please refresh the page and try again.');
+            return;
+        }
+        const messageElement = document.querySelector(`[data-question-id="${questionId}"]`);
+        if (!messageElement) {
+            console.error('Message element not found');
+            return;
+        }
+        const originalQuestion = messageElement.getAttribute('data-original-question');
+        const proposedAnswer = messageElement.textContent;
+    
         console.log('Sending feedback:', { questionId, isPositive, originalQuestion, proposedAnswer });
         
+        const feedbackData = {
+            is_positive: isPositive,
+            question_id: questionId,
+            original_question: originalQuestion,
+            proposed_answer: proposedAnswer
+        };
+    
         fetch('/api/message_feedback', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': getCsrfToken() // Implement this function to get the CSRF token
+                'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({
-                question_id: questionId,
-                original_question: originalQuestion,
-                proposed_answer: proposedAnswer,
-                is_positive: isPositive
-            })
+            body: JSON.stringify(feedbackData)
         })
-        .then(response => response.json())
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(errorData => {
+                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorData.error || 'Unknown error'}`);
+                });
+            }
+            return response.json();
+        })
         .then(data => {
             console.log('Message feedback response:', data);
-            if (data.error) {
-                console.error('Feedback submission failed:', data.error);
-                // Handle error (e.g., show an error message to the user)
-            } else {
-                console.log('Feedback submitted successfully');
-                // Handle success (e.g., update UI to show feedback was received)
-            }
+            // Handle success (e.g., update UI to show feedback was received)
         })
         .catch(error => {
             console.error('Error submitting message feedback:', error);
-            showError('Error submitting message feedback');
+            showError(`Error submitting message feedback: ${error.message}`);
         });
     }
 
@@ -497,6 +516,12 @@ function unescapeHTML(str) {
     }[tag] || tag));
 }
 function getCsrfToken() {
-    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const tokenElement = document.querySelector('meta[name="csrf-token"]');
+    if (tokenElement) {
+        return tokenElement.getAttribute('content');
+    } else {
+        console.error('CSRF token not found. Ensure the meta tag is present in the HTML.');
+        return null;
+    }
 }
 })();

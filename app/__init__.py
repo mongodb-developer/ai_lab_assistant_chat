@@ -20,7 +20,7 @@ def create_app(config_class=Config):
     
     CORS(app, resources={r"/*": {"origins": ["https://lab-assistant.localhost.com", "https://lab-ai-assistant.ue.r.appspot.com"]}}, supports_credentials=True)
     init_db(app)  # Add this line
-    # csrf = CSRFProtect()
+    csrf = CSRFProtect(app)
 
     app.config['WTF_CSRF_CHECK_DEFAULT'] = False
     app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken']
@@ -50,5 +50,6 @@ def create_app(config_class=Config):
     @user_logged_in.connect_via(app)
     def _track_logins(sender, user, **extra):
         update_user_login_info(str(user.id))
+    csrf.init_app(app)
 
     return app

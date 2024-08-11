@@ -66,5 +66,11 @@ export function unescapeHTML(str) {
 }
 
 function getCsrfToken() {
-    return document.querySelector('meta[name="csrf-token"]').getAttribute('content');
+    const tokenElement = document.querySelector('meta[name="csrf-token"]');
+    if (tokenElement) {
+        return tokenElement.getAttribute('content');
+    } else {
+        console.error('CSRF token not found. Ensure the meta tag is present in the HTML.');
+        return null;
+    }
 }

@@ -39,9 +39,8 @@
         <span>Book a Design Review - Have your app reviewed by MongoDB Experts</span>
         <button id="book-review-btn" class="btn btn-sm btn-light ml-2">Book Now</button>
         <div id="design-review-banner" class="design-review-banner">
-            <i class="fas fa-pencil-alt"></i>
-            <span>Request a Design Review - Have your app reviewed by MongoDB Experts</span>
-            <button id="request-review-btn" class="btn btn-sm btn-light ml-2">Request Now</button>
+            Request a Design Review - Have your app reviewed by MongoDB Experts
+            <a href="{{ url_for('request_design_review') }}" class="btn btn-primary">Request Now</a>
         </div>
     </div>
     {% endif %}
@@ -164,122 +163,7 @@
       </div>
     </div>
 
-    <!-- Feedback section
-    <div class="container mt-5" id="feedback-container">
-        <button id="close-feedback" class="close-feedback-btn">&times;</button>
-        <h2>We value your feedback!</h2>
-        <p>Please rate your experience with our assistant:</p>
-        <div id="feedback-scale" class="d-flex justify-content-center">
-            <button class="feedback-button" data-value="1">😡</button>
-            <button class="feedback-button" data-value="2">😟</button>
-            <button class="feedback-button" data-value="3">😐</button>
-            <button class="feedback-button" data-value="4">🙂</button>
-            <button class="feedback-button" data-value="5">😍</button>
-        </div>
-        <p id="feedback-response" class="mt-3"></p>
-    </div> -->
-    <!-- Design Review Modal -->
-    <div class="modal fade" id="designReviewModal" tabindex="-1" aria-labelledby="designReviewModalLabel" aria-hidden="true">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title" id="designReviewModalLabel">Request a Design Review</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                </div>
-                <div class="modal-body">
-                    <form id="design-review-form" method="post" enctype="multipart/form-data">
-                        <input type="hidden" id="completeness-score" name="completeness-score">
-                        <input type="hidden" id="skill-level-score" name="skill-level-score">
-                        <input type="hidden" id="application-status-score" name="application-status-score">
-                        <input type="hidden" id="use-case-score" name="use-case-score">
-                        <input type="hidden" id="data-volume-score" name="data-volume-score">
-                        <input type="hidden" id="uptime-sla-score" name="uptime-sla-score">
-                        <input type="hidden" id="previous-interaction-score" name="previous-interaction-score">
-                        <input type="hidden" id="total-score" name="total-score">
-                        <div class="mb-3">
-                            <label for="full-name" class="form-label">Full Name *</label>
-                            <input type="text" class="form-control" id="full-name" name="full-name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="company-name" class="form-label">Company Name *</label>
-                            <input type="text" class="form-control" id="company-name" name="company-name" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="application-status" class="form-label">What is the Application/Workload’s status: *</label>
-                            <select class="form-select" id="application-status" name="application-status" required>
-                                <option value="In design phase">In design phase</option>
-                                <option value="In production">In production</option>
-                                <option value="Not started">Not started</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="model-ready" class="form-label">Do you have a logical model, relational schema or draft document model ready to discuss in this session? *</label>
-                            <input type="text" class="form-control" id="model-ready" name="model-ready" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="project-description" class="form-label">Project name and short description (business function, tech stack and immediate challenges) *</label>
-                            <textarea class="form-control" id="project-description" name="project-description" rows="3" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="skill-level" class="form-label">What is your MongoDB skill level? *</label>
-                            <select class="form-select" id="skill-level" name="skill-level" required>
-                                <option value="Beginner">Beginner</option>
-                                <option value="Intermediate">Intermediate</option>
-                                <option value="Expert">Expert</option>
-                                <option value="Never used before">Never used before</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="requirements" class="form-label">Please let us know any requirements you have relevant to your use case (future or current requirements): *</label>
-                            <select class="form-select" id="requirements" name="requirements" multiple required>
-                                <option value="Transactional guarantees">Transactional guarantees</option>
-                                <option value="Full-Text Search">Full-Text Search</option>
-                                <option value="Cross-Region HA">Cross-Region HA</option>
-                                <option value="Cloud to on-prem replication">Cloud to on-prem replication (or vice versa)</option>
-                                <option value="Time series capabilities">Time series capabilities</option>
-                                <option value="Data tiering Sharing">Data tiering Sharing (horizontal scaling)</option>
-                                <option value="Multi-cloud">Multi-cloud</option>
-                                <option value="Data modeling guidance">Data modeling guidance</option>
-                                <option value="Development assistance/guidance">Development assistance/guidance</option>
-                                <option value="Edge database">Edge database (mobile or otherwise)</option>
-                                <option value="Other">Other</option>
-                            </select>
-                        </div>
-                        <div class="mb-3">
-                            <label for="data-size" class="form-label">Please share an estimate of the size of existing application data (GB/TB/PB) currently in production or estimated size in year 1: *</label>
-                            <input type="text" class="form-control" id="data-size" name="data-size" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="uptime-sla" class="form-label">Any uptime SLAs this application needs guaranteed? *</label>
-                            <textarea class="form-control" id="uptime-sla" name="uptime-sla" rows="2" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="cloud-provider" class="form-label">What cloud provider will this application be deployed in? *</label>
-                            <input type="text" class="form-control" id="cloud-provider" name="cloud-provider" required>
-                        </div>
-                        <div class="mb-3">
-                            <label for="team-members" class="form-label">Is there anyone else from your team here today that you would like to be included in the session? *</label>
-                            <textarea class="form-control" id="team-members" name="team-members" rows="2" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="team-goals" class="form-label">Could you provide further details on what goals your team is pursuing, if they haven't been covered already? *</label>
-                            <textarea class="form-control" id="team-goals" name="team-goals" rows="2" required></textarea>
-                        </div>
-                        <div class="mb-3">
-                            <label for="sample-documents" class="form-label">Sample Documents</label>
-                            <input type="file" class="form-control" id="sample-documents" name="sample-documents" multiple>
-                        </div>
-                        <div class="mb-3">
-                            <label for="sample-queries" class="form-label">Sample Queries</label>
-                            <input type="file" class="form-control" id="sample-queries" name="sample-queries" multiple>
-                        </div>
-                        <button type="submit" class="btn btn-primary">Submit Request</button>
-                    </form>
-                </div>
-            </div>
-        </div>
-    </div>
+
 
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
     <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->

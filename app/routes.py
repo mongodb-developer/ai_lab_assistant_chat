@@ -1,6 +1,6 @@
 import os
-import json  # Ensure json is imported
-import traceback  # Ensure traceback is imported
+import json 
+import traceback 
 import logging
 from flask import Blueprint, flash, redirect, request, jsonify, render_template, current_app, session, send_from_directory, url_for
 from flask_login import login_required, current_user
@@ -14,7 +14,8 @@ from .question_generator import process_content, save_to_mongodb, fetch_content_
 import requests
 from werkzeug.utils import secure_filename
 import pytz
-from app.utils import get_collection, get_or_create_conversation, create_new_conversation, close_active_conversations, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity
+from app.utils import analyze_transcript, update_design_review_data, get_collection, get_or_create_conversation, create_new_conversation, close_active_conversations, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity
+from .design_review_service import DesignReviewService
 from bson.son import SON
 import openai
 import PyPDF2
@@ -89,11 +90,25 @@ def home():
         return "An error occurred", 500
 
 @main.route('/chat')
-@login_required
 def chat():
-    current_app.logger.debug(f"Request received for chat route")
-
-    return render_template('chat.html')
+    try:
+        current_app.logger.debug("Entering chat route")
+        user_data = get_users_collection().find_one({'_id': ObjectId(current_user.id)})
+        logger.info(f"User data: {user_data}")
+        return render_template('chat.html')
+    except Exception as e:
+        current_app.logger.error(f"Error in chat route: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return "An error occurred", 500
+    
+    # user_data = get_users_collection().find_one({'_id': ObjectId(current_user.id)})
+    # logger.info("User:" + jsonify(user_data).get_json())
+    # try:
+    #     # Your existing chat route code here
+    #     return render_template('index.html', is_chat=True, user=user_data)
+    # except Exception as e:
+    #     logger.error(f"Error in chat route: {str(e)}", exc_info=True)
+    #     return "An error occurred", 500
 
 # Route: Index
 # Description: Renders the main page of the application
@@ -553,30 +568,33 @@ def submit_message_feedback():
     proposed_answer = data.get('proposed_answer')
     is_positive = data.get('is_positive')
 
-    if not all([original_question, proposed_answer, is_positive is not None]):
-        print("Invalid feedback data:", data)  # Debug print
+    if is_positive is None:
+        print("Invalid feedback data: is_positive is None")
         return jsonify({'error': 'Invalid feedback data'}), 400
 
     try:
         feedback_entry = {
-            'user_id': ObjectId(current_user.id),
-            'original_question': original_question,
-            'proposed_answer': proposed_answer,
+            'user_id': str(current_user.id),  # Convert to string to avoid ObjectId issues
             'is_positive': is_positive,
             'timestamp': datetime.now()
         }
         
+        # Add fields only if they are present
+        if original_question:
+            feedback_entry['original_question'] = original_question
+        if proposed_answer:
+            feedback_entry['proposed_answer'] = proposed_answer
         if question_id:
-            feedback_entry['matched_question_id'] = ObjectId(question_id)
+            feedback_entry['question_id'] = question_id  # Store as string, don't convert to ObjectId
 
-        get_answer_feedback_collection().insert_one(feedback_entry)
+        # Always insert into the same collection
+        get_feedback_collection().insert_one(feedback_entry)
         
         print("Feedback submitted successfully:", feedback_entry)  # Debug print
         return jsonify({'message': 'Message feedback submitted successfully'}), 200
     except Exception as e:
         print("Error submitting feedback:", str(e))  # Debug print
-        current_app.logger.error(f"Error submitting message feedback: {str(e)}")
-        return jsonify({'error': 'An error occurred while submitting message feedback'}), 500
+        return jsonify({'error': f'An error occurred while submitting message feedback: {str(e)}'}), 500
     
 @main.route('/about')
 def about():
@@ -800,7 +818,7 @@ def get_answer_feedback_stats():
         current_app.logger.error(f"Error fetching answer feedback stats: {str(e)}")
         return jsonify({'error': 'An error occurred while fetching answer feedback stats'}), 500
 
-    
+
 @main.route('/api/overall_statistics', methods=['GET'])
 @login_required
 def get_overall_statistics():
@@ -1410,7 +1428,7 @@ def design_review():
         project_description = request.form.get('project-description')
         skill_level = request.form.get('skill-level')
         requirements = request.form.getlist('requirements')
-        data_size = request.form.get('data-size')
+        data_size = request.form.get('data-size').lower.replace('gb', '').strip()
         uptime_sla = request.form.get('uptime-sla')
         cloud_provider = request.form.get('cloud-provider')
         team_members = request.form.get('team-members')
@@ -1540,67 +1558,64 @@ def calculate_uptime_sla_score(uptime_sla):
 def calculate_previous_interaction_score(previous_interaction):
     if previous_interaction: return 5
     return 0
-    
+
 @main.route('/api/design_reviews', methods=['GET'])
-def get_design_reviews():
+@login_required
+def get_all_design_reviews():
     try:
-        db = current_app.config['db']
-        reviews = list(db.design_reviews.find())
-        for review in reviews:
-            review['_id'] = str(review['_id'])
-        return jsonify(reviews), 200
+        reviews = DesignReviewService.get_all_reviews()
+        if reviews:
+            # Convert ObjectId to string for each review
+            serialized_reviews = []
+            for review in reviews:
+                review['_id'] = str(review['_id'])
+                serialized_reviews.append(review)
+            return jsonify(serialized_reviews), 200
+        return jsonify({'message': 'No reviews found'}), 204
     except Exception as e:
-        return jsonify({'error': 'Failed to fetch design reviews.'}), 500
+        current_app.logger.error(f"Error fetching design reviews: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
+
+    
+@main.route('/api/design_reviews/<review_id>', methods=['GET'])
+@login_required
+def get_design_review(review_id):
+    try:
+        review = DesignReviewService.get_review(review_id)
+        if review:
+            review['_id'] = str(review['_id'])
+            return jsonify(review), 200
+        return jsonify({'error': 'Review not found'}), 404
+    except Exception as e:
+        current_app.logger.error(f"Error fetching design review: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
 
 @main.route('/api/design_reviews/<review_id>', methods=['PUT'])
 @login_required
 def update_design_review(review_id):
-    current_app.logger.info(f"Received PUT request for design review ID: {review_id}")
     try:
-        db = current_app.config['db']
         data = request.json
-        current_app.logger.debug(f"Received data: {data}")
-        
-        # Ensure the review exists
-        existing_review = db.design_reviews.find_one({'_id': ObjectId(review_id)})
-        if not existing_review:
-            current_app.logger.warning(f"Design review not found for ID: {review_id}")
-            return jsonify({'error': 'Design review not found'}), 404
+        if not data:
+            return jsonify({'error': 'No data provided'}), 400
 
-        # Update the review
-        result = db.design_reviews.update_one(
-            {'_id': ObjectId(review_id)},
-            {'$set': {
-                'full_name': data.get('full_name'),
-                'company_name': data.get('company_name'),
-                'application_status': data.get('application_status'),
-                'review_status': data.get('review_status'),
-                'skill_level': data.get('skill_level'),
-                'total_score': data.get('total_score')
-            }}
-        )
-
-        if result.modified_count == 1:
-            current_app.logger.info(f"Design review updated successfully for ID: {review_id}")
-            return jsonify({'message': 'Design review updated successfully'}), 200
+        if DesignReviewService.update_review(review_id, data):
+            return jsonify({'message': 'Review updated successfully'}), 200
         else:
-            current_app.logger.warning(f"No changes made to design review for ID: {review_id}")
-            return jsonify({'error': 'No changes made to the design review'}), 400
-
+            return jsonify({'error': 'Failed to update the review'}), 500
     except Exception as e:
-        current_app.logger.error(f"Error updating design review: {str(e)}", exc_info=True)
-        return jsonify({'error': 'An error occurred while updating the design review'}), 500
+        current_app.logger.error(f"Error updating design review: {str(e)}")
+        return jsonify({'error': 'An error occurred while updating the review'}), 500
 
 @main.route('/api/design_reviews/<review_id>', methods=['DELETE'])
+@login_required
 def delete_design_review(review_id):
     try:
-        db = current_app.config['db']
-        result = db.design_reviews.delete_one({'_id': ObjectId(review_id)})
-        if result.deleted_count == 1:
+        if DesignReviewService.delete_review(review_id):
             return jsonify({'message': 'Design review request deleted successfully!'}), 200
         else:
             return jsonify({'error': 'Design review request not found.'}), 404
     except Exception as e:
+        current_app.logger.error(f"Error deleting design review: {str(e)}")
         return jsonify({'error': 'Failed to delete design review request.'}), 500
 
 @main.route('/api/design_reviews/<review_id>/review', methods=['POST'])
@@ -1652,128 +1667,131 @@ def review_design_review(review_id):
     except Exception as e:
         current_app.logger.error(f"Error submitting review: {str(e)}", exc_info=True)
         return jsonify({'error': f'Failed to submit review: {str(e)}'}), 500
-    
-@main.route('/api/design_reviews/<review_id>', methods=['GET'])
-def get_design_review(review_id):
-    try:
-        review = get_collection('design_reviews').find_one({'_id': ObjectId(review_id)})
-        if not review:
-            return jsonify({'error': 'Review not found'}), 404
-        return jsonify(review)
-    except Exception as e:
-        logging.error(f"Error in get_design_review: {str(e)}")
-        logging.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'error': 'An internal error occurred'}), 500
-    
+
 @main.route('/api/design_reviews/<review_id>/upload_transcript', methods=['POST'])
-def upload_transcript(review_id):
+@login_required
+def upload_and_analyze_transcript(review_id):
+    if 'transcript' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    
+    file = request.files['transcript']
+    
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if file:
+        try:
+            filename = secure_filename(file.filename)
+            file_path = os.path.join(current_app.config['UPLOAD_FOLDER'], filename)
+            file.save(file_path)
+            
+            DesignReviewService.update_transcript_path(review_id, file_path)
+            analysis_result = DesignReviewService.analyze_transcript(review_id, file_path)
+            
+            if analysis_result:
+                DesignReviewService.update_review_analysis(review_id, analysis_result)
+                return jsonify(analysis_result), 200
+            else:
+                return jsonify({'error': 'Failed to analyze transcript'}), 500
+        except Exception as e:
+            current_app.logger.error(f"Error processing transcript: {str(e)}")
+            return jsonify({'error': 'An error occurred while processing the transcript'}), 500
+    
+    return jsonify({'error': 'Invalid request'}), 400
+    
+@main.route('/api/design_reviews/<review_id>/summarize', methods=['POST'])
+def summarize_transcription(review_id):
+    review = get_design_review(review_id)
+    if not review or 'transcription_path' not in review:
+        return jsonify({'error': 'Transcription not found'}), 404
+
+    with open(review['transcription_path'], 'r') as file:
+        transcription_text = file.read()
+
+    summary = summarize_text(transcription_text)
+    
+    # Update the design review document with the summaries
+    update_design_review(review_id, {
+        'what_we_heard': summary['what_we_heard'],
+        'key_issues': summary['key_issues'],
+        'what_we_recommend': summary['what_we_recommend']
+    })
+
+    return jsonify(summary), 200
+    
+
+@main.route('/request-design-review')
+def request_design_review():
+    return render_template('design_review_request.html')
+
+@main.route('/api/design_reviews', methods=['POST'])
+def submit_design_review():
     try:
-        if 'transcript' not in request.files:
-            return jsonify({'error': 'No file uploaded'}), 400
+        data = request.json
+        
+        # Convert hyphenated keys to underscore keys
+        converted_data = {k.replace('-', '_'): v for k, v in data.items()}
+        
+        # Convert data size to integer (GB)
+        data_size_str = converted_data.get('data_size', '0').lower().replace('gb', '').strip()
+        try:
+            data_size = int(float(data_size_str))
+            converted_data['data_size'] = f"{data_size}GB"
+        except ValueError:
+            return jsonify({'error': 'Invalid data size format. Please enter a number in GB.'}), 400
 
-        transcript = request.files['transcript']
-        filename = secure_filename(transcript.filename)
-        filepath = os.path.join('/tmp', filename)
-        transcript.save(filepath)
-
-        # Get the review details from the database
-        review = get_collection('design_reviews').find_one({'_id': ObjectId(review_id)})
-        if not review:
-            return jsonify({'error': 'Review not found'}), 404
-
-        user_context = review.get('context', 'No context provided')
-        analysis = analyze_transcript(filepath, user_context)
-
-        # Update the design review document with the analysis data
-        get_collection('design_reviews').update_one(
-            {'_id': ObjectId(review_id)},
-            {'$set': {
-                'what_we_heard': analysis.get('what_we_heard', ''),
-                'key_issues': analysis.get('key_issues', ''),
-                'what_we_advise': analysis.get('what_we_advise', '')
-            }}
+        # Calculate scores
+        completeness_score = calculate_completeness_score(
+            converted_data.get('full_name'), 
+            converted_data.get('company_name'), 
+            converted_data.get('application_status'), 
+            converted_data.get('project_description'), 
+            converted_data.get('sample_documents', []),
+            converted_data.get('sample_queries', []),
+            converted_data.get('model_ready')
         )
+        skill_level_score = calculate_skill_level_score(converted_data.get('skill_level'))
+        application_status_score = calculate_application_status_score(converted_data.get('application_status'))
+        use_case_score = calculate_use_case_score(converted_data.get('requirements', []))
+        data_volume_score = calculate_data_volume_score(data_size)
+        uptime_sla_score = calculate_uptime_sla_score(converted_data.get('uptime_sla'))
+        previous_interaction_score = calculate_previous_interaction_score(converted_data.get('team_members'))
 
-        return jsonify({'message': 'Transcript processed and review updated successfully'})
+        total_score = (completeness_score + skill_level_score + application_status_score + 
+                       use_case_score + data_volume_score + uptime_sla_score + 
+                       previous_interaction_score)
 
-    except Exception as e:
-        logging.error(f"Error in upload_transcript: {str(e)}")
-        logging.error(f"Traceback: {traceback.format_exc()}")
-        return jsonify({'error': 'An internal error occurred'}), 500
-    
-    
-def analyze_transcript(filepath, user_context):
-    try:
-        # Check if the file is a PDF
-        if filepath.lower().endswith('.pdf'):
-            with open(filepath, 'rb') as file:
-                reader = PyPDF2.PdfReader(file)
-                transcript = ""
-                for page in reader.pages:
-                    transcript += page.extract_text()
+        # Add calculated scores to the data
+        converted_data['completeness_score'] = completeness_score
+        converted_data['skill_level_score'] = skill_level_score
+        converted_data['application_status_score'] = application_status_score
+        converted_data['use_case_score'] = use_case_score
+        converted_data['data_volume_score'] = data_volume_score
+        converted_data['uptime_sla_score'] = uptime_sla_score
+        converted_data['previous_interaction_score'] = previous_interaction_score
+        converted_data['total_score'] = total_score
+
+        # Determine opportunity level based on total score
+        if total_score >= 80:
+            converted_data['opportunity_level'] = 'High'
+        elif total_score >= 50:
+            converted_data['opportunity_level'] = 'Medium'
         else:
-            # For non-PDF files, try reading as UTF-8 with error handling
-            with open(filepath, 'r', encoding='utf-8', errors='replace') as file:
-                transcript = file.read()
+            converted_data['opportunity_level'] = 'Low'
 
-        # Truncate the transcript if it's too long
-        max_tokens = 3000  # Adjust this value based on your needs
-        if len(transcript) > max_tokens:
-            transcript = transcript[:max_tokens] + "..."
-
-        prompt = f"""
-        Analyze the following transcript from a design review meeting, taking into consideration the additional context provided by the user:
-
-        User Context:
-        {user_context}
-
-        Transcript:
-        {transcript}
-
-        Please provide a summary in the following format:
-        1. What We Heard: Summarize the main points discussed in the meeting, incorporating relevant user context.
-        2. Key Issues: Identify the main challenges or problems mentioned, considering the user's specific situation.
-        3. What We Advise: Based on the discussion and user context, what recommendations would you make?
-
-        Provide your analysis as plain text, not in JSON format. Use the exact headings "What We Heard:", "Key Issues:", and "What We Advise:" to separate the sections.
-        """
-
-        # Call the OpenAI API using the new interface
-        response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
-            messages=[
-                {"role": "system", "content": "You are an expert in MongoDB design reviews. Your task is to analyze transcripts from design review meetings and provide insightful summaries and recommendations."},
-                {"role": "user", "content": prompt}
-            ]
-        )
-
-        # Extract the generated text
-        analysis = response.choices[0].message.content
-
-        # Print the raw response for debugging
-        print("Raw API response:", analysis)
-
-        # Parse the response into sections
-        sections = re.split(r'(What We Heard:|Key Issues:|What We Advise:)', analysis)[1:]  # Split and keep separators
-        parsed_response = {}
-        current_key = None
-        for item in sections:
-            if item in ["What We Heard:", "Key Issues:", "What We Advise:"]:
-                current_key = item.strip(':').lower().replace(' ', '_')
-            elif current_key:
-                parsed_response[current_key] = item.strip()
-
-        # If any section is missing, add a placeholder
-        for key in ['what_we_heard', 'key_issues', 'what_we_advise']:
-            if key not in parsed_response:
-                parsed_response[key] = f"No {key.replace('_', ' ')} provided in the analysis."
-
-        return parsed_response
+        # Insert the document into the database
+        result = get_collection('design_reviews').insert_one(converted_data)
+        
+        if result.inserted_id:
+            return jsonify({
+                'message': 'Design review request submitted successfully', 
+                'id': str(result.inserted_id),
+                'total_score': total_score,
+                'opportunity_level': converted_data['opportunity_level']
+            }), 201
+        else:
+            return jsonify({'error': 'Failed to submit design review request'}), 500
 
     except Exception as e:
-        print(f"An error occurred while analyzing the transcript: {str(e)}")
-        return {
-            'what_we_heard': f'Error occurred during analysis: {str(e)}',
-            'key_issues': 'Error occurred during analysis.',
-            'what_we_advise': 'Error occurred during analysis.'
-        }
+        current_app.logger.error(f"Error in submit_design_review: {str(e)}", exc_info=True)
+        return jsonify({'error': 'An unexpected error occurred'}), 500

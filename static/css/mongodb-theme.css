@@ -243,3 +243,19 @@
     min-height: 80px;
     background-color: transparent !important;
 }
+
+.question-form {
+    width: 90%;
+}
+.modal-dialog.wide-modal {
+    max-width: 90%; /* Adjust this value as needed */
+    width: 90%;
+  }
+  
+  /* For smaller screens, you might want to limit the minimum width */
+  @media (max-width: 768px) {
+    .modal-dialog.wide-modal {
+      max-width: 95%;
+      width: 95%;
+    }
+  }

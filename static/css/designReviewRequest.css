@@ -1,0 +1,37 @@
+.step {
+    transition: display 0.3s ease-in-out;
+}
+
+.form-check {
+    margin-bottom: 0.5rem;
+}
+
+.is-invalid {
+    border-color: #dc3545;
+}
+
+.is-invalid:focus {
+    border-color: #dc3545;
+    box-shadow: 0 0 0 0.2rem rgba(220, 53, 69, 0.25);
+}
+
+.review-banner {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px;
+    background-color: #f8f9fa;
+    border-bottom: 1px solid #e9ecef;
+}
+
+.review-banner i {
+    margin-right: 10px;
+}
+
+.review-banner span {
+    margin-right: 15px;
+}
+
+.review-banner .btn {
+    margin-left: 10px;
+}

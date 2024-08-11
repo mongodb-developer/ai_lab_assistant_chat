@@ -11,6 +11,7 @@ from datetime import datetime, timezone, timedelta
 from bson import ObjectId, json_util
 from flask_login import login_required, current_user
 from flask import request, current_app
+import PyPDF2
 
 import traceback
 import requests
@@ -995,3 +996,90 @@ def verify_question_similarity(query, candidate):
         return similarity_score / 10  # Normalize to 0-1 range
     except ValueError:
         return 0 
+def analyze_transcript(filepath, user_context):
+    try:
+        # Check if the file is a PDF
+        if filepath.lower().endswith('.pdf'):
+            with open(filepath, 'rb') as file:
+                reader = PyPDF2.PdfReader(file)
+                transcript = ""
+                for page in reader.pages:
+                    transcript += page.extract_text()
+        else:
+            # For non-PDF files, try reading as UTF-8 with error handling
+            with open(filepath, 'r', encoding='utf-8', errors='replace') as file:
+                transcript = file.read()
+
+        # Truncate the transcript if it's too long
+        max_tokens = 3000  # Adjust this value based on your needs
+        if len(transcript) > max_tokens:
+            transcript = transcript[:max_tokens] + "..."
+
+        prompt = f"""
+        Analyze the following transcript from a design review meeting, taking into consideration the additional context provided by the user:
+
+        User Context:
+        {user_context}
+
+        Transcript:
+        {transcript}
+
+        Please provide a summary in the following format:
+        1. What We Heard: Summarize the main points discussed in the meeting, incorporating relevant user context.
+        2. Key Issues: Identify the main challenges or problems mentioned, considering the user's specific situation.
+        3. What We Advise: Based on the discussion and user context, what recommendations would you make?
+
+        Provide your analysis as plain text, not in JSON format. Use the exact headings "What We Heard:", "Key Issues:", and "What We Advise:" to separate the sections.
+        """
+
+        # Call the OpenAI API using the new interface
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=[
+                {"role": "system", "content": "You are an expert in MongoDB design reviews. Your task is to analyze transcripts from design review meetings and provide insightful summaries and recommendations."},
+                {"role": "user", "content": prompt}
+            ]
+        )
+
+        # Extract the generated text
+        analysis = response.choices[0].message.content
+
+        # Print the raw response for debugging
+        print("Raw API response:", analysis)
+
+        # Parse the response into sections
+        sections = re.split(r'(What We Heard:|Key Issues:|What We Advise:)', analysis)[1:]  # Split and keep separators
+        parsed_response = {}
+        current_key = None
+        for item in sections:
+            if item in ["What We Heard:", "Key Issues:", "What We Advise:"]:
+                current_key = item.strip(':').lower().replace(' ', '_')
+            elif current_key:
+                parsed_response[current_key] = item.strip()
+
+        # If any section is missing, add a placeholder
+        for key in ['what_we_heard', 'key_issues', 'what_we_advise']:
+            if key not in parsed_response:
+                parsed_response[key] = f"No {key.replace('_', ' ')} provided in the analysis."
+        return parsed_response
+
+    except Exception as e:
+        print(f"An error occurred while analyzing the transcript: {str(e)}")
+        return {
+            'what_we_heard': f'Error occurred during analysis: {str(e)}',
+            'key_issues': 'Error occurred during analysis.',
+            'what_we_advise': 'Error occurred during analysis.'
+        }
+    
+def update_design_review_data(review_id, update_data):
+    design_reviews_collection = get_collection('design_reviews')
+
+    result = design_reviews_collection.update_one(
+        {'_id': ObjectId(review_id)},
+        {'$set': update_data}
+    )
+
+    if result.modified_count == 1:
+        return True
+    else:
+        return False
