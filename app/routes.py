@@ -1594,17 +1594,44 @@ def get_design_review(review_id):
 @login_required
 def update_design_review(review_id):
     try:
+        current_app.logger.info(f"Received PUT request for review_id: {review_id}")
         data = request.json
+        current_app.logger.info(f"Request data: {data}")
+
         if not data:
+            current_app.logger.warning("No data provided in the request")
             return jsonify({'error': 'No data provided'}), 400
 
-        if DesignReviewService.update_review(review_id, data):
-            return jsonify({'message': 'Review updated successfully'}), 200
+        # Validate the input data
+        allowed_fields = ['what_we_heard', 'key_issues', 'what_we_advise']
+        update_data = {k: v for k, v in data.items() if k in allowed_fields}
+        current_app.logger.info(f"Filtered update data: {update_data}")
+        
+        if not update_data:
+            current_app.logger.warning("No valid fields to update")
+            return jsonify({'error': 'No valid fields to update'}), 400
+
+        # Update the review
+        current_app.logger.info(f"Attempting to update review {review_id}")
+        success, status = DesignReviewService.update_review(review_id, update_data)
+        
+        if success:
+            if status == "Updated":
+                current_app.logger.info(f"Successfully updated review {review_id}")
+                return jsonify({'message': 'Review updated successfully', 'review_id': review_id}), 200
+            elif status == "No changes":
+                current_app.logger.info(f"No changes made to review {review_id}")
+                return jsonify({'message': 'No changes were necessary', 'review_id': review_id}), 200
         else:
-            return jsonify({'error': 'Failed to update the review'}), 500
+            if status == "Not found":
+                current_app.logger.warning(f"Review {review_id} not found")
+                return jsonify({'error': 'Design review not found'}), 404
+            else:
+                current_app.logger.error(f"Failed to update review {review_id}: {status}")
+                return jsonify({'error': f'Failed to update the review: {status}'}), 500
     except Exception as e:
-        current_app.logger.error(f"Error updating design review: {str(e)}")
-        return jsonify({'error': 'An error occurred while updating the review'}), 500
+        current_app.logger.error(f"Error updating design review {review_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': f'An error occurred while updating the review: {str(e)}'}), 500
 
 @main.route('/api/design_reviews/<review_id>', methods=['DELETE'])
 @login_required

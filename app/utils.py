@@ -1027,7 +1027,7 @@ def analyze_transcript(filepath, user_context):
         Please provide a summary in the following format:
         1. What We Heard: Summarize the main points discussed in the meeting, incorporating relevant user context.
         2. Key Issues: Identify the main challenges or problems mentioned, considering the user's specific situation.
-        3. What We Advise: Based on the discussion and user context, what recommendations would you make?
+        3. What We Advise: Based on the discussion and user context, what recommendations would you make... please keep this in line with MongoDB Best Practices for scalable application design and data modeling... feel free to include information about data modeling design patterns where applicable.
 
         Provide your analysis as plain text, not in JSON format. Use the exact headings "What We Heard:", "Key Issues:", and "What We Advise:" to separate the sections.
         """

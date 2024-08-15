@@ -13,12 +13,30 @@ class DesignReviewService:
 
     @staticmethod
     def update_review(review_id, update_data):
-        design_reviews_collection = get_collection('design_reviews')
-        result = design_reviews_collection.update_one(
-            {'_id': ObjectId(review_id)},
-            {'$set': update_data}
-        )
-        return result.modified_count > 0
+        try:
+            current_app.logger.info(f"Updating review {review_id} with data: {update_data}")
+            collection = get_collection('design_reviews')
+            current_app.logger.info(f"Got collection: {collection}")
+            
+            result = collection.update_one(
+                {'_id': ObjectId(review_id)},
+                {'$set': update_data}
+            )
+            current_app.logger.info(f"Update result: {result.raw_result}")
+            
+            if result.matched_count > 0:
+                if result.modified_count > 0:
+                    current_app.logger.info(f"Successfully updated review {review_id}")
+                    return True, "Updated"
+                else:
+                    current_app.logger.info(f"No changes made to review {review_id}")
+                    return True, "No changes"
+            else:
+                current_app.logger.warning(f"Review {review_id} not found")
+                return False, "Not found"
+        except Exception as e:
+            current_app.logger.error(f"Error updating design review {review_id}: {str(e)}", exc_info=True)
+            return False, str(e)
 
     @staticmethod
     def delete_review(review_id):
