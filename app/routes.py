@@ -54,6 +54,13 @@ def custom_json_encoder(obj):
         return str(obj)
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
     
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return json.JSONEncoder.default(self, o)
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname=s - %(message)s')
@@ -1507,69 +1514,25 @@ def design_review():
         print(f"Error in design_review: {e}")
         return jsonify({'error': 'Failed to submit Design Review request.'}), 500
 
-def calculate_completeness_score(full_name, company_name, application_status, project_description, sample_doc_paths, sample_query_paths, model_ready):
-    score = 0
-    if full_name: score += 5
-    if company_name: score += 5
-    if application_status: score += 5
-    if project_description: score += 5
-    if sample_doc_paths: score += 5
-    if sample_query_paths: score += 5
-    if model_ready and isinstance(model_ready, str):
-        if model_ready.lower() != 'yes': 
-            score -= 5  # Subtract points if the model is not ready
-    return score
-
-def calculate_skill_level_score(skill_level):
-    if skill_level == 'Expert': return 15
-    if skill_level == 'Intermediate': return 10
-    if skill_level == 'Beginner': return 5
-    return 0
-
-def calculate_application_status_score(application_status):
-    if application_status == 'In production': return 15
-    if application_status == 'In design phase': return 10
-    if application_status == 'Not started': return 0
-    return 0
-
-def calculate_use_case_score(requirements):
-    score = 0
-    if 'Transactional guarantees' in requirements: score += 2
-    if 'Full-Text Search' in requirements: score += 2
-    if 'Cross-Region HA' in requirements: score += 2
-    if 'Cloud to on-prem replication (or vice versa)' in requirements: score += 2
-    if 'Time series capabilities' in requirements: score += 2
-    if 'Data tiering' in requirements: score += 2
-    if 'Multi-cloud' in requirements: score += 2
-    if 'Data modeling guidance' in requirements: score += 2
-    if 'Development assistance/guidance' in requirements: score += 2
-    if 'Edge database (mobile or otherwise)' in requirements: score += 2
-    return score
-
-def calculate_data_volume_score(data_size):
-    if data_size and int(data_size) >= 1000: return 10
-    if data_size and int(data_size) >= 100: return 5
-    return 0
-
-def calculate_uptime_sla_score(uptime_sla):
-    if uptime_sla and float(uptime_sla) >= 99.99: return 5
-    return 0
-
-def calculate_previous_interaction_score(previous_interaction):
-    if previous_interaction: return 5
-    return 0
-
 @main.route('/api/design_reviews', methods=['GET'])
 @login_required
 def get_all_design_reviews():
     try:
         reviews = DesignReviewService.get_all_reviews()
         if reviews:
-            # Convert ObjectId to string for each review
             serialized_reviews = []
             for review in reviews:
-                review['_id'] = str(review['_id'])
-                serialized_reviews.append(review)
+                serialized_review = {
+                    '_id': str(review['_id']),
+                    'full_name': review.get('full_name', 'N/A'),
+                    'company_name': review.get('company_name', 'N/A'),
+                    'application_status': review.get('application_status', 'N/A'),
+                    'skill_level': review.get('skill_level', 'N/A'),
+                    'total_score': review.get('total_score', 0),
+                    'review_status': review.get('review_status', 'N/A'),
+                    'review_details': review.get('review_details', '')
+                }
+                serialized_reviews.append(serialized_review)
             return jsonify(serialized_reviews), 200
         return jsonify({'message': 'No reviews found'}), 204
     except Exception as e:
@@ -1583,8 +1546,8 @@ def get_design_review(review_id):
     try:
         review = DesignReviewService.get_review(review_id)
         if review:
-            review['_id'] = str(review['_id'])
-            return jsonify(review), 200
+            # Use the custom JSONEncoder to handle ObjectId serialization
+            return json.dumps(review, cls=JSONEncoder), 200, {'Content-Type': 'application/json'}
         return jsonify({'error': 'Review not found'}), 404
     except Exception as e:
         current_app.logger.error(f"Error fetching design review: {str(e)}")
@@ -1603,7 +1566,7 @@ def update_design_review(review_id):
             return jsonify({'error': 'No data provided'}), 400
 
         # Validate the input data
-        allowed_fields = ['what_we_heard', 'key_issues', 'what_we_advise']
+        allowed_fields = ['what_we_heard', 'key_issues', 'what_we_advise', 'references']
         update_data = {k: v for k, v in data.items() if k in allowed_fields}
         current_app.logger.info(f"Filtered update data: {update_data}")
         
@@ -1741,7 +1704,8 @@ def summarize_transcription(review_id):
     update_design_review(review_id, {
         'what_we_heard': summary['what_we_heard'],
         'key_issues': summary['key_issues'],
-        'what_we_recommend': summary['what_we_recommend']
+        'what_we_recommend': summary['what_we_recommend'],
+        'references': summary['references']
     })
 
     return jsonify(summary), 200
@@ -1752,13 +1716,26 @@ def request_design_review():
     return render_template('design_review_request.html')
 
 @main.route('/api/design_reviews', methods=['POST'])
+@login_required
 def submit_design_review():
     try:
         data = request.json
-        
+        current_app.logger.info(f"Received design review submission: {data}")
+
+        if not data:
+            current_app.logger.error("No data provided in the request")
+            return jsonify({'error': 'No data provided'}), 400
+
         # Convert hyphenated keys to underscore keys
         converted_data = {k.replace('-', '_'): v for k, v in data.items()}
-        
+
+        # Validate required fields
+        required_fields = ['full_name', 'company_name', 'application_status', 'skill_level']
+        for field in required_fields:
+            if field not in converted_data:
+                current_app.logger.error(f"Missing required field: {field}")
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
         # Convert data size to integer (GB)
         data_size_str = converted_data.get('data_size', '0').lower().replace('gb', '').strip()
         try:
@@ -1767,53 +1744,48 @@ def submit_design_review():
         except ValueError:
             return jsonify({'error': 'Invalid data size format. Please enter a number in GB.'}), 400
 
+        # Set initial status
+        converted_data['status'] = 'SUBMITTED'
+
+        # Add user_id and timestamp
+        converted_data['user_id'] = current_user.id
+        converted_data['submitted_at'] = datetime.utcnow()
+
         # Calculate scores
-        completeness_score = calculate_completeness_score(
-            converted_data.get('full_name'), 
-            converted_data.get('company_name'), 
-            converted_data.get('application_status'), 
-            converted_data.get('project_description'), 
-            converted_data.get('sample_documents', []),
-            converted_data.get('sample_queries', []),
-            converted_data.get('model_ready')
-        )
-        skill_level_score = calculate_skill_level_score(converted_data.get('skill_level'))
-        application_status_score = calculate_application_status_score(converted_data.get('application_status'))
-        use_case_score = calculate_use_case_score(converted_data.get('requirements', []))
-        data_volume_score = calculate_data_volume_score(data_size)
-        uptime_sla_score = calculate_uptime_sla_score(converted_data.get('uptime_sla'))
-        previous_interaction_score = calculate_previous_interaction_score(converted_data.get('team_members'))
+        converted_data['completeness_score'] = DesignReviewService.calculate_completeness_score(converted_data)
+        converted_data['skill_level_score'] = DesignReviewService.calculate_skill_level_score(converted_data.get('skill_level'))
+        converted_data['application_status_score'] = DesignReviewService.calculate_application_status_score(converted_data.get('application_status'))
+        converted_data['use_case_score'] = DesignReviewService.calculate_use_case_score(converted_data.get('requirements', []))
+        converted_data['data_volume_score'] = DesignReviewService.calculate_data_volume_score(converted_data.get('data_size'))
+        converted_data['uptime_sla_score'] = DesignReviewService.calculate_uptime_sla_score(converted_data.get('uptime_sla'))
+        converted_data['previous_interaction_score'] = DesignReviewService.calculate_previous_interaction_score(converted_data.get('team_members'))
 
-        total_score = (completeness_score + skill_level_score + application_status_score + 
-                       use_case_score + data_volume_score + uptime_sla_score + 
-                       previous_interaction_score)
+        converted_data['total_score'] = sum([
+            converted_data['completeness_score'],
+            converted_data['skill_level_score'],
+            converted_data['application_status_score'],
+            converted_data['use_case_score'],
+            converted_data['data_volume_score'],
+            converted_data['uptime_sla_score'],
+            converted_data['previous_interaction_score']
+        ])
 
-        # Add calculated scores to the data
-        converted_data['completeness_score'] = completeness_score
-        converted_data['skill_level_score'] = skill_level_score
-        converted_data['application_status_score'] = application_status_score
-        converted_data['use_case_score'] = use_case_score
-        converted_data['data_volume_score'] = data_volume_score
-        converted_data['uptime_sla_score'] = uptime_sla_score
-        converted_data['previous_interaction_score'] = previous_interaction_score
-        converted_data['total_score'] = total_score
-
-        # Determine opportunity level based on total score
-        if total_score >= 80:
+        # Determine opportunity level
+        if converted_data['total_score'] >= 80:
             converted_data['opportunity_level'] = 'High'
-        elif total_score >= 50:
+        elif converted_data['total_score'] >= 50:
             converted_data['opportunity_level'] = 'Medium'
         else:
             converted_data['opportunity_level'] = 'Low'
 
         # Insert the document into the database
-        result = get_collection('design_reviews').insert_one(converted_data)
+        result = DesignReviewService.create_review(converted_data)
         
-        if result.inserted_id:
+        if result:
             return jsonify({
                 'message': 'Design review request submitted successfully', 
-                'id': str(result.inserted_id),
-                'total_score': total_score,
+                'id': result,
+                'total_score': converted_data['total_score'],
                 'opportunity_level': converted_data['opportunity_level']
             }), 201
         else:
@@ -1821,4 +1793,61 @@ def submit_design_review():
 
     except Exception as e:
         current_app.logger.error(f"Error in submit_design_review: {str(e)}", exc_info=True)
-        return jsonify({'error': 'An unexpected error occurred'}), 500
+        return jsonify({'error': 'An unexpected error occurred', 'details': str(e)}), 500
+
+@main.route('/api/design_reviews/<review_id>/accept', methods=['POST'])
+@login_required
+def accept_design_review(review_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.accept_review(review_id, current_user.id):
+        return jsonify({'message': 'Design review accepted'}), 200
+    return jsonify({'error': 'Failed to accept design review'}), 400
+
+@main.route('/api/design_reviews/<review_id>/reject', methods=['POST'])
+@login_required
+def reject_design_review(review_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.reject_review(review_id, current_user.id):
+        return jsonify({'message': 'Design review rejected'}), 200
+    return jsonify({'error': 'Failed to reject design review'}), 400
+
+@main.route('/api/design_reviews/<review_id>/assign', methods=['POST'])
+@login_required
+def assign_design_review(review_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    reviewer_id = request.json.get('reviewer_id')
+    if DesignReviewService.assign_reviewer(review_id, reviewer_id):
+        return jsonify({'message': 'Reviewer assigned successfully'}), 200
+    return jsonify({'error': 'Failed to assign reviewer'}), 400
+
+@main.route('/api/design_reviews/<review_id>/schedule', methods=['POST'])
+@login_required
+def schedule_design_review(review_id):
+    review = DesignReviewService.get_review(review_id)
+    if str(review['assigned_reviewer_id']) != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.schedule_review(review_id):
+        return jsonify({'message': 'Design review scheduled'}), 200
+    return jsonify({'error': 'Failed to schedule design review'}), 400
+
+@main.route('/api/design_reviews/<review_id>/complete', methods=['POST'])
+@login_required
+def complete_design_review(review_id):
+    review = DesignReviewService.get_review(review_id)
+    if str(review['assigned_reviewer_id']) != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.complete_review(review_id):
+        return jsonify({'message': 'Design review completed'}), 200
+    return jsonify({'error': 'Failed to complete design review'}), 400
+
+@main.route('/api/design_reviews/<review_id>/send_report', methods=['POST'])
+@login_required
+def send_design_review_report(review_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.send_report(review_id):
+        return jsonify({'message': 'Report sent successfully'}), 200
+    return jsonify({'error': 'Failed to send report'}), 400

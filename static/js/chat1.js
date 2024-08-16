@@ -282,9 +282,16 @@
         const moduleSelect = document.getElementById('moduleDropdown');
         const message = userInput.value.trim();
         let selectedModule = moduleSelect.textContent.trim();
+    
         if (selectedModule.toLowerCase() === "select a module") {
             selectedModule = "";
-        }    
+        }
+    
+        if (message.startsWith('/')) {
+            handleCommand(message);
+            userInput.value = '';
+            return;
+        }
         if (message) {
             hideAutocompleteDropdown();  // Hide autocomplete dropdown
             appendMessage('User', message);
@@ -523,5 +530,64 @@ function getCsrfToken() {
         console.error('CSRF token not found. Ensure the meta tag is present in the HTML.');
         return null;
     }
+}
+
+function handleCommand(command) {
+    const [baseCommand, action, ...args] = command.split(' ');
+
+    if (baseCommand.toLowerCase() === '/start' && action.toLowerCase() === 'module') {
+        startModule(args.join(' '));
+    } else if (baseCommand.toLowerCase() === '/end' && action.toLowerCase() === 'module') {
+        endModule(args.join(' '));
+    } else if (baseCommand.toLowerCase() === '/show' && action.toLowerCase() === 'modules') {
+        showModuleSelectionPopup();
+    } else {
+        appendMessage('Assistant', `Unknown command: ${command}`);
+    }
+}
+
+function showModuleSelectionPopup() {
+    const availableModules = [
+        'Atlas Setup', 'Data Modeling', 'Aggregation Framework',
+        'Atlas Search', 'Atlas Vector Search', 'AI / RAG', 'Library Management Application'
+    ];
+
+    let modalContent = `
+    <div class="modal fade" id="moduleSelectionModal" tabindex="-1" aria-labelledby="moduleSelectionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: #343a40; color: #ffffff;">
+                    <h5 class="modal-title" id="moduleSelectionModalLabel" style="font-weight: bold; font-size: 1.25rem;">Select a Module</h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">`;
+
+    availableModules.forEach(module => {
+        modalContent += `<button type="button" class="btn btn-primary module-btn" data-module="${module}">${module}</button><br/>`;
+    });
+
+    modalContent += `
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+
+    const modalElement = new bootstrap.Modal(document.getElementById('moduleSelectionModal'));
+    modalElement.show();
+
+    document.querySelectorAll('.module-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const selectedModule = this.getAttribute('data-module');
+            startModule(selectedModule);
+            modalElement.hide();
+        });
+    });
+
+    document.getElementById('moduleSelectionModal').addEventListener('hidden.bs.modal', function () {
+        this.remove(); // Clean up the modal after it's closed
+    });
 }
 })();

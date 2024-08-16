@@ -8,7 +8,7 @@
  * @module admin
  */
 
-import { showDesignReviews, editReview, updateReview, deleteReview, reviewDesign, createScoreIndicator, showEditReviewModal } from './designReviews.js';
+import { showDesignReviews, editReview, updateReview, deleteReview, reviewDesign, createScoreIndicator, showEditReviewModal } from './admin/adminReviews.js';
 
 self.addEventListener('activate', event => {
     event.waitUntil(

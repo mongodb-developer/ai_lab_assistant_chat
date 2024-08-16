@@ -1028,8 +1028,9 @@ def analyze_transcript(filepath, user_context):
         1. What We Heard: Summarize the main points discussed in the meeting, incorporating relevant user context.
         2. Key Issues: Identify the main challenges or problems mentioned, considering the user's specific situation.
         3. What We Advise: Based on the discussion and user context, what recommendations would you make... please keep this in line with MongoDB Best Practices for scalable application design and data modeling... feel free to include information about data modeling design patterns where applicable.
+        4. References: Links to MongoDB Documentation, MongoDB Articles and Best Practices based on the advice we're providing. 
 
-        Provide your analysis as plain text, not in JSON format. Use the exact headings "What We Heard:", "Key Issues:", and "What We Advise:" to separate the sections.
+        Provide your analysis as plain text, not in JSON format. Use the exact headings "What We Heard:", "Key Issues:", "What We Advise:", and "References:" to separate the sections.
         """
 
         # Call the OpenAI API using the new interface
@@ -1048,17 +1049,17 @@ def analyze_transcript(filepath, user_context):
         print("Raw API response:", analysis)
 
         # Parse the response into sections
-        sections = re.split(r'(What We Heard:|Key Issues:|What We Advise:)', analysis)[1:]  # Split and keep separators
+        sections = re.split(r'(What We Heard:|Key Issues:|What We Advise:|References:)', analysis)[1:]  # Split and keep separators
         parsed_response = {}
         current_key = None
         for item in sections:
-            if item in ["What We Heard:", "Key Issues:", "What We Advise:"]:
+            if item in ["What We Heard:", "Key Issues:", "What We Advise:", "References:"]:
                 current_key = item.strip(':').lower().replace(' ', '_')
             elif current_key:
                 parsed_response[current_key] = item.strip()
 
         # If any section is missing, add a placeholder
-        for key in ['what_we_heard', 'key_issues', 'what_we_advise']:
+        for key in ['what_we_heard', 'key_issues', 'what_we_advise', 'references']:
             if key not in parsed_response:
                 parsed_response[key] = f"No {key.replace('_', ' ')} provided in the analysis."
         return parsed_response
@@ -1068,7 +1069,8 @@ def analyze_transcript(filepath, user_context):
         return {
             'what_we_heard': f'Error occurred during analysis: {str(e)}',
             'key_issues': 'Error occurred during analysis.',
-            'what_we_advise': 'Error occurred during analysis.'
+            'what_we_advise': 'Error occurred during analysis.',
+            'references': 'Error occurred during analysis.'
         }
     
 def update_design_review_data(review_id, update_data):

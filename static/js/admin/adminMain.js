@@ -31,6 +31,7 @@ import {
     deleteReview,
     showEditReviewModal,
     editReview,
+    reviewDesign,
     updateReview
 } from './adminReviews.js';
 import { escapeHTML, showError, unescapeHTML } from './utils.js';
