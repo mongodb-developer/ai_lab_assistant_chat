@@ -259,7 +259,6 @@
       width: 95%;
     }
   }
-
   .sample-questions-container {
     background-color: #f9fbfa;
     padding: 20px;
@@ -275,11 +274,17 @@
     box-shadow: 0 4px 8px rgba(0,0,0,0.1);
   }
   .sample-question-card .card-title {
-    color: #13aa52;  /* Forest Green */
+    color: #13aa52;  /* MongoDB Green */
     font-weight: bold;
+    display: flex;
+    align-items: center;
+  }
+  .sample-question-card .card-title i {
+    margin-right: 10px;
+    font-size: 1.2em;
   }
   .sample-question-card .card-text {
-    color: #1c2d5a;  /* Slate Blue */
+    color: #1c2d5a;  /* Dark Blue */
   }
   .sample-question-card .btn-outline-primary {
     color: #13aa52;

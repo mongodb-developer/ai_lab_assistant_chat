@@ -4,6 +4,8 @@
 <link href="{{ url_for('static', filename='css/chat.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/banner.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+
 {% endblock %}
 {% block content %}
 <div id="review-banner" class="review-banner">
@@ -37,7 +39,7 @@
                         <div class="col">
                             <div class="card h-100 sample-question-card">
                                 <div class="card-body">
-                                    <h6 class="card-title">System Workflow</h6>
+                                    <h6 class="card-title"><i class="fas fa-cloud"></i>System Workflow</h6>
                                     <p class="card-text">How does the chat system process my questions?</p>
                                     <button class="btn btn-sm btn-outline-primary" id="show-workflow">Show me the
                                         workflow</button>
@@ -47,7 +49,7 @@
                         <div class="col">
                             <div class="card h-100 sample-question-card">
                                 <div class="card-body">
-                                    <h6 class="card-title">Data Modeling</h6>
+                                    <h6 class="card-title"><i class="fas fa-database"></i>Data Modeling</h6>
                                     <p class="card-text">What's the best way to model a one-to-many relationship in
                                         MongoDB?</p>
                                     <button class="btn btn-sm btn-outline-primary ask-question">Ask this
@@ -58,7 +60,7 @@
                         <div class="col">
                             <div class="card h-100 sample-question-card">
                                 <div class="card-body">
-                                    <h6 class="card-title">Aggregation Framework</h6>
+                                    <h6 class="card-title"><i class="fas fa-filter"></i> Aggregation Framework</h6>
                                     <p class="card-text">Can you explain the $lookup stage in aggregation pipelines?</p>
                                     <button class="btn btn-sm btn-outline-primary ask-question">Ask this
                                         question</button>
@@ -68,7 +70,7 @@
                         <div class="col">
                             <div class="card h-100 sample-question-card">
                                 <div class="card-body">
-                                    <h6 class="card-title">Atlas Search</h6>
+                                    <h6 class="card-title"><i class="fas fa-search"></i> Atlas Search</h6>
                                     <p class="card-text">How do I create a text index for full-text search in Atlas?</p>
                                     <button class="btn btn-sm btn-outline-primary ask-question">Ask this
                                         question</button>
@@ -78,7 +80,7 @@
                         <div class="col">
                             <div class="card h-100 sample-question-card">
                                 <div class="card-body">
-                                    <h6 class="card-title">Atlas Vector Search</h6>
+                                    <h6 class="card-title"><i class="fas fa-vector-square"></i> Atlas Vector Search</h6>
                                     <p class="card-text">What are the steps to implement semantic search using Atlas
                                         Vector Search?</p>
                                     <button class="btn btn-sm btn-outline-primary ask-question">Ask this
@@ -89,7 +91,7 @@
                         <div class="col">
                             <div class="card h-100 sample-question-card">
                                 <div class="card-body">
-                                    <h6 class="card-title">AI / RAG</h6>
+                                    <h6 class="card-title"><i class="fas fa-robot"></i> AI / RAG</h6>
                                     <p class="card-text">How can I implement a Retrieval-Augmented Generation (RAG)
                                         system with MongoDB?</p>
                                     <button class="btn btn-sm btn-outline-primary ask-question">Ask this
