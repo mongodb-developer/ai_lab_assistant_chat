@@ -120,6 +120,7 @@ def home():
         return "An error occurred", 500
 
 @main.route('/chat')
+@login_required
 def chat():
     try:
         current_app.logger.debug("Entering chat route")
