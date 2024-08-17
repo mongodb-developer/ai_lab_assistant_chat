@@ -83,10 +83,16 @@ export function populateUsersTable(users) {
         <td>${user.last_login}</td>
         <td>${user.isAdmin ? 'Yes' : 'No'}</td>
         <td>
-            <button class="btn btn-sm btn-primary" data-id="${user._id}" data-is-admin="${user.isAdmin}" onclick="toggleAdminStatus(this)">Toggle Admin</button>
+<button class="btn btn-sm btn-primary toggle-admin-btn" data-id="${user._id}" data-is-admin="${user.isAdmin}">Toggle Admin</button>
+
         </td>
     `;
         tableBody.appendChild(row);
+    });
+    document.querySelectorAll('.toggle-admin-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            toggleAdminStatus(this);
+        });
     });
 }
 

@@ -38,6 +38,7 @@ window.editReview = editReview;
 window.deleteReview = deleteReview;
 window.reviewDesign = reviewDesign;
 window.generateReport = generateReport;
+window.toggleAdminStatus = toggleAdminStatus;
 import { escapeHTML, showError, unescapeHTML } from './utils.js';
 import * as adminStatistics from './adminStatistics.js';
 
