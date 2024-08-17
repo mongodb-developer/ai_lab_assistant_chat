@@ -443,3 +443,12 @@ export function displayEventMap(events) {
         console.log("No events with valid coordinates found");
     }
 }
+
+window.initMap = function() {
+    // Your map initialization code here
+    const map = new google.maps.Map(document.getElementById("event-map"), {
+        center: { lat: 0, lng: 0 },
+        zoom: 2,
+    });
+    // Any other map setup code...
+};

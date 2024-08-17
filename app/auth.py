@@ -8,7 +8,6 @@ from datetime import datetime
 import logging
 from app.utils import with_db_connection
 
-
 auth = Blueprint('auth', __name__)
 oauth = OAuth()
 login_manager = LoginManager()

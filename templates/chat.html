@@ -10,8 +10,16 @@
     <i class="fas fa-pencil-alt"></i>
     <span>Book a Design Review - Have your app reviewed by MongoDB Experts</span>
     <button id="book-review-btn" class="btn btn-sm btn-light ml-2">Book Now</button>
-    <a href="{{ url_for('main.request_design_review') }}" id="request-review-btn" class="btn btn-sm btn-primary ml-2">Request Review</a>
-
+    <div classname="flex items-center space-x-2">
+        <a id="request-review-btn" href="{{ url_for('main.request_design_review') }}"
+            class="btn btn-sm btn-primary ml-2">
+            Request Review
+        </a>
+        <span class="badge bg-warning text-dark"
+            style="font-size: 0.75rem; padding: 0.25em 0.5em; border-radius: 0.25rem;">
+            Beta
+        </span>
+    </div>
 </div>
 <div id="error-container" class="alert alert-danger" style="display: none;" role="alert">
     <span id="error-message"></span>
@@ -23,6 +31,175 @@
     <div class="row">
         <div class="chat-page">
             <div class="chat-content">
+                <div id="sample-questions" class="container mt-4 mb-4 sample-questions-container">
+                    <h5 class="mb-3" style="color: #1c2d5a;">Sample Questions to Get Started</h5>
+                    <div class="row row-cols-1 row-cols-md-3 g-4">
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title">System Workflow</h6>
+                                    <p class="card-text">How does the chat system process my questions?</p>
+                                    <button class="btn btn-sm btn-outline-primary" id="show-workflow">Show me the
+                                        workflow</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Data Modeling</h6>
+                                    <p class="card-text">What's the best way to model a one-to-many relationship in
+                                        MongoDB?</p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question">Ask this
+                                        question</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Aggregation Framework</h6>
+                                    <p class="card-text">Can you explain the $lookup stage in aggregation pipelines?</p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question">Ask this
+                                        question</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Atlas Search</h6>
+                                    <p class="card-text">How do I create a text index for full-text search in Atlas?</p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question">Ask this
+                                        question</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title">Atlas Vector Search</h6>
+                                    <p class="card-text">What are the steps to implement semantic search using Atlas
+                                        Vector Search?</p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question">Ask this
+                                        question</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title">AI / RAG</h6>
+                                    <p class="card-text">How can I implement a Retrieval-Augmented Generation (RAG)
+                                        system with MongoDB?</p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question">Ask this
+                                        question</button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="workflow-animation"></div>
+
+                </div>
+                <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const sampleQuestions = document.getElementById('sample-questions');
+                        const chatContainer = document.getElementById('chat-container');
+                        const inputContainer = document.getElementById('input-container');
+
+                        mermaid.initialize({ startOnLoad: false });
+
+                        const workflowButton = document.getElementById('show-workflow');
+                        const workflowAnimation = document.getElementById('workflow-animation');
+
+                        workflowButton.addEventListener('click', function() {
+    workflowAnimation.style.display = 'block';
+    workflowAnimation.innerHTML = `
+      <div class="mermaid">
+        sequenceDiagram
+          participant U as User
+          participant C as Chat System
+          participant S as Server
+          participant V as Vector Search
+          participant D as Database
+          participant L as LLM
+
+          U->>+C: Input question
+          C->>+S: Forward question
+          S->>+V: Perform vector search
+          V-->>-S: Return similarity results
+          
+          alt Similar questions found
+              S->>+D: Retrieve answer
+              D-->>-S: Return stored answer
+          else No similar questions
+              S->>+L: Generate new answer
+              L-->>-S: Return generated answer
+          end
+          
+          S-->>-C: Send response
+          C-->>-U: Display answer
+      </div>
+    `;
+    mermaid.init(undefined, document.querySelector(".mermaid"));
+    setTimeout(animateDiagram, 500);
+});
+
+    function animateDiagram() {
+    const elements = document.querySelectorAll('.mermaid .actor, .mermaid .messageLine, .mermaid .messageText');
+    let delay = 0;
+    elements.forEach((el) => {
+      setTimeout(() => {
+        el.style.opacity = '1';
+      }, delay);
+      delay += 300; // Adjust this value to control the speed of the animation
+    });
+  }
+
+                        // Function to find the input element
+                        function findInputElement() {
+                            // Try to find textarea first
+                            let input = inputContainer.querySelector('textarea');
+                            // If textarea not found, try to find input
+                            if (!input) {
+                                input = inputContainer.querySelector('input[type="text"]');
+                            }
+                            return input;
+                        }
+
+                        // Hide sample questions when chat starts
+                        function hideSampleQuestions() {
+                            if (sampleQuestions) sampleQuestions.style.display = 'none';
+                            if (chatContainer) chatContainer.style.display = 'block';
+                            if (inputContainer) inputContainer.style.display = 'block';
+                        }
+
+                        // Event listener for ask-question buttons
+                        document.querySelectorAll('.ask-question').forEach(button => {
+                            button.addEventListener('click', function () {
+                                const question = this.parentElement.querySelector('.card-text').textContent;
+                                const inputElement = findInputElement();
+                                if (inputElement) {
+                                    inputElement.value = question;
+                                    // Trigger any necessary events
+                                    inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                                    inputElement.focus();
+                                }
+                                hideSampleQuestions();
+                                // You might need to call a function or dispatch an event to send the message
+                                // For example: sendMessage(question);
+                            });
+                        });
+
+                        // Hide sample questions when user starts typing
+                        const inputElement = findInputElement();
+                        if (inputElement) {
+                            inputElement.addEventListener('input', hideSampleQuestions);
+                        }
+                    });
+                </script>
                 <div id="chat-container" class="chat-container"></div>
             </div>
             <div id="input-container" class="input-container">

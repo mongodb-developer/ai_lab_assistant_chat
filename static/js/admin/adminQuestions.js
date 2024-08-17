@@ -845,3 +845,11 @@ export function truncateText(text, maxLength = 50) {
     }
     return text || '';
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const addQuestionBtn = document.getElementById('add-question-btn');
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', showAddQuestionForm);
+    }
+});
+window.showAddQuestionForm = showAddQuestionForm;

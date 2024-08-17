@@ -160,7 +160,7 @@ function updateReview(reviewId) {
     };
 }
 
-function deleteReview(id) {
+export function deleteReview(id) {
     if (confirm('Are you sure you want to delete this design review request?')) {
         fetch(`/api/design_reviews/${id}`, { method: 'DELETE' })
             .then(response => {
@@ -246,7 +246,7 @@ function saveReview(reviewId) {
     });
 }
 
-function reviewDesign(id) {
+export function reviewDesign(id) {
     const reviewModal = new bootstrap.Modal(document.getElementById('reviewModal'));
     const reviewForm = document.getElementById('review-form');
     reviewForm.reset();
@@ -277,7 +277,7 @@ function createScoreIndicator(score) {
     `;
 }
 
-function showEditReviewModal(review) {
+export function showEditReviewModal(review) {
     const modal = document.getElementById('design-review-modal');
     if (!modal) {
         console.error('Design review modal not found');
@@ -350,16 +350,16 @@ function showEditReviewModal(review) {
     modalInstance.show();
 }
 
-// Initialize the functionality when the DOM is fully loaded
-document.addEventListener('DOMContentLoaded', () => {
-    const designReviewModal = document.getElementById('design-review-modal');
-    if (designReviewModal) {
-        new bootstrap.Modal(designReviewModal);
-    }
-    showDesignReviews();
-});
+// // Initialize the functionality when the DOM is fully loaded
+// document.addEventListener('DOMContentLoaded', () => {
+//     const designReviewModal = document.getElementById('design-review-modal');
+//     if (designReviewModal) {
+//         new bootstrap.Modal(designReviewModal);
+//     }
+//     showDesignReviews();
+// });
 
-function generateReport(reviewId) {
+export function generateReport(reviewId) {
     fetch(`/api/design_reviews/${reviewId}`)
         .then(response => response.json())
         .then(review => {

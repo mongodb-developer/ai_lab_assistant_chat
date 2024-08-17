@@ -259,3 +259,54 @@
       width: 95%;
     }
   }
+
+  .sample-questions-container {
+    background-color: #f9fbfa;
+    padding: 20px;
+    border-radius: 8px;
+  }
+  .sample-question-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+  .sample-question-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+  .sample-question-card .card-title {
+    color: #13aa52;  /* Forest Green */
+    font-weight: bold;
+  }
+  .sample-question-card .card-text {
+    color: #1c2d5a;  /* Slate Blue */
+  }
+  .sample-question-card .btn-outline-primary {
+    color: #13aa52;
+    border-color: #13aa52;
+  }
+  .sample-question-card .btn-outline-primary:hover {
+    background-color: #13aa52;
+    color: #ffffff;
+  }
+
+  #workflow-animation {
+    display: none;
+    margin-top: 20px;
+    padding: 20px;
+    background-color: #f0f0f0;
+    border-radius: 8px;
+  }
+  .system-component {
+    fill: #ffffff;
+    stroke: #13aa52;
+    stroke-width: 2;
+  }
+  .system-text {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    fill: #1c2d5a;
+  }
+  #data-point {
+    fill: #13aa52;
+  }
