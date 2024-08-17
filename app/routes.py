@@ -88,9 +88,32 @@ SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is floa
 
 @main.route('/')
 def home():
+
+    labs = [
+        {
+            "title": "Intro Lab",
+            "description": "Get started with MongoDB basics",
+            "url": "https://mongodb-developer.github.io/intro-lab/"
+        },
+        {
+            "title": "Search Lab",
+            "description": "Learn about MongoDB's search capabilities",
+            "url": "https://mongodb-developer.github.io/search-lab/"
+        },
+        {
+            "title": "Aggregation Pipeline Lab",
+            "description": "Master MongoDB's powerful aggregation framework",
+            "url": "https://mongodb-developer.github.io/aggregation-pipeline-lab/"
+        },
+        {
+            "title": "Relational Migrator Lab",
+            "description": "Migrate from relational databases to MongoDB",
+            "url": "https://mongodb-developer.github.io/relational-migrator-lab/"
+        }
+    ]
     try:
         current_app.logger.debug("Entering home route")
-        return render_template('home.html')
+        return render_template('home.html', labs=labs)
     except Exception as e:
         current_app.logger.error(f"Error in home route: {str(e)}")
         current_app.logger.error(traceback.format_exc())

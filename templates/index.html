@@ -20,6 +20,22 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.3/purify.min.js"></script>
     <script src="{{ url_for('static', filename='js/feedback.js') }}"></script>
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
+    <style>
+        .carousel-item {
+            height: 400px;
+            background-size: cover;
+            background-position: center;
+        }
+        .carousel-caption {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+    </style>
     <script>
         document.addEventListener('DOMContentLoaded', () => {
             marked.setOptions({
@@ -39,8 +55,9 @@
         <span>Book a Design Review - Have your app reviewed by MongoDB Experts</span>
         <button id="book-review-btn" class="btn btn-sm btn-light ml-2">Book Now</button>
         <div id="design-review-banner" class="design-review-banner">
-            Request a Design Review - Have your app reviewed by MongoDB Experts
-            <a href="{{ url_for('request_design_review') }}" class="btn btn-primary">Request Now</a>
+            <i class="fas fa-pencil-alt"></i>
+            <span>Request a Design Review - Have your app reviewed by MongoDB Experts</span>
+            <button id="request-review-btn" class="btn btn-sm btn-light ml-2">Request Now</button>
         </div>
     </div>
     {% endif %}
@@ -94,47 +111,117 @@
             {% else %}
             <!-- Home page content -->
             <div class="col-md-12 main-content">
-
-                
-                <div class="home-page">
-                    <h1>Welcome to the AI Lab Assistant</h1>
-                    <p>
-                        The AI Lab Assistant is designed to help you with commonly encountered issues while working on
-                        MongoDB projects.
-                        Whether you're having trouble connecting to your MongoDB cluster, displaying data in your
-                        application, or launching your GitHub codespace,
-                        the AI Lab Assistant is here to provide guidance and solutions.
-                    </p>
-                    <h3>Key Features:</h3>
-                    <ul>
-                        <li><strong>Real-time Assistance:</strong> Get immediate help with common MongoDB issues through
-                            our
-                            chat interface.</li>
-                        <li><strong>Sample Questions:</strong> Quickly access solutions to frequently asked questions
-                            about
-                            MongoDB setup and troubleshooting.</li>
-                        <li><strong>Admin Panel:</strong> Admins can manage questions and review unanswered queries to
-                            improve our knowledge base.</li>
-                        <li><strong>Labs Access:</strong> Explore our developer labs to deepen your MongoDB knowledge
-                            and
-                            skills.</li>
-                    </ul>
-                    <h3>Get Involved</h3>
-                    <p>We encourage you to fork the repository and review the code to gain a deeper understanding of how
-                        MongoDB VectorSearch can be implemented to build a similar system.</p>
-                    <p>Check out, or <a href="https://github.com/mongodb-developer/ai_lab_assistant_chat/fork">fork</a>
-                        the
-                        project on GitHub: <a href="https://github.com/mongodb-developer/ai_lab_assistant_chat/">AI Lab
-                            Assistant Chat</a>.</p>
-                    <p>By exploring the code and the design patterns used, you can learn how to create scalable and
-                        efficient applications using MongoDB. Happy coding!</p>
-                    <p>
-                        <a href="{{ url_for('main.chat') }}" class="btn btn-primary">Start a Conversation</a>
-                    </p>
+                <div id="aiLabAssistantCarousel" class="carousel slide" data-bs-ride="carousel">
+                    <div class="carousel-indicators">
+                        <button type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                        <button type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                        <button type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+                        <button type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide-to="3" aria-label="Slide 4"></button>
+                    </div>
+                    <div class="carousel-inner">
+                        <div class="carousel-item active" style="background-image: url('{{ url_for('static', filename='img/hero-bg-1.jpg') }}');">
+                            <div class="carousel-caption d-none d-md-block">
+                                <h1>Welcome to the AI Lab Assistant</h1>
+                                <p>Your intelligent companion for MongoDB projects and issues</p>
+                                <a href="{{ url_for('main.chat') }}" class="btn btn-primary btn-lg">Start a Conversation</a>
+                            </div>
+                        </div>
+                        <div class="carousel-item" style="background-image: url('{{ url_for('static', filename='img/hero-bg-2.jpg') }}');">
+                            <div class="carousel-caption d-none d-md-block">
+                                <div class="feature-icon">💬</div>
+                                <h2>Real-time Assistance</h2>
+                                <p>Get immediate help with common MongoDB issues through our chat interface</p>
+                            </div>
+                        </div>
+                        <div class="carousel-item" style="background-image: url('{{ url_for('static', filename='img/hero-bg-3.jpg') }}');">
+                            <div class="carousel-caption d-none d-md-block">
+                                <div class="feature-icon">🔍</div>
+                                <h2>Sample Questions</h2>
+                                <p>Quickly access solutions to frequently asked questions about MongoDB setup and troubleshooting</p>
+                            </div>
+                        </div>
+                        <div class="carousel-item" style="background-image: url('{{ url_for('static', filename='img/hero-bg-4.jpg') }}');">
+                            <div class="carousel-caption d-none d-md-block">
+                                <div class="feature-icon">🧪</div>
+                                <h2>Labs Access</h2>
+                                <p>Explore our developer labs to deepen your MongoDB knowledge and skills</p>
+                                <a href="#labs-section" class="btn btn-secondary">View Labs</a>
+                            </div>
+                        </div>
+                    </div>
+                    <button class="carousel-control-prev" type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide="prev">
+                        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Previous</span>
+                    </button>
+                    <button class="carousel-control-next" type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide="next">
+                        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                        <span class="visually-hidden">Next</span>
+                    </button>
+                </div>
+            
+                <div class="container mt-5">
+                    <h2>Key Features</h2>
+                    <div class="row">
+                        <div class="col-md-3 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h3 class="card-title">💬</h3>
+                                    <h4 class="card-subtitle mb-2">Real-time Assistance</h4>
+                                    <p class="card-text">Get immediate help with common MongoDB issues through our chat interface.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h3 class="card-title">🔍</h3>
+                                    <h4 class="card-subtitle mb-2">Sample Questions</h4>
+                                    <p class="card-text">Quickly access solutions to frequently asked questions about MongoDB setup and troubleshooting.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h3 class="card-title">👨‍💼</h3>
+                                    <h4 class="card-subtitle mb-2">Admin Panel</h4>
+                                    <p class="card-text">Admins can manage questions and review unanswered queries to improve our knowledge base.</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body text-center">
+                                    <h3 class="card-title">🧪</h3>
+                                    <h4 class="card-subtitle mb-2">Labs Access</h4>
+                                    <p class="card-text">Explore our developer labs to deepen your MongoDB knowledge and skills.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            
+                <div class="container mt-5" id="labs-section">
+                    <h2>Our Labs</h2>
+                    <div class="row">
+                        {% for lab in labs %}
+                        <div class="col-md-3 mb-4">
+                            <div class="card h-100">
+                                <div class="card-body">
+                                    <h5 class="card-title">{{ lab.title }}</h5>
+                                    <p class="card-text">{{ lab.description }}</p>
+                                    <a href="{{ lab.url }}" target="_blank" class="btn btn-primary">Start Lab</a>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            
+                <div class="container mt-5">
                     <div class="alert alert-info" role="alert">
-                        <strong>Note Regarding This Software:</strong> This system is in beta testing and may have bugs.
-                        If
-                        you encounter any issues, please notify your instructor.
+                        <h4 class="alert-heading">Note Regarding This Software</h4>
+                        <p>This system is in beta testing and may have bugs. If you encounter any issues, please notify your instructor.</p>
                     </div>
                 </div>
             </div>
@@ -164,6 +251,108 @@
     </div>
 
 
+    <!-- Design Review Modal -->
+    <div class="modal fade" id="designReviewModal" tabindex="-1" aria-labelledby="designReviewModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="designReviewModalLabel">Request a Design Review</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <form id="design-review-form" method="post" enctype="multipart/form-data">
+                        <input type="hidden" id="completeness-score" name="completeness-score">
+                        <input type="hidden" id="skill-level-score" name="skill-level-score">
+                        <input type="hidden" id="application-status-score" name="application-status-score">
+                        <input type="hidden" id="use-case-score" name="use-case-score">
+                        <input type="hidden" id="data-volume-score" name="data-volume-score">
+                        <input type="hidden" id="uptime-sla-score" name="uptime-sla-score">
+                        <input type="hidden" id="previous-interaction-score" name="previous-interaction-score">
+                        <input type="hidden" id="total-score" name="total-score">
+                        <div class="mb-3">
+                            <label for="full-name" class="form-label">Full Name *</label>
+                            <input type="text" class="form-control" id="full-name" name="full-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="company-name" class="form-label">Company Name *</label>
+                            <input type="text" class="form-control" id="company-name" name="company-name" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="application-status" class="form-label">What is the Application/Workload’s status: *</label>
+                            <select class="form-select" id="application-status" name="application-status" required>
+                                <option value="In design phase">In design phase</option>
+                                <option value="In production">In production</option>
+                                <option value="Not started">Not started</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="model-ready" class="form-label">Do you have a logical model, relational schema or draft document model ready to discuss in this session? *</label>
+                            <input type="text" class="form-control" id="model-ready" name="model-ready" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="project-description" class="form-label">Project name and short description (business function, tech stack and immediate challenges) *</label>
+                            <textarea class="form-control" id="project-description" name="project-description" rows="3" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="skill-level" class="form-label">What is your MongoDB skill level? *</label>
+                            <select class="form-select" id="skill-level" name="skill-level" required>
+                                <option value="Beginner">Beginner</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="Expert">Expert</option>
+                                <option value="Never used before">Never used before</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="requirements" class="form-label">Please let us know any requirements you have relevant to your use case (future or current requirements): *</label>
+                            <select class="form-select" id="requirements" name="requirements" multiple required>
+                                <option value="Transactional guarantees">Transactional guarantees</option>
+                                <option value="Full-Text Search">Full-Text Search</option>
+                                <option value="Cross-Region HA">Cross-Region HA</option>
+                                <option value="Cloud to on-prem replication">Cloud to on-prem replication (or vice versa)</option>
+                                <option value="Time series capabilities">Time series capabilities</option>
+                                <option value="Data tiering Sharing">Data tiering Sharing (horizontal scaling)</option>
+                                <option value="Multi-cloud">Multi-cloud</option>
+                                <option value="Data modeling guidance">Data modeling guidance</option>
+                                <option value="Development assistance/guidance">Development assistance/guidance</option>
+                                <option value="Edge database">Edge database (mobile or otherwise)</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        <div class="mb-3">
+                            <label for="data-size" class="form-label">Please share an estimate of the size of existing application data (GB/TB/PB) currently in production or estimated size in year 1: *</label>
+                            <input type="text" class="form-control" id="data-size" name="data-size" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="uptime-sla" class="form-label">Any uptime SLAs this application needs guaranteed? *</label>
+                            <textarea class="form-control" id="uptime-sla" name="uptime-sla" rows="2" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="cloud-provider" class="form-label">What cloud provider will this application be deployed in? *</label>
+                            <input type="text" class="form-control" id="cloud-provider" name="cloud-provider" required>
+                        </div>
+                        <div class="mb-3">
+                            <label for="team-members" class="form-label">Is there anyone else from your team here today that you would like to be included in the session? *</label>
+                            <textarea class="form-control" id="team-members" name="team-members" rows="2" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="team-goals" class="form-label">Could you provide further details on what goals your team is pursuing, if they haven't been covered already? *</label>
+                            <textarea class="form-control" id="team-goals" name="team-goals" rows="2" required></textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label for="sample-documents" class="form-label">Sample Documents</label>
+                            <input type="file" class="form-control" id="sample-documents" name="sample-documents" multiple>
+                        </div>
+                        <div class="mb-3">
+                            <label for="sample-queries" class="form-label">Sample Queries</label>
+                            <input type="file" class="form-control" id="sample-queries" name="sample-queries" multiple>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Submit Request</button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
     <!-- <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script> -->
