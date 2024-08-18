@@ -2,10 +2,13 @@
     let chatContainer;
     let currentConversationId = null;
     let currentFocus = -1;
+    let chatState;
 
     document.addEventListener('DOMContentLoaded', function() {
         console.log("DOM fully loaded");
-        
+        chatState = loadChatState();
+        console.log("Initial chat state:", chatState);
+    
         // Initialize chatContainer
         chatContainer = document.getElementById('chat-container');
         if (!chatContainer) {
@@ -64,7 +67,6 @@
         });
 
         const sendButton = document.getElementById('send-button');
-        // const userInput = document.getElementById('user-input');
         if (userInput) {
             userInput.addEventListener('focus', function() {
                 var bsDropdown = bootstrap.Dropdown.getInstance(dropdownMenu);
@@ -77,14 +79,17 @@
             userInput.addEventListener('keypress', function (event) {
                 if (event.key === 'Enter') {
                     event.preventDefault();
-                    sendMessage();
+                    sendMessage(event);
+                    hideAutocompleteDropdown();
                 }
             });
     
             sendButton.addEventListener('click', sendMessage);
             sendButton.addEventListener('touchstart', function (event) {
                 event.preventDefault();
-                sendMessage();
+                sendMessage(event);
+                hideAutocompleteDropdown();
+
             });
         } else {
             console.error('User input or send button not found');
@@ -282,14 +287,17 @@
         const moduleSelect = document.getElementById('moduleDropdown');
         const message = userInput.value.trim();
         let selectedModule = moduleSelect.textContent.trim();
-    
+        const loader = appendLoader();
+
         if (selectedModule.toLowerCase() === "select a module") {
             selectedModule = "";
         }
     
-        if (message.startsWith('/')) {
-            handleCommand(message);
+        if ((message.startsWith('/') || chatState.waitingForConnectionString)) {
             userInput.value = '';
+            removeLoader(loader);
+
+            handleCommand(message);
             return;
         }
         if (message) {
@@ -301,7 +309,6 @@
             if (bsDropdown) {
                 bsDropdown.hide();
             }
-            const loader = appendLoader();
     
             try {
                 const userId = await getCurrentUserId();
@@ -309,7 +316,6 @@
                     // If getUserId returned null, the redirect to login should have already happened
                     return;
                 }
-    
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
@@ -360,7 +366,14 @@
             console.error('Chat container not available. Message not appended.');
             return;
         }
-    
+        if (message.startsWith('mongodb://') || message.startsWith('mongodb+srv://')) {
+            chatState.waitingForConnectionString = false;
+            saveChatState();
+            hideAutocompleteDropdown();
+            checkConnection(message);
+            removeLoader(loader);
+            return;
+        }
         console.log(`Appending message from ${sender}:`, message);
     
         const messageId = generateUniqueId();
@@ -384,7 +397,7 @@
                 const scoreText = data.score ? ` (Match score: ${data.score.toFixed(4)})` : '';
                 sourceElement.textContent = `Source: From previous response${scoreText}`;
             } else {
-                sourceElement.textContent = 'Source: Unknown';
+                sourceElement.textContent = 'Source: Assistant';
             }
             messageElement.appendChild(sourceElement);
     
@@ -541,8 +554,93 @@ function handleCommand(command) {
         endModule(args.join(' '));
     } else if (baseCommand.toLowerCase() === '/show' && action.toLowerCase() === 'modules') {
         showModuleSelectionPopup();
+    } else if (baseCommand.toLowerCase() === '/cancel') {
+        resetConnectionStringWaiting();
+        appendMessage('Assistant', "Connection string check cancelled. How else can I assist you?");
+
+    } else if (baseCommand.toLowerCase() === '/check' && action.toLowerCase() === 'connection') {
+        checkConnectionString();
+    } else if (chatState.waitingForConnectionString) {
+        if (baseCommand.startsWith('mongodb://') || baseCommand.startsWith('mongodb+srv://')) {
+            chatState.waitingForConnectionString = false;
+            appendMessage('User', baseCommand);
+            saveChatState();
+            checkConnection(baseCommand);
+        } else {
+            appendMessage('Assistant', "That doesn't look like a valid MongoDB connection string. Please make sure it starts with 'mongodb://' or 'mongodb+srv://'. Try again or type '/cancel' to cancel the connection check.");
+        }
     } else {
         appendMessage('Assistant', `Unknown command: ${command}`);
+    }
+}
+
+// Function to load chat state from localStorage
+function loadChatState() {
+    const savedState = localStorage.getItem('chatState');
+    if (savedState) {
+        return JSON.parse(savedState);
+    }
+    return {
+        waitingForConnectionString: false,
+        currentModule: null
+    };
+}
+
+function resetConnectionStringWaiting() {
+    chatState.waitingForConnectionString = false;
+    saveChatState();
+}
+
+function saveChatState() {
+    localStorage.setItem('chatState', JSON.stringify(chatState));
+}
+
+function checkConnectionString() {
+    appendMessage('Assistant', "Sure, I can help you check your MongoDB connection. Please enter your connection string now. (Don't worry, it will be handled securely and won't be stored.)");
+    chatState.waitingForConnectionString = true;
+    saveChatState();
+}
+
+async function checkConnection(connectionString) {
+    appendMessage('Assistant', "Checking your connection string and analyzing the 'library' database...");
+    try {
+        const response = await fetch('/api/check_connection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ connection_string: connectionString })
+        });
+        resetConnectionStringWaiting();
+
+        const data = await response.json();
+        if (data.success) {
+            let message = `Great news! ${data.message}\n\n`;
+            message += "Here's a summary of the 'library' database:\n";
+            if (data.database_info && Object.keys(data.database_info).length > 0) {
+                for (const [collection, info] of Object.entries(data.database_info)) {
+                    message += `\nCollection: ${collection}\n`;
+                    message += `- Documents: ${info.document_count}\n`;
+                    message += `- Indexes:\n`;
+                    if (info.indexes.length > 0) {
+                        info.indexes.forEach(index => {
+                            message += `  - ${index.name}: ${JSON.stringify(index.keys)}${index.unique ? ' (unique)' : ''}\n`;
+                        });
+                    } else {
+                        message += `  No indexes found.\n`;
+                    }
+                }
+            } else {
+                message += "The 'library' database appears to be empty or doesn't exist.";
+            }
+            appendMessage('Assistant', message);
+        } else {
+            appendMessage('Assistant', `I encountered an issue: ${data.message}\nPlease check your connection string and try again. If you need help, feel free to ask!`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        appendMessage('Assistant', "Sorry, there was an error checking your connection. Please try again later.");
+        resetConnectionStringWaiting();
     }
 }
 

@@ -1,4 +1,24 @@
 document.addEventListener('DOMContentLoaded', function () {
+
+    let currentFocus;
+    function loadChatState() {
+        const savedState = localStorage.getItem('chatState');
+        console.log("chatState: ", savedState)
+        if (savedState) {
+            return JSON.parse(savedState);
+        }
+        return {
+            waitingForConnectionString: false,
+            currentModule: null
+        };
+    }
+
+    let chatState = loadChatState();
+
+    if (chatState.waitingForConnectionString) {
+        clearAutocomplete();
+        return;
+    }
     const userInput = document.getElementById('user-input');
     const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
 

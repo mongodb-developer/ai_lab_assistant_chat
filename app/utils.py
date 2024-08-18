@@ -3,6 +3,7 @@ from pymongo import MongoClient, ASCENDING
 from pymongo.operations import IndexModel
 from pymongo.collection import Collection
 from pymongo.database import Database
+from pymongo.errors import ConnectionFailure, ConfigurationError, ServerSelectionTimeoutError
 from typing import Optional
 from config import Config
 import json
@@ -1085,3 +1086,47 @@ def update_design_review_data(review_id, update_data):
         return True
     else:
         return False
+    
+def sanitize_connection_string(connection_string):
+    # Remove password from connection string for logging purposes
+    return re.sub(r'(:)(?:[^@]+)(@)', r'\1*****\2', connection_string)
+
+def test_mongodb_connection(connection_string):
+    try:
+        client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
+        client.admin.command('ismaster')
+        
+        # Check 'library' database, count documents, and get index information
+        db = client['library']
+        database_info = {}
+        for collection_name in db.list_collection_names():
+            collection = db[collection_name]
+            document_count = collection.count_documents({})
+            
+            # Get index information
+            indexes = list(collection.list_indexes())
+            index_info = []
+            for index in indexes:
+                index_info.append({
+                    "name": index["name"],
+                    "keys": index["key"],
+                    "unique": index.get("unique", False)
+                })
+            
+            database_info[collection_name] = {
+                "document_count": document_count,
+                "indexes": index_info
+            }
+        
+        return True, "Connection successful!", database_info
+    except ConnectionFailure:
+        return False, "Failed to connect to the MongoDB cluster.", None
+    except ConfigurationError:
+        return False, "There's an error in your connection string.", None
+    except ServerSelectionTimeoutError:
+        return False, "Timed out while attempting to connect.", None
+    except Exception as e:
+        return False, f"An unexpected error occurred: {str(e)}", None
+    finally:
+        if 'client' in locals():
+            client.close()

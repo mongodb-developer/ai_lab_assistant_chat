@@ -14,7 +14,7 @@ from .question_generator import process_content, save_to_mongodb, fetch_content_
 import requests
 from werkzeug.utils import secure_filename
 import pytz
-from app.utils import analyze_transcript, update_design_review_data, get_collection, get_or_create_conversation, create_new_conversation, close_active_conversations, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity
+from app.utils import analyze_transcript, update_design_review_data, get_collection, get_or_create_conversation, create_new_conversation, close_active_conversations, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity, sanitize_connection_string, test_mongodb_connection
 from .design_review_service import DesignReviewService
 from bson.son import SON
 import openai
@@ -1875,3 +1875,17 @@ def send_design_review_report(review_id):
     if DesignReviewService.send_report(review_id):
         return jsonify({'message': 'Report sent successfully'}), 200
     return jsonify({'error': 'Failed to send report'}), 400
+
+@main.route('/api/check_connection', methods=['POST'])
+def check_connection():
+    data = request.json
+    connection_string = data.get('connection_string')
+    if not connection_string:
+        return jsonify({"success": False, "message": "No connection string provided"}), 400
+    
+    success, message, database_info = test_mongodb_connection(connection_string)
+    return jsonify({
+        "success": success, 
+        "message": message,
+        "database_info": database_info
+    })
