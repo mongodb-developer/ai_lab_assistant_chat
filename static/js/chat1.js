@@ -628,28 +628,34 @@ function getCsrfToken() {
 }
 
 function handleCommand(command) {
-    const [baseCommand, action] = command.split(' ');
+    const [baseCommand, ...args] = command.split(' ');
+    const action = args.join(' ').toLowerCase();
 
     switch (baseCommand.toLowerCase()) {
         case '/help':
+        case '/h':
             showHelpInformation();
             break;
         case '/check':
+        case '/c':
             if (action.toLowerCase() === 'connection') {
                 checkConnection();
             }
             break;
         case '/load':
+        case '/l':
             if (action.toLowerCase() === 'data') {
                 loadData();
             }
             break;
         case '/add':
+        case '/a':
             if (action.toLowerCase() === 'vectors') {
                 addVectors();
             }
             break;
         case '/mongo':
+        case '/m':
             executeMongoShellCommand(command);
             break;
         default:
@@ -765,24 +771,20 @@ function showHelpInformation() {
             </thead>
             <tbody>
                 <tr>
-                    <td>/help</td>
+                    <td>/help or /h</td>
                     <td>Show this help information</td>
                 </tr>
                 <tr>
-                    <td>/check connection</td>
+                    <td>/check or /c connection</td>
                     <td>Test a MongoDB connection string</td>
                 </tr>
                 <tr>
-                    <td>/load data</td>
+                    <td>/load or /l data</td>
                     <td>Start the data loading process</td>
                 </tr>
                 <tr>
-                    <td>/add vectors</td>
+                    <td>/add or /a vectors</td>
                     <td>Add vectors to your library database</td>
-                </tr>
-                <tr>
-                    <td>/cancel</td>
-                    <td>Cancel the current operation (during connection string input)</td>
                 </tr>
             </tbody>
         </table>

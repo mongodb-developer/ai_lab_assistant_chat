@@ -2016,27 +2016,46 @@ def get_documents(collection, last_id=None):
         return documents
     
 def background_import_data(connection_string):
-
-    if not connection_string:
-        logging.error("No connection string provided.")
-        socket_manager.emit('message', {'message': 'Starting data import'})
-        return jsonify({"success": False, "message": "Please add a MongoDB connection string to your profile."}), 400
-         
-    target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
-
     try:
-        target_client.admin.command('ping')
-        socket_manager.emit('message', {'message': 'Connected to target database'})
+        current_app.logger.info("Starting background import process")
+        
+        if not connection_string:
+            current_app.logger.error("No connection string provided.")
+            socket_manager.emit('message', {'message': 'No connection string provided', 'error': True})
+            return
+         
+        target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
+
+        try:
+            target_client.admin.command('ping')
+            current_app.logger.info("Connected to target database")
+            socket_manager.emit('message', {'message': 'Connected to target database'})
+        except Exception as e:
+            current_app.logger.error(f"Error connecting to target database: {str(e)}")
+            socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+            return
+
+        current_app.logger.info("Starting data import")
+        socket_manager.emit('message', {'message': 'Starting data import'})
+
+        for collection in SOURCE_COLLECTIONS:
+            if socket_manager.should_stop.is_set():
+                current_app.logger.info("Import process stopped")
+                break
+            import_collection(target_client, collection)
+
+        if not socket_manager.should_stop.is_set():
+            current_app.logger.info("Data import completed successfully")
+            socket_manager.emit('import-complete', {'message': 'Imported data successfully!'})
+
     except Exception as e:
-        socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
-        return
+        current_app.logger.error(f"Error in background import process: {str(e)}", exc_info=True)
+        socket_manager.emit('message', {'message': f'Error during import: {str(e)}', 'error': True})
 
-    socket_manager.emit('message', {'message': 'Starting data import'})
+    finally:
+        current_app.logger.info("Ending import_data task")
+        socket_manager.end_task('import_data')
 
-    for collection in SOURCE_COLLECTIONS:
-        import_collection(target_client, collection)
-
-    socket_manager.emit('message', {'message': 'Imported data successfully!'})
 
 @socket_manager.on('import-data')
 def import_data(data):
@@ -2078,40 +2097,64 @@ def import_collection(target_client, collection):
     socket_manager.emit('message', {'message': f'{collection}: Import complete for collection'})
 
 def add_vectors(data):
-    connection_string = data['connectionString']
-    provider = data['provider']
-    target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
-
     try:
-        target_client.admin.command('ping')
-        socket_manager.emit('message', {'message': 'Connected to target database'})
-    except Exception as e:
-        socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
-        return
+        connection_string = data['connectionString']
+        provider = data['provider']
+        target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
 
-    socket_manager.emit('message', {'message': 'Starting to add vectors'})
+        try:
+            target_client.admin.command('ping')
+            socket_manager.emit('message', {'message': 'Connected to target database'})
+        except Exception as e:
+            socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+            return
 
-    vector_collection = {
-        'openai': 'openaiBooks',
-        'vertex': 'vertexBooks',
-        'sagemaker': 'sagemakerBooks'
-    }.get(provider, 'vertexBooks')
+        socket_manager.emit('message', {'message': 'Starting to add vectors'})
 
-    import_collection(target_client, vector_collection)
+        vector_collection = {
+            'openai': 'openaiBooks',
+            'vertex': 'vertexBooks',
+            'sagemaker': 'sagemakerBooks'
+        }.get(provider, 'vertexBooks')
 
-    socket_manager.emit('vector-data-complete', {'message': 'Imported vector data successfully!'})
+        import_collection(target_client, vector_collection)
+
+        socket_manager.emit('vector-data-complete', {'message': 'Imported vector data successfully!'})
+    finally:
+        socket_manager.end_task('add_vectors')  # Always end the task, even if an error occurs
+
+
 
 @main.route('/api/load_data', methods=['POST'])
 @login_required
 def load_data():
-    data = request.json
-    connection_string = current_user.atlas_connection_string
-    
-    if not connection_string:
-        return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
+    try:
+        data = request.json
+        connection_string = current_user.atlas_connection_string
+        
+        if not connection_string:
+            current_app.logger.error("No connection string provided in user profile")
+            return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
 
-    socket_manager.start_background_task(background_import_data, connection_string)
-    return jsonify({'success': True, 'message': 'Data loading started'})
+        current_app.logger.info("Initiating socket connection")
+        socket_manager.connect()  # Establish connection
+        
+        current_app.logger.info("Starting import_data task")
+        socket_manager.start_task('import_data')
+        
+        current_app.logger.info("Launching background import task")
+        socket_manager.start_background_task(background_import_data_wrapper, current_app._get_current_object(), connection_string)
+        
+        current_app.logger.info("Data loading initiated successfully")
+        return jsonify({'success': True, 'message': 'Data loading started'}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error in load_data route: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
+
+def background_import_data_wrapper(app, connection_string):
+    with app.app_context():
+        background_import_data(connection_string)
 
 @main.route('/api/add_vectors', methods=['POST'])
 @login_required
@@ -2122,7 +2165,8 @@ def add_vectors_route():
         return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
 
     provider = 'serverless'
-
+    socket_manager.connect()  # Establish connection
+    socket_manager.start_task('add_vectors')
     socket_manager.start_background_task(add_vectors, {'connectionString': connection_string, 'provider': provider})
     return jsonify({'success': True, 'message': 'Vector addition started'})
 
