@@ -630,6 +630,7 @@ function getCsrfToken() {
 function handleCommand(command) {
     const [baseCommand, ...args] = command.split(' ');
     const action = args.join(' ').toLowerCase();
+    appendMessage('User', baseCommand);
 
     switch (baseCommand.toLowerCase()) {
         case '/help':
