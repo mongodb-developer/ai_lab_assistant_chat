@@ -1,15 +1,15 @@
-import os
 from flask import Flask
+from flask_socketio import SocketIO
 from flask_login import login_required, current_user, user_logged_in
 from flask_cors import CORS
-from config import Config
-from .auth import auth, oauth, login_manager, init_oauth
-from .routes import main
-import logging
-from app.utils import update_user_login_info
-from .utils import init_db  # Add this import
-from .config import Config
 from flask_wtf.csrf import CSRFProtect
+from .config import Config
+from .auth import auth, oauth, login_manager, init_oauth
+from .utils import init_db, update_user_login_info
+import os
+import logging
+
+socketio = SocketIO(cors_allowed_origins="*")
 
 def create_app(config_class=Config):
     app = Flask(__name__,
@@ -40,8 +40,12 @@ def create_app(config_class=Config):
     login_manager.session_protection = "strong"
     login_manager.login_view = 'auth.login'
 
+    from .routes import main
+
     app.register_blueprint(main)
     app.register_blueprint(auth)
+
+    socketio.init_app(app)
 
     app.config['UPLOAD_FOLDER'] = 'uploads'
     # Ensure the upload directory exists

@@ -4,6 +4,7 @@ import traceback
 import logging
 from flask import Blueprint, flash, redirect, request, jsonify, render_template, current_app, session, send_from_directory, url_for
 from flask_login import login_required, current_user
+from flask_socketio import emit
 from bson import ObjectId
 from pymongo import MongoClient
 from config import Config
@@ -14,12 +15,15 @@ from .question_generator import process_content, save_to_mongodb, fetch_content_
 import requests
 from werkzeug.utils import secure_filename
 import pytz
-from app.utils import analyze_transcript, update_design_review_data, get_collection, get_or_create_conversation, create_new_conversation, close_active_conversations, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity, sanitize_connection_string, test_mongodb_connection
+from app.utils import analyze_transcript, update_design_review_data, get_collection, get_or_create_conversation, create_new_conversation, close_active_conversations, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity, sanitize_connection_string, test_mongodb_connection, obfuscate_connection_string
 from .design_review_service import DesignReviewService
 from bson.son import SON
+from bson import MinKey
 import openai
 import PyPDF2
 import io
+from dotenv import load_dotenv
+from . import socketio
 
 from app.utils import (
     generate_embedding,
@@ -48,6 +52,14 @@ from app.utils import (
 from werkzeug.exceptions import HTTPException
 
 main = Blueprint('main', __name__)
+
+load_dotenv()
+
+SOURCE_URI = os.getenv('SOURCE')
+APP_NAME_DEV_DAY = "devrel.workshop.devday"
+SOURCE_DATABASE = "library"
+SOURCE_COLLECTIONS = ["authors", "books", "issueDetails", "reviews", "users"]
+LIMIT = 2000
 
 def custom_json_encoder(obj):
     if isinstance(obj, ObjectId):
@@ -191,20 +203,27 @@ def index():
         current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"error": "An internal error occurred"}), 500
 
-# # Route: Chat
-# # Description: Renders the chat page of the application
-# # Parameters: None
-# # Returns: Rendered index.html template with is_chat=True
-# @main.route('/chat')
-# @login_required
-# def chat():
-#     try:
-#         current_app.logger.debug(f"Request received for chat route")
-        
-#         return render_template('index.html', is_chat=True)
-#     except Exception as e:
-#         current_app.logger.error(f"Error in chat route: {str(e)}")
-#         return jsonify({"error": "An internal error occurred"}), 500
+@main.route('/api/user_profile', methods=['GET'])
+@login_required
+def get_user_profile():
+    try:
+        user_id = current_user.get_id()
+        user = get_users_collection().find_one({'_id': ObjectId(user_id)})
+        if user:
+            profile_data = {
+                'email': user.get('email', ''),
+                'name': user.get('name', ''),
+                'atlas_connection_string': obfuscate_connection_string(user.get('atlas_connection_string', '')),
+                'github_codespace_url': user.get('github_codespace_url', ''),
+                'database_username': user.get('database_username', '')
+                # Add any other fields you want to include
+            }
+            return jsonify(profile_data), 200
+        else:
+            return jsonify({'error': 'User not found'}), 404
+    except Exception as e:
+        current_app.logger.error(f"Error fetching user profile: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
     
 @main.route('/api/chat', methods=['POST'])
 @login_required
@@ -227,6 +246,9 @@ def chat_api():
         user_id = current_user.get_id()
         user_name = current_user.name
 
+        if user_question.lower() == '/check connection':
+            return handle_connection_check(user_id)
+        
         # Check for active conversation or create a new one
         active_conversation = get_active_conversation(user_id)
         
@@ -310,6 +332,47 @@ def chat_api():
         debug_info['error'] = str(e)
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
+
+def handle_connection_check(user_id):
+    try:
+        response = requests.get(url_for('main.get_user_profile', _external=True), 
+                                headers={'Authorization': f'Bearer {current_user.get_id()}'})
+        if response.status_code == 200:
+            user_profile = response.json()
+            stored_connection_string = user_profile.get('atlas_connection_string', '')
+
+            if stored_connection_string:
+                response_data = {
+                    'question': '/check connection',
+                    'answer': f"I found a connection string stored in your profile. Would you like to use it to check the connection?\n\n"
+                              f"Stored connection string: {stored_connection_string}\n\n"
+                              f"Reply with 'Yes' to use this connection string, or 'No' to enter a different one.",
+                    'requires_action': True,
+                    'action_type': 'confirm_connection_string',
+                    'stored_connection_string': stored_connection_string
+                }
+            else:
+                response_data = {
+                    'question': '/check connection',
+                    'answer': "You don't have a connection string stored in your profile. Please enter your MongoDB Atlas connection string:",
+                    'requires_action': True,
+                    'action_type': 'input_connection_string'
+                }
+        else:
+            response_data = {
+                'question': '/check connection',
+                'answer': "There was an error retrieving your profile information. Please enter your MongoDB Atlas connection string manually:",
+                'requires_action': True,
+                'action_type': 'input_connection_string'
+            }
+
+        return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
+    except Exception as e:
+        current_app.logger.error(f"Error in handle_connection_check: {str(e)}")
+        return json.dumps({
+            'error': 'An error occurred while processing your request',
+            'debug_info': {'error': str(e), 'traceback': traceback.format_exc()}
+        }, default=json_serialize), 500, {'Content-Type': 'application/json'}
 
 # Route: Get Questions
 # Description: Retrieves all questions from the database
@@ -651,10 +714,32 @@ def changelog():
         current_app.logger.error(f"Error reading CHANGELOG.md: {str(e)}")
         return jsonify({'error': 'An internal error occurred while reading the changelog.'}), 500
 
-@main.route('/profile')
+@main.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    return render_template('profile.html', user=current_user)
+    if request.method == 'POST':
+        # Update user profile
+        current_user.atlas_connection_string = request.form.get('atlas_connection_string')
+        current_user.github_codespace_url = request.form.get('github_codespace_url')
+        current_user.database_username = request.form.get('database_username')
+        current_user.database_password = request.form.get('database_password')
+
+        # Save changes to database
+        db = get_db_connection()
+        db.users.update_one(
+            {'_id': ObjectId(current_user.id)},
+            {'$set': {
+                'atlas_connection_string': current_user.atlas_connection_string,
+                'github_codespace_url': current_user.github_codespace_url,
+                'database_username': current_user.database_username,
+                'database_password': current_user.database_password
+            }}
+        )
+
+        flash('Your profile has been updated!', 'success')
+        return redirect(url_for('main.profile'))
+
+    return render_template('profile.html', user=current_user, obfuscate_connection_string=obfuscate_connection_string)
 
 @main.route('/api/generate_answer', methods=['POST'])
 @login_required
@@ -1877,15 +1962,167 @@ def send_design_review_report(review_id):
     return jsonify({'error': 'Failed to send report'}), 400
 
 @main.route('/api/check_connection', methods=['POST'])
+@login_required
 def check_connection():
-    data = request.json
-    connection_string = data.get('connection_string')
-    if not connection_string:
-        return jsonify({"success": False, "message": "No connection string provided"}), 400
+    try:
+        # Retrieve the connection string from the current user's profile
+        connection_string = current_user.atlas_connection_string
+        
+        if not connection_string:
+            return jsonify({"success": False, "message": "Please add a MongoDB connection string to your profile."}), 400
+        
+        # Test the MongoDB connection using the connection string
+        success, message, database_info = test_mongodb_connection(connection_string)
+        
+        if success:
+            return jsonify({
+                "success": True, 
+                "message": "Connection successful!",
+                "database_info": database_info
+            })
+        else:
+            return jsonify({
+                "success": False, 
+                "message": f"Connection failed: {message}"
+            }), 500
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in check_connection: {str(e)}")
+        return jsonify({"success": False, "message": "An internal server error occurred."}), 500
+
+SOURCE_URI = os.getenv('SOURCE')
+APP_NAME_DEV_DAY = "devrel.workshop.devday"
+SOURCE_DATABASE = "library"
+SOURCE_COLLECTIONS = ["authors", "books", "issueDetails", "reviews", "users"]
+LIMIT = 2000
+
+source_client = MongoClient(SOURCE_URI, appName=APP_NAME_DEV_DAY)
+cache = {}
+doc_counts = {}
+
+for collection in SOURCE_COLLECTIONS:
+    doc_counts[collection] = source_client[SOURCE_DATABASE][collection].count_documents({})
+
+def get_documents(collection, last_id=None):
+    if not last_id:
+        last_id = MinKey()
+    if collection in cache and last_id in cache[collection]:
+        return cache[collection][last_id]
+    else:
+        source_collection = source_client[SOURCE_DATABASE][collection]
+        documents = list(source_collection.find({'_id': {'$gt': last_id}}).sort('_id', 1).limit(LIMIT))
+        if collection not in cache:
+            cache[collection] = {}
+        cache[collection][last_id] = documents
+        return documents
     
-    success, message, database_info = test_mongodb_connection(connection_string)
-    return jsonify({
-        "success": success, 
-        "message": message,
-        "database_info": database_info
-    })
+def background_import_data(connection_string):
+
+    if not connection_string:
+        logging.error("No connection string provided.")
+        socketio.emit('message', {'message': 'No connection string provided', 'error': True})
+        return jsonify({"success": False, "message": "Please add a MongoDB connection string to your profile."}), 400
+         
+    target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
+
+    try:
+        target_client.admin.command('ping')
+        socketio.emit('message', {'message': 'Connected to target database'})
+    except Exception as e:
+        socketio.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+        return
+
+    socketio.emit('message', {'message': 'Starting data import'})
+
+    for collection in SOURCE_COLLECTIONS:
+        import_collection(target_client, collection)
+
+    socketio.emit('import-complete', {'message': 'Imported data successfully!'})
+
+@socketio.on('import-data')
+def import_data(data):
+    connection_string = current_user.atlas_connection_string
+    
+    if not connection_string:
+        return jsonify({"success": False, "message": "Please add a MongoDB connection string to your profile."}), 400
+    
+    target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
+
+    try:
+        target_client.admin.command('ping')
+        emit('message', {'message': 'Connected to target database'})
+    except Exception as e:
+        emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+        return
+
+    emit('message', {'message': 'Starting data import'})
+
+    for collection in SOURCE_COLLECTIONS:
+        import_collection(target_client, collection)
+
+    emit('import-complete', {'message': 'Imported data successfully!'})
+
+def import_collection(target_client, collection):
+    target_collection = target_client[SOURCE_DATABASE][collection]
+    target_collection.drop()
+    socketio.emit('message', {'message': f'{collection}: Deleted existing documents'})
+
+    current_count = 0
+    next_docs = get_documents(collection)
+    while next_docs:
+        target_collection.insert_many(next_docs)
+        last_id = next_docs[-1]['_id']
+        current_count += len(next_docs)
+        next_docs = get_documents(collection, last_id)
+        socketio.emit('status', {'collection': collection, 'count': current_count, 'total': doc_counts[collection]})
+
+    socketio.emit('message', {'message': f'{collection}: Import complete for collection'})
+
+def add_vectors(data):
+    connection_string = data['connectionString']
+    provider = data['provider']
+    target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
+
+    try:
+        target_client.admin.command('ping')
+        socketio.emit('message', {'message': 'Connected to target database'})
+    except Exception as e:
+        socketio.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+        return
+
+    socketio.emit('message', {'message': 'Starting to add vectors'})
+
+    vector_collection = {
+        'openai': 'openaiBooks',
+        'vertex': 'vertexBooks',
+        'sagemaker': 'sagemakerBooks'
+    }.get(provider, 'vertexBooks')
+
+    import_collection(target_client, vector_collection)
+
+    socketio.emit('vector-data-complete', {'message': 'Imported vector data successfully!'})
+
+@main.route('/api/load_data', methods=['POST'])
+@login_required
+def load_data():
+    data = request.json
+    connection_string = current_user.atlas_connection_string
+    
+    if not connection_string:
+        return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
+
+    socketio.start_background_task(background_import_data, connection_string)
+    return jsonify({'success': True, 'message': 'Data loading started'})
+
+@main.route('/api/add_vectors', methods=['POST'])
+@login_required
+def add_vectors_route():
+    data = request.json
+    connection_string = current_user.atlas_connection_string
+    if not connection_string:
+        return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
+
+    provider = 'serverless'
+
+    socketio.start_background_task(add_vectors, {'connectionString': connection_string, 'provider': provider})
+    return jsonify({'success': True, 'message': 'Vector addition started'})

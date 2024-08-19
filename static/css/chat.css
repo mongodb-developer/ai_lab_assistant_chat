@@ -318,3 +318,73 @@
     padding: 0.5rem;
     background-color: #f8f9fa;
   }
+
+  .workflow-indicator {
+    position: fixed;
+    bottom: 60px;
+    right: 20px;
+    background-color: #faf1c9;
+    color: black;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000; /* Ensure it's above other content */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 300px;
+}
+
+.workflow-indicator span {
+    font-weight: bold;
+    margin-bottom: 10px;
+}
+
+#cancel-workflow {
+    align-self: flex-end;
+    background-color: #ffffff;
+    color: #4682b4;
+    border: none;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    transition: background-color 0.3s;
+}
+
+#cancel-workflow:hover {
+    background-color: #e6e6e6;
+}
+
+.chat-bubble.assistant table {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 100%;
+}
+
+.chat-bubble.assistant th,
+.chat-bubble.assistant td {
+    padding: 8px;
+    border: 1px solid #ddd;
+}
+
+.chat-bubble.assistant th {
+    background-color: #f2f2f2;
+}
+
+.confirmation-buttons {
+    margin-top: 10px;
+}
+
+.confirmation-buttons button {
+    margin-right: 10px;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
+}

@@ -6,6 +6,7 @@
 <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
+
 {% endblock %}
 {% block content %}
 <div id="review-banner" class="review-banner">
@@ -93,8 +94,8 @@
                                 <div class="card-body">
                                     <h6 class="card-title"><i class="fas fa-wrench"></i> Workshop Tools</h6>
                                     <p class="card-text">Get help with your workshop progress.  Check your connection string</p>
-                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection">Ask this
-                                        question</button>
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection">Ask this question</button>
+
                                 </div>
                             </div>
                         </div>
@@ -159,6 +160,28 @@
     });
   }
 
+  document.querySelectorAll('.ask-question').forEach(button => {
+    button.addEventListener('click', function() {
+        const question = this.getAttribute('data-question'); // Get the question from the data-question attribute
+        
+        // Set the input value to the data-question value
+        const inputElement = findInputElement();
+        if (inputElement) {
+            inputElement.value = question;
+            // Trigger any necessary events
+            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+            inputElement.focus();
+        }
+        
+        // Trigger the send message action
+        const event = new Event('submit');
+        document.getElementById('chat-form').dispatchEvent(event);
+        
+        hideSampleQuestions(); // Hide the sample questions after selecting one
+    });
+});
+
+
                         // Function to find the input element
                         function findInputElement() {
                             // Try to find textarea first
@@ -180,7 +203,7 @@
                         // Event listener for ask-question buttons
                         document.querySelectorAll('.ask-question').forEach(button => {
                             button.addEventListener('click', function () {
-                                const question = this.parentElement.querySelector('.card-text').textContent;
+                                const question = this.getAttribute('data-question');
                                 const inputElement = findInputElement();
                                 if (inputElement) {
                                     inputElement.value = question;
@@ -202,10 +225,13 @@
                     });
                 </script>
                 <div id="chat-container" class="chat-container"></div>
+
             </div>
+
             <div id="input-container" class="input-container">
                 <div class="d-flex align-items-center w-100">
                     <!-- In chat.html -->
+
                     <div class="dropdown me-2">
                         <button class="btn btn-secondary dropdown-toggle" type="button" id="moduleDropdown"
                             data-bs-toggle="dropdown" aria-expanded="false">
@@ -228,6 +254,7 @@
                     <div class="autocomplete-wrapper">
                         <div id="autocomplete-dropdown" class="autocomplete-dropdown" style="display: none;"></div>
                     </div>
+                    
                     <input type="text" id="user-input" class="form-control me-2"
                         placeholder="Type your question here..." aria-label="Text input with dropdown button">
                     <button id="send-button" class="btn btn-primary">Send</button>
@@ -256,7 +283,10 @@
         </div>
     </div>
 </div>
-
+<div id="workflow-indicator" class="workflow-indicator" style="display: none;">
+    <span id="workflow-message"></span>
+    <button id="cancel-workflow" class="btn btn-sm btn-secondary">Cancel</button>
+</div>
 {% endblock %}
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
@@ -278,4 +308,5 @@
         // })
     });
 </script>
+
 {% endblock %}

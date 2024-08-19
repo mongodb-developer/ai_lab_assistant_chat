@@ -9,6 +9,15 @@
         chatState = loadChatState();
         console.log("Initial chat state:", chatState);
     
+        // Reset any lingering connection string waiting states
+        chatState.waitingForConnectionString = false;
+        chatState.waitingForConnectionStringConfirmation = false;
+        chatState.loadDataPending = false;
+        chatState.addVectorsPending = false;
+        saveChatState();
+    
+        console.log("Reset chat state:", chatState);
+    
         // Initialize chatContainer
         chatContainer = document.getElementById('chat-container');
         if (!chatContainer) {
@@ -16,7 +25,16 @@
             return;
         }
 
+        document.getElementById('cancel-workflow').addEventListener('click', function() {
+            chatState.waitingForConnectionString = false;
+            chatState.loadDataPending = false;
+            saveChatState();
+            hideWorkflowIndicator();
+            appendMessage('Assistant', "Workflow cancelled. How else can I assist you?");
+        });
+
         const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+    
         if (autocompleteDropdown) {
             autocompleteDropdown.addEventListener('click', function(event) {
                 if (event.target.classList.contains('autocomplete-item')) {
@@ -26,10 +44,42 @@
                 }
             });
         }
+    
+        // Function to clear autocomplete
+        function clearAutocomplete() {
+            if (autocompleteDropdown) {
+                autocompleteDropdown.innerHTML = '';
+                autocompleteDropdown.style.display = 'none';
+            }
+        }
+    
 
         const userInput = document.getElementById('user-input');
         if (autocompleteDropdown && !autocompleteDropdown.contains(event.target) && event.target !== userInput) {
             hideAutocompleteDropdown();
+        }
+
+        if (userInput && autocompleteDropdown) {
+            // Add keydown event listener to the user input
+            userInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    hideAutocompleteDropdown();
+                }
+            });
+    
+            // Add keydown event listener to the document
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    hideAutocompleteDropdown();
+                }
+            });
+    
+            // Existing click event listener
+            document.addEventListener('click', function(event) {
+                if (!autocompleteDropdown.contains(event.target) && event.target !== userInput) {
+                    hideAutocompleteDropdown();
+                }
+            });
         }
 
         var dropdownToggle = document.querySelector('#moduleDropdown');
@@ -296,7 +346,7 @@
         if ((message.startsWith('/') || chatState.waitingForConnectionString)) {
             userInput.value = '';
             removeLoader(loader);
-
+            hideAutocompleteDropdown();
             handleCommand(message);
             return;
         }
@@ -372,6 +422,7 @@
             hideAutocompleteDropdown();
             checkConnection(message);
             removeLoader(loader);
+            hideWorkflowIndicator();
             return;
         }
         console.log(`Appending message from ${sender}:`, message);
@@ -382,11 +433,33 @@
         messageElement.id = messageId;
     
         if (sender.toLowerCase() === 'assistant') {
-            const bubbleContent = document.createElement('div');
-            bubbleContent.classList.add('bubble-content');
-            bubbleContent.innerHTML = marked.parse(escapeSpecialChars(message));
-            messageElement.appendChild(bubbleContent);
-    
+            if (message.includes('<')) {
+                messageElement.innerHTML = message;
+            } else {
+                const bubbleContent = document.createElement('div');
+                bubbleContent.classList.add('bubble-content');
+                bubbleContent.innerHTML = marked.parse(escapeSpecialChars(message));
+                messageElement.appendChild(bubbleContent);
+            }
+        // Check if we are waiting for a connection string confirmation
+        if (chatState.waitingForConnectionStringConfirmation) {
+            const buttonContainer = document.createElement('div');
+            buttonContainer.classList.add('confirmation-buttons');
+            
+            const yesButton = document.createElement('button');
+            yesButton.textContent = 'Yes';
+            yesButton.classList.add('btn', 'btn-success', 'mr-2');
+            yesButton.onclick = () => handleConnectionStringConfirmation('yes');
+            
+            const noButton = document.createElement('button');
+            noButton.textContent = 'No';
+            noButton.classList.add('btn', 'btn-danger');
+            noButton.onclick = () => handleConnectionStringConfirmation('no');
+            
+            buttonContainer.appendChild(yesButton);
+            buttonContainer.appendChild(noButton);
+            messageElement.appendChild(buttonContainer);
+        }
             // Create and append the source element
             const sourceElement = document.createElement('div');
             sourceElement.classList.add('source-info');
@@ -449,6 +522,15 @@
     
         chatContainer.appendChild(messageElement);
         chatContainer.scrollTop = chatContainer.scrollHeight;
+            // Add a small delay to force the browser to render everything together
+    if (chatState.waitingForConnectionStringConfirmation) {
+        setTimeout(() => {
+            const buttonContainer = messageElement.querySelector('.confirmation-buttons');
+            if (buttonContainer) {
+                buttonContainer.style.display = 'flex';
+            }
+        }, 0); // You can tweak this delay as needed
+    }
     }
  
     function submitAppFeedback(rating) {
@@ -546,32 +628,140 @@ function getCsrfToken() {
 }
 
 function handleCommand(command) {
-    const [baseCommand, action, ...args] = command.split(' ');
+    const [baseCommand, action] = command.split(' ');
 
-    if (baseCommand.toLowerCase() === '/start' && action.toLowerCase() === 'module') {
-        startModule(args.join(' '));
-    } else if (baseCommand.toLowerCase() === '/end' && action.toLowerCase() === 'module') {
-        endModule(args.join(' '));
-    } else if (baseCommand.toLowerCase() === '/show' && action.toLowerCase() === 'modules') {
-        showModuleSelectionPopup();
-    } else if (baseCommand.toLowerCase() === '/cancel') {
-        resetConnectionStringWaiting();
-        appendMessage('Assistant', "Connection string check cancelled. How else can I assist you?");
+    switch (baseCommand.toLowerCase()) {
+        case '/check':
+            if (action.toLowerCase() === 'connection') {
+                checkConnection();
+            }
+            break;
+        case '/load':
+            if (action.toLowerCase() === 'data') {
+                loadData();
+            }
+            break;
+        case '/add':
+            if (action.toLowerCase() === 'vectors') {
+                addVectors();
+            }
+            break;
+        default:
+            appendMessage('Assistant', 'Invalid command. Please check the available commands.');
+    }
+}
 
-    } else if (baseCommand.toLowerCase() === '/check' && action.toLowerCase() === 'connection') {
-        checkConnectionString();
-    } else if (chatState.waitingForConnectionString) {
-        if (baseCommand.startsWith('mongodb://') || baseCommand.startsWith('mongodb+srv://')) {
-            chatState.waitingForConnectionString = false;
-            appendMessage('User', baseCommand);
-            saveChatState();
-            checkConnection(baseCommand);
+function handleConnectionStringConfirmation(response) {
+    chatState.waitingForConnectionStringConfirmation = false;
+
+    if (response.toLowerCase() === 'yes') {
+        if (chatState.loadDataPending) {
+            loadData(chatState.storedConnectionString);
+        } else if (chatState.addVectorsPending) {
+            appendMessage('Assistant', "Great! Now, please specify the provider (serverless, vertex, openai, or sagemaker).");
+            chatState.waitingForProviderInput = true;
         } else {
-            appendMessage('Assistant', "That doesn't look like a valid MongoDB connection string. Please make sure it starts with 'mongodb://' or 'mongodb+srv://'. Try again or type '/cancel' to cancel the connection check.");
+            checkConnection(chatState.storedConnectionString);
         }
     } else {
-        appendMessage('Assistant', `Unknown command: ${command}`);
+        if (chatState.loadDataPending) {
+            appendMessage('Assistant', "Alright, please enter your MongoDB connection string manually to load data.");
+        } else if (chatState.addVectorsPending) {
+            appendMessage('Assistant', "Alright, please enter your MongoDB connection string manually to add vectors. Also, specify the provider (serverless, vertex, openai, or sagemaker).");
+        } else {
+            appendMessage('Assistant', "Alright, please enter your MongoDB connection string manually.");
+        }
+        chatState.waitingForConnectionString = true;
     }
+
+    if (response.toLowerCase() === 'no') {
+        chatState.storedConnectionString = null;
+    }
+    
+    saveChatState();
+}
+
+function handleProviderInput(command) {
+    const provider = command.trim().toLowerCase();
+    if (['serverless', 'vertex', 'openai', 'sagemaker'].includes(provider)) {
+        addVectors(chatState.storedConnectionString, provider);
+        chatState.waitingForProviderInput = false;
+        chatState.addVectorsPending = false;
+        chatState.storedConnectionString = null;
+        saveChatState();
+    } else {
+        appendMessage('Assistant', "Invalid provider. Please specify either serverless, vertex, openai, or sagemaker.");
+    }
+}
+
+function handleConnectionStringInput(command) {
+    if (command.startsWith('mongodb://') || command.startsWith('mongodb+srv://')) {
+        if (chatState.loadDataPending) {
+            loadData(command);
+            chatState.loadDataPending = false;
+        } else if (chatState.addVectorsPending) {
+            appendMessage('Assistant', "Connection string received. Now, please specify the provider (serverless, vertex, openai, or sagemaker).");
+            chatState.waitingForProviderInput = true;
+            chatState.storedConnectionString = command;
+        } else {
+            checkConnection(command);
+        }
+        chatState.waitingForConnectionString = false;
+        saveChatState();
+        hideWorkflowIndicator();
+    } else if (command.toLowerCase() === '/cancel') {
+        resetConnectionStringWaiting();
+        hideWorkflowIndicator();
+        appendMessage('Assistant', "Operation cancelled. How else can I assist you?");
+    } else {
+        appendMessage('Assistant', "That doesn't look like a valid MongoDB connection string. Please make sure it starts with 'mongodb://' or 'mongodb+srv://'. Try again or type '/cancel' to cancel the operation.");
+    }
+}
+
+function showHelpInformation() {
+    const helpMessage = `
+        <h4>Welcome to the AI Lab Assistant!</h4>
+        <p>Here are some tips on how to use this chat system:</p>
+        <ul>
+            <li>Ask clear, specific questions about MongoDB, its features, or best practices.</li>
+            <li>You can ask follow-up questions to get more detailed information.</li>
+            <li>If you need to see code examples, just ask!</li>
+        </ul>
+        <h5>Available Commands:</h5>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Command</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>/help</td>
+                    <td>Show this help information</td>
+                </tr>
+                <tr>
+                    <td>/check connection</td>
+                    <td>Test a MongoDB connection string</td>
+                </tr>
+                <tr>
+                    <td>/load data</td>
+                    <td>Start the data loading process</td>
+                </tr>
+                <tr>
+                    <td>/add vectors</td>
+                    <td>Add vectors to your library database</td>
+                </tr>
+                <tr>
+                    <td>/cancel</td>
+                    <td>Cancel the current operation (during connection string input)</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>Feel free to ask if you need any clarification or have more questions!</p>
+    `;
+
+    appendMessage('Assistant', helpMessage);
 }
 
 // Function to load chat state from localStorage
@@ -588,6 +778,11 @@ function loadChatState() {
 
 function resetConnectionStringWaiting() {
     chatState.waitingForConnectionString = false;
+    chatState.waitingForConnectionStringConfirmation = false;
+    chatState.waitingForProviderInput = false;
+    chatState.loadDataPending = false;
+    chatState.addVectorsPending = false;
+    chatState.storedConnectionString = null;
     saveChatState();
 }
 
@@ -595,53 +790,87 @@ function saveChatState() {
     localStorage.setItem('chatState', JSON.stringify(chatState));
 }
 
-function checkConnectionString() {
-    appendMessage('Assistant', "Sure, I can help you check your MongoDB connection. Please enter your connection string now. (Don't worry, it will be handled securely and won't be stored.)");
-    chatState.waitingForConnectionString = true;
-    saveChatState();
+async function checkConnectionString() {
+    try {
+        const response = await fetch('/api/user_profile');
+        const profileData = await response.json();
+        
+        if (profileData.atlas_connection_string) {
+            chatState.storedConnectionString = profileData.atlas_connection_string; // Store the full connection string
+            const sanitizedConnectionString = sanitizeConnectionString(chatState.storedConnectionString); // Sanitize for display
+            
+            chatState.waitingForConnectionStringConfirmation = true;
+            appendMessage('Assistant', `I found a connection string stored in your profile. The sanitized version is: ${sanitizedConnectionString}. Would you like to use it?`);
+        } else {
+            const profileLink = '<a href="/profile" target="_blank">profile settings</a>';
+            appendMessage('Assistant', `I couldn't find a connection string in your profile. You can add one in your ${profileLink}. For now, please enter your MongoDB connection string manually. (Don't worry, it will be handled securely and won't be stored.)`);
+            chatState.waitingForConnectionString = true;
+        }
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string...");
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        appendMessage('Assistant', "There was an error retrieving your profile information. Please enter your MongoDB connection string manually.");
+        chatState.waitingForConnectionString = true;
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string...");
+    }
 }
 
-async function checkConnection(connectionString) {
-    appendMessage('Assistant', "Checking your connection string and analyzing the 'library' database...");
+function sanitizeConnectionString(connectionString) {
+    // This function will hide sensitive parts of the connection string
+    const urlObj = new URL(connectionString);
+    if (urlObj.password) {
+        urlObj.password = '****';
+    }
+    return urlObj.toString();
+}
+
+async function checkConnection() {
     try {
         const response = await fetch('/api/check_connection', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ connection_string: connectionString })
+            credentials: 'include' // Ensure cookies are sent with the request
         });
-        resetConnectionStringWaiting();
 
         const data = await response.json();
-        if (data.success) {
-            let message = `Great news! ${data.message}\n\n`;
-            message += "Here's a summary of the 'library' database:\n";
-            if (data.database_info && Object.keys(data.database_info).length > 0) {
-                for (const [collection, info] of Object.entries(data.database_info)) {
-                    message += `\nCollection: ${collection}\n`;
-                    message += `- Documents: ${info.document_count}\n`;
-                    message += `- Indexes:\n`;
-                    if (info.indexes.length > 0) {
-                        info.indexes.forEach(index => {
-                            message += `  - ${index.name}: ${JSON.stringify(index.keys)}${index.unique ? ' (unique)' : ''}\n`;
-                        });
-                    } else {
-                        message += `  No indexes found.\n`;
-                    }
-                }
-            } else {
-                message += "The 'library' database appears to be empty or doesn't exist.";
-            }
-            appendMessage('Assistant', message);
+        if (!data.success) {
+            appendMessage('Assistant', data.message);
         } else {
-            appendMessage('Assistant', `I encountered an issue: ${data.message}\nPlease check your connection string and try again. If you need help, feel free to ask!`);
+            let databaseInfoMessage = formatDatabaseInfo(data.database_info);
+            appendMessage('Assistant', `Connection successful: ${data.message}\n${databaseInfoMessage}`);
+            // Handle additional database info display if needed
         }
     } catch (error) {
-        console.error('Error:', error);
-        appendMessage('Assistant', "Sorry, there was an error checking your connection. Please try again later.");
-        resetConnectionStringWaiting();
+        appendMessage('Assistant', 'There was an error processing your request.');
+        console.error('Error in checkConnection:', error);
     }
+}
+
+function formatDatabaseInfo(databaseInfo) {
+    if (!databaseInfo || Object.keys(databaseInfo).length === 0) {
+        return "No database information available.";
+    }
+
+    let formattedInfo = "Database Information:\n";
+    for (const [collectionName, collectionInfo] of Object.entries(databaseInfo)) {
+        formattedInfo += `\nCollection: ${collectionName}\n`;
+        formattedInfo += `Documents: ${collectionInfo.document_count}\n`;
+
+        if (collectionInfo.indexes && collectionInfo.indexes.length > 0) {
+            formattedInfo += `Indexes:\n`;
+            collectionInfo.indexes.forEach(index => {
+                formattedInfo += `  - ${index.name}: ${JSON.stringify(index.keys)}${index.unique ? ' (unique)' : ''}\n`;
+            });
+        } else {
+            formattedInfo += `No indexes found.\n`;
+        }
+    }
+
+    return formattedInfo;
 }
 
 function showModuleSelectionPopup() {
@@ -688,4 +917,163 @@ function showModuleSelectionPopup() {
         this.remove(); // Clean up the modal after it's closed
     });
 }
+// Load data functions
+
+async function handleLoadDataCommand() {
+    try {
+        const response = await fetch('/api/user_profile');
+        const profileData = await response.json();
+        
+        if (profileData.atlas_connection_string) {
+            chatState.storedConnectionString = profileData.atlas_connection_string; // Store the full connection string
+            const sanitizedConnectionString = sanitizeConnectionString(chatState.storedConnectionString); // Sanitize for display
+            
+            chatState.waitingForConnectionStringConfirmation = true;
+            chatState.loadDataPending = true;
+            appendMessage('Assistant', `I found a connection string stored in your profile. The sanitized version is: ${sanitizedConnectionString}. Would you like to use it for loading data?`);
+        } else {
+            const profileLink = '<a href="/profile" target="_blank">profile settings</a>';
+            appendMessage('Assistant', `I couldn't find a connection string in your profile. You can add one in your ${profileLink}. For now, please enter your MongoDB connection string to load data. (Don't worry, it will be handled securely and won't be stored.)`);
+            chatState.waitingForConnectionString = true;
+            chatState.loadDataPending = true;
+        }
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string to load data...");
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        appendMessage('Assistant', "There was an error retrieving your profile information. Please enter your MongoDB connection string manually to load data.");
+        chatState.waitingForConnectionString = true;
+        chatState.loadDataPending = true;
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string to load data...");
+    }
+}
+
+async function handleAddVectorsCommand() {
+    try {
+        const response = await fetch('/api/user_profile');
+        const profileData = await response.json();
+        
+        if (profileData.atlas_connection_string) {
+            chatState.storedConnectionString = profileData.atlas_connection_string; // Store the full connection string
+            const sanitizedConnectionString = sanitizeConnectionString(chatState.storedConnectionString); // Sanitize for display
+            
+            chatState.waitingForConnectionStringConfirmation = true;
+            chatState.addVectorsPending = true;
+            appendMessage('Assistant', `I found a connection string stored in your profile. The sanitized version is: ${sanitizedConnectionString}. Would you like to use it for adding vectors?`);
+        } else {
+            const profileLink = '<a href="/profile" target="_blank">profile settings</a>';
+            appendMessage('Assistant', `I couldn't find a connection string in your profile. You can add one in your ${profileLink}. For now, please enter your MongoDB connection string to add vectors. (Don't worry, it will be handled securely and won't be stored.)`);
+            chatState.waitingForConnectionString = true;
+            chatState.addVectorsPending = true;
+        }
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string to add vectors...");
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        appendMessage('Assistant', "There was an error retrieving your profile information. Please enter your MongoDB connection string manually to add vectors.");
+        chatState.waitingForConnectionString = true;
+        chatState.addVectorsPending = true;
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string to add vectors...");
+    }
+}
+
+async function loadData(connectionString) {
+    appendMessage('Assistant', "Starting data import process...");
+    try {
+        const response = await fetch('/api/load_data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ connectionString: connectionString })
+        });
+        const data = await response.json();
+        if (data.success) {
+            appendMessage('Assistant', "Data import process has been initiated. You'll see updates here as the process progresses.");
+        } else {
+            appendMessage('Assistant', `Error starting data import: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        appendMessage('Assistant', "Sorry, there was an error starting the data import process. Please try again later.");
+    }
+    chatState.loadDataPending = false;
+    saveChatState();
+}
+
+async function addVectors(connectionString, provider) {
+    appendMessage('Assistant', "Starting vector addition process...");
+    try {
+        const response = await fetch('/api/add_vectors', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ connectionString: connectionString, provider: provider })
+        });
+        const data = await response.json();
+        if (data.success) {
+            appendMessage('Assistant', "Vector addition process has been initiated. You'll see updates here as the process progresses.");
+        } else {
+            appendMessage('Assistant', `Error starting vector addition: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        appendMessage('Assistant', "Sorry, there was an error starting the vector addition process. Please try again later.");
+    }
+    chatState.addVectorsPending = false;
+    saveChatState();
+    hideWorkflowIndicator();
+}
+
+// load data stuff
+
+// Add socket.io connection for real-time updates
+const socket = io();
+
+socket.on('connect', function() {
+    console.log('Connected to server');
+});
+
+socket.on('message', (data) => {
+    appendMessage('Assistant', data.message);
+});
+
+socket.on('status', (data) => {
+    appendMessage('Assistant', `${data.collection}: ${data.count}/${data.total} documents imported`);
+});
+
+socket.on('import-complete', (data) => {
+    appendMessage('Assistant', data.message);
+    hideWorkflowIndicator();
+
+});
+
+socket.on('vector-data-complete', (data) => {
+    appendMessage('Assistant', data.message);
+    hideWorkflowIndicator();
+});
+
+function showWorkflowIndicator(message) {
+    const indicator = document.getElementById('workflow-indicator');
+    const messageSpan = document.getElementById('workflow-message');
+    messageSpan.textContent = message;
+    indicator.style.display = 'flex';
+    indicator.style.opacity = '0';
+    setTimeout(() => {
+        indicator.style.transition = 'opacity 0.3s ease-in-out';
+        indicator.style.opacity = '1';
+    }, 10);
+}
+
+function hideWorkflowIndicator() {
+    const indicator = document.getElementById('workflow-indicator');
+    indicator.style.opacity = '0';
+    setTimeout(() => {
+        indicator.style.display = 'none';
+    }, 300);
+}
+
 })();

@@ -1130,3 +1130,19 @@ def test_mongodb_connection(connection_string):
     finally:
         if 'client' in locals():
             client.close()
+
+def obfuscate_connection_string(connection_string):
+    if not connection_string:
+        return ''
+    parts = connection_string.split('@')
+    if len(parts) < 2:
+        return connection_string
+    
+    credentials = parts[0].split(':')
+    if len(credentials) < 3:
+        return connection_string
+    
+    protocol, username, password = credentials
+    obfuscated_password = password[:3] + '*' * max(0, len(password) - 3)
+    
+    return f"{protocol}:{username}:{obfuscated_password}@{parts[1]}"
