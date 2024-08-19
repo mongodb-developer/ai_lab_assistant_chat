@@ -28,11 +28,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function getSuggestions() {
-        if (!userInput.value) {
+        if (!userInput.value || userInput.value.startsWith('/')) {
             clearAutocomplete();
             return;
         }
-
         try {
             const response = await fetch(`/api/autocomplete?prefix=${encodeURIComponent(userInput.value)}`);
             if (!response.ok) throw new Error('Network response was not ok');

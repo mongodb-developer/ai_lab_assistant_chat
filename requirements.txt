@@ -21,6 +21,7 @@ Flask-Cors==3.0.10
 Flask-Login==0.6.3
 Flask-OAuthlib==0.9.6
 Flask-WTF==1.2.1
+flask_socketio
 fonttools==4.53.1
 frozenlist==1.4.1
 google-api-core==2.19.1

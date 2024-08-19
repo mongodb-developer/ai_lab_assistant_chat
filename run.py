@@ -1,5 +1,6 @@
 import os
-from app import create_app, socketio
+from app import create_app
+from app.socket_manager import socket_manager
 
 app = create_app()
 
@@ -11,7 +12,7 @@ if __name__ == '__main__':
             '/Users/michael.lynn/code/mongodb/ai/ai_lab_assistant_chat/certs/lab-assistant.localhost.com-key.pem'
         )
 
-    socketio.run(
+    socket_manager.run(
         app,
         host='0.0.0.0',
         port=443 if ssl_context else 8080,

@@ -1,15 +1,14 @@
 from flask import Flask
-from flask_socketio import SocketIO
 from flask_login import login_required, current_user, user_logged_in
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
 from .config import Config
 from .auth import auth, oauth, login_manager, init_oauth
 from .utils import init_db, update_user_login_info
+from .socket_manager import init_socket_manager
+
 import os
 import logging
-
-socketio = SocketIO(cors_allowed_origins="*")
 
 def create_app(config_class=Config):
     app = Flask(__name__,
@@ -42,10 +41,10 @@ def create_app(config_class=Config):
 
     from .routes import main
 
+    socket_manager = init_socket_manager(app)  # Initialize the SocketConnectionManager
+
     app.register_blueprint(main)
     app.register_blueprint(auth)
-
-    socketio.init_app(app)
 
     app.config['UPLOAD_FOLDER'] = 'uploads'
     # Ensure the upload directory exists

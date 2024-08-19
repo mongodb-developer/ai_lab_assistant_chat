@@ -631,6 +631,9 @@ function handleCommand(command) {
     const [baseCommand, action] = command.split(' ');
 
     switch (baseCommand.toLowerCase()) {
+        case '/help':
+            showHelpInformation();
+            break;
         case '/check':
             if (action.toLowerCase() === 'connection') {
                 checkConnection();
@@ -646,8 +649,33 @@ function handleCommand(command) {
                 addVectors();
             }
             break;
+        case '/mongo':
+            executeMongoShellCommand(command);
+            break;
         default:
             appendMessage('Assistant', 'Invalid command. Please check the available commands.');
+    }
+}
+
+async function executeMongoShellCommand(command) {
+    try {
+        const response = await fetch('/api/mongodb_shell', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ command })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            appendMessage('Assistant', `<pre>${data.result}</pre>`);
+        } else {
+            appendMessage('Assistant', `<pre style="color: red;">${data.message}</pre>`);
+        }
+    } catch (error) {
+        appendMessage('Assistant', 'There was an error processing your MongoDB command.');
+        console.error('Error in executeMongoShellCommand:', error);
     }
 }
 

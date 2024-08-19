@@ -258,10 +258,15 @@
       max-width: 95%;
       width: 95%;
     }
+    @media (min-width: 768px) {
+      .sample-question-card {
+          width: calc(25% - 1rem);  /* Adjust for 4 cards per row */
+      }
+    }
   }
   .sample-questions-container {
     background-color: #f9fbfa;
-    padding: 20px;
+    padding: 12px;
     border-radius: 8px;
   }
   .sample-question-card {
@@ -280,11 +285,12 @@
     align-items: center;
   }
   .sample-question-card .card-title i {
-    margin-right: 10px;
-    font-size: 1.2em;
+    margin-right: 9px;
+    font-size: 0.7em;
   }
   .sample-question-card .card-text {
-    color: #1c2d5a;  /* Dark Blue */
+    color: #1c2d5a;
+    font-size: smaller;
   }
   .sample-question-card .btn-outline-primary {
     color: #13aa52;

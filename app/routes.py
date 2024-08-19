@@ -4,7 +4,7 @@ import traceback
 import logging
 from flask import Blueprint, flash, redirect, request, jsonify, render_template, current_app, session, send_from_directory, url_for
 from flask_login import login_required, current_user
-from flask_socketio import emit
+from .socket_manager import socket_manager
 from bson import ObjectId
 from pymongo import MongoClient
 from config import Config
@@ -23,7 +23,6 @@ import openai
 import PyPDF2
 import io
 from dotenv import load_dotenv
-from . import socketio
 
 from app.utils import (
     generate_embedding,
@@ -2020,26 +2019,26 @@ def background_import_data(connection_string):
 
     if not connection_string:
         logging.error("No connection string provided.")
-        socketio.emit('message', {'message': 'No connection string provided', 'error': True})
+        socket_manager.emit('message', {'message': 'Starting data import'})
         return jsonify({"success": False, "message": "Please add a MongoDB connection string to your profile."}), 400
          
     target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
 
     try:
         target_client.admin.command('ping')
-        socketio.emit('message', {'message': 'Connected to target database'})
+        socket_manager.emit('message', {'message': 'Connected to target database'})
     except Exception as e:
-        socketio.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+        socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
         return
 
-    socketio.emit('message', {'message': 'Starting data import'})
+    socket_manager.emit('message', {'message': 'Starting data import'})
 
     for collection in SOURCE_COLLECTIONS:
         import_collection(target_client, collection)
 
-    socketio.emit('import-complete', {'message': 'Imported data successfully!'})
+    socket_manager.emit('message', {'message': 'Imported data successfully!'})
 
-@socketio.on('import-data')
+@socket_manager.on('import-data')
 def import_data(data):
     connection_string = current_user.atlas_connection_string
     
@@ -2050,22 +2049,22 @@ def import_data(data):
 
     try:
         target_client.admin.command('ping')
-        emit('message', {'message': 'Connected to target database'})
+        socket_manager.emit('message', {'message': 'Connected to target database'})
     except Exception as e:
-        emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+        socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
         return
 
-    emit('message', {'message': 'Starting data import'})
+    socket_manager.emit('message', {'message': 'Starting data import'})
 
     for collection in SOURCE_COLLECTIONS:
         import_collection(target_client, collection)
 
-    emit('import-complete', {'message': 'Imported data successfully!'})
+    socket_manager.emit('import-complete', {'message': 'Imported data successfully!'})
 
 def import_collection(target_client, collection):
     target_collection = target_client[SOURCE_DATABASE][collection]
     target_collection.drop()
-    socketio.emit('message', {'message': f'{collection}: Deleted existing documents'})
+    socket_manager.emit('message', {'message': f'{collection}: Deleted existing documents'})
 
     current_count = 0
     next_docs = get_documents(collection)
@@ -2074,9 +2073,9 @@ def import_collection(target_client, collection):
         last_id = next_docs[-1]['_id']
         current_count += len(next_docs)
         next_docs = get_documents(collection, last_id)
-        socketio.emit('status', {'collection': collection, 'count': current_count, 'total': doc_counts[collection]})
+        socket_manager.emit('status', {'collection': collection, 'count': current_count, 'total': doc_counts[collection]})
 
-    socketio.emit('message', {'message': f'{collection}: Import complete for collection'})
+    socket_manager.emit('message', {'message': f'{collection}: Import complete for collection'})
 
 def add_vectors(data):
     connection_string = data['connectionString']
@@ -2085,12 +2084,12 @@ def add_vectors(data):
 
     try:
         target_client.admin.command('ping')
-        socketio.emit('message', {'message': 'Connected to target database'})
+        socket_manager.emit('message', {'message': 'Connected to target database'})
     except Exception as e:
-        socketio.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+        socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
         return
 
-    socketio.emit('message', {'message': 'Starting to add vectors'})
+    socket_manager.emit('message', {'message': 'Starting to add vectors'})
 
     vector_collection = {
         'openai': 'openaiBooks',
@@ -2100,7 +2099,7 @@ def add_vectors(data):
 
     import_collection(target_client, vector_collection)
 
-    socketio.emit('vector-data-complete', {'message': 'Imported vector data successfully!'})
+    socket_manager.emit('vector-data-complete', {'message': 'Imported vector data successfully!'})
 
 @main.route('/api/load_data', methods=['POST'])
 @login_required
@@ -2111,7 +2110,7 @@ def load_data():
     if not connection_string:
         return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
 
-    socketio.start_background_task(background_import_data, connection_string)
+    socket_manager.start_background_task(background_import_data, connection_string)
     return jsonify({'success': True, 'message': 'Data loading started'})
 
 @main.route('/api/add_vectors', methods=['POST'])
@@ -2124,5 +2123,28 @@ def add_vectors_route():
 
     provider = 'serverless'
 
-    socketio.start_background_task(add_vectors, {'connectionString': connection_string, 'provider': provider})
+    socket_manager.start_background_task(add_vectors, {'connectionString': connection_string, 'provider': provider})
     return jsonify({'success': True, 'message': 'Vector addition started'})
+
+@main.route('/api/mongodb_shell', methods=['POST'])
+@login_required
+def mongodb_shell():
+    command = request.json.get('command')
+    connection_string = current_user.atlas_connection_string
+    
+    if not connection_string:
+        return jsonify({'success': False, 'message': 'No connection string provided. Please update your profile.'}), 400
+
+    try:
+        client = MongoClient(connection_string)
+        db = client.get_default_database()  # Assume the default database is being used
+
+        # Execute the command
+        result = eval(f"db.{command}")
+        client.close()
+
+        # Convert result to JSON string
+        result_json = json_util.dumps(result)
+        return jsonify({'success': True, 'result': result_json})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500
