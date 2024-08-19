@@ -59,6 +59,16 @@
             hideAutocompleteDropdown();
         }
 
+        document.querySelectorAll('.ask-question').forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const question = this.getAttribute('data-question');
+                document.getElementById('user-input').value = question;
+                sendMessage(null, question);
+            });
+        });
+    
+
         if (userInput && autocompleteDropdown) {
             // Add keydown event listener to the user input
             userInput.addEventListener('keydown', function(event) {
@@ -332,10 +342,10 @@
         }
     }
 
-    async function sendMessage(event) {
+    async function sendMessage(event, presetMessage = null) {
         const userInput = document.getElementById('user-input');
         const moduleSelect = document.getElementById('moduleDropdown');
-        const message = userInput.value.trim();
+        const message = presetMessage || userInput.value.trim();
         let selectedModule = moduleSelect.textContent.trim();
         const loader = appendLoader();
 
@@ -1106,5 +1116,11 @@ function hideWorkflowIndicator() {
         indicator.style.display = 'none';
     }, 300);
 }
+document.getElementById('user-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        sendMessage();
+    }
+});
 
 })();
