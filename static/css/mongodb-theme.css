@@ -248,9 +248,25 @@
     width: 90%;
 }
 .modal-dialog.wide-modal {
-    max-width: 90%; /* Adjust this value as needed */
-    width: 90%;
-  }
+  max-width: 80%; /* Adjust this percentage as needed */
+  width: 80%; /* Adjust this percentage as needed */
+}
+
+/* Ensure the modal is centered */
+.modal-dialog.wide-modal {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Optional: Adjust the width of form elements inside the modal */
+.modal-dialog.wide-modal .form-control {
+  max-width: 100%;
+}
+
+/* Optional: Adjust padding for better spacing in a wider modal */
+.modal-dialog.wide-modal .modal-body {
+  padding: 20px 30px;
+}
   
   /* For smaller screens, you might want to limit the minimum width */
   @media (max-width: 768px) {

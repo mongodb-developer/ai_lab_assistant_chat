@@ -42,7 +42,7 @@
                                 <div class="card-body">
                                     <h6 class="card-title"><i class="fas fa-cloud"></i>System Workflow</h6>
                                     <p class="card-text">How does the chat system process my questions?</p>
-                                    <button class="btn btn-sm btn-outline-primary" id="show-workflow" data-question="Show Workflow">Show me the
+                                    <button class="btn btn-sm btn-outline-primary" id="show-workflow" data-question="Show Workflow"><i class="fas fa-arrow-right">&nbsp;</i>Show me the
                                         workflow</button>
                                 </div>
                             </div>
@@ -53,7 +53,7 @@
                                     <h6 class="card-title"><i class="fas fa-database"></i>Data Modeling</h6>
                                     <p class="card-text">What's the best way to model a one-to-many relationship in
                                         MongoDB?</p>
-                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="What's the best way to model a one-to-many relationship in MongoDB?">Ask this
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="What's the best way to model a one-to-many relationship in MongoDB?"><i class="fas fa-arrow-right">&nbsp;</i>Ask this
                                         question</button>
                                 </div>
                             </div>
@@ -63,7 +63,7 @@
                                 <div class="card-body">
                                     <h6 class="card-title"><i class="fas fa-filter"></i> Aggregation Framework</h6>
                                     <p class="card-text">Can you explain the $lookup stage in aggregation pipelines?</p>
-                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="Can you explain the $lookup stage in aggregation pipelines?">Ask this
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="Can you explain the $lookup stage in aggregation pipelines?"><i class="fas fa-arrow-right">&nbsp;</i>Ask this
                                         question</button>
                                 </div>
                             </div>
@@ -73,7 +73,7 @@
                                 <div class="card-body">
                                     <h6 class="card-title"><i class="fas fa-search"></i> Atlas Search</h6>
                                     <p class="card-text">How do I create a text index for full-text search in Atlas?</p>
-                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="How do I create a text index for full-text search in Atlas?">Ask this
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="How do I create a text index for full-text search in Atlas?"><i class="fas fa-arrow-right">&nbsp;</i>Ask this
                                         question</button>
                                 </div>
                             </div>
@@ -84,7 +84,7 @@
                                     <h6 class="card-title"><i class="fas fa-vector-square"></i> Atlas Vector Search</h6>
                                     <p class="card-text">What are the steps to implement semantic search using Atlas
                                         Vector Search?</p>
-                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="How do I create a text index for full-text search in Atlas?">Ask this
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="How do I create a text index for full-text search in Atlas?"><i class="fas fa-arrow-right">&nbsp;</i>Ask this
                                         question</button>
                                 </div>
                             </div>
@@ -92,9 +92,9 @@
                         <div class="col">
                             <div class="card h-100 sample-question-card">
                                 <div class="card-body">
-                                    <h6 class="card-title"><i class="fas fa-plug"></i> Workshop Tools</h6>
-                                    <p class="card-text">Get help with your workshop setup using '/' commands... try '/help'</p>
-                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="/help">Show Commands</button>
+                                    <h6 class="card-title"><i class="fas fa-plug"></i> Command Help</h6>
+                                    <p class="card-text">Get help with your workshop setup using '/' commands... <pre>/help</pre></p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="/help"><i class="fas fa-question">&nbsp;</i>Help</button>
 
                                 </div>
                             </div>
@@ -103,17 +103,23 @@
                             <div class="card h-100 sample-question-card">
                                 <div class="card-body">
                                     <h6 class="card-title"><i class="fas fa-plug"></i> Workshop Tools</h6>
-                                    <p class="card-text">Get help with your workshop progress.  Check your connection string.</p>
-                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection">Check Connection String</button>
+                                    <p class="card-text">Get help with your workshop progress.  Check your setup progress... <pre>/check connection<p>/check backend</p></pre></p>
+                                    <div class="mb-3">
+                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection"><i class="fas fa-plug">&nbsp;</i>Connect</button>
+                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check backend"><i class="fas fa-wrench">&nbsp;</i>Backend</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                         <div class="col">
                             <div class="card h-100 sample-question-card">
                                 <div class="card-body">
-                                    <h6 class="card-title"><i class="fas fa-plug"></i> Workshop Tools</h6>
-                                    <p class="card-text">Load data into your Atlas database. Try '/load data'.</p>
-                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection">Load Data</button>
+                                    <h6 class="card-title"><i class="fas fa-plug"></i> Load Data</h6>
+                                    <p class="card-text">Load data into your Atlas database. Try <pre>/load data</pre> or <pre>/add vectors</pre></p>
+                                    <div class="mb-3">
+                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection">Load Data</button>
+                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/add vectors">Add Vectors</button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
