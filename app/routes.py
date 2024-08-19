@@ -627,6 +627,35 @@ def update_user(id):
     get_users_collection().update_one({'_id': ObjectId(id)}, {'$set': data})
     return '', 204
 
+@main.route('/api/users/<user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    current_app.logger.info(f"Received DELETE request for user_id: {user_id}")
+
+    if not current_user.is_admin:
+        current_app.logger.warning(f"Unauthorized delete attempt for user_id: {user_id}")
+        return jsonify({'error': 'Unauthorized access'}), 403
+    
+    try:
+        users_collection = get_users_collection()
+        
+        # Check if user exists before attempting to delete
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            current_app.logger.warning(f"User not found in database: {user_id}")
+            return jsonify({'error': 'User not found'}), 404
+        
+        result = users_collection.delete_one({'_id': ObjectId(user_id)})
+        current_app.logger.info(f"Delete result: {result.raw_result}")
+        
+        if result.deleted_count == 1:
+            return jsonify({'message': 'User deleted successfully'}), 200
+        else:
+            current_app.logger.error(f"Unexpected result when deleting user: {user_id}")
+            return jsonify({'error': 'An unexpected error occurred'}), 500
+    except Exception as e:
+        current_app.logger.error(f"Error deleting user: {str(e)}", exc_info=True)
+        return jsonify({'error': 'An internal server error occurred'}), 500
 @main.route('/feedback')
 def feedback():
     try:

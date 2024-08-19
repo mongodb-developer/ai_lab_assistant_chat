@@ -8,7 +8,12 @@
         console.log("DOM fully loaded");
         chatState = loadChatState();
         console.log("Initial chat state:", chatState);
-    
+        document.getElementById('user-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
         // Reset any lingering connection string waiting states
         chatState.waitingForConnectionString = false;
         chatState.waitingForConnectionStringConfirmation = false;
@@ -869,6 +874,18 @@ function sanitizeConnectionString(connectionString) {
 
 async function checkConnection() {
     try {
+
+        const profile_response = await fetch('/api/user_profile');
+        const profileData = await profile_response.json();
+        
+        if (profileData.atlas_connection_string) {
+            const sanitizedConnectionString = sanitizeConnectionString(chatState.storedConnectionString); // Sanitize for display
+            appendMessage('Assistant', `I found a connection string stored in your profile. The sanitized version is: ${sanitizedConnectionString}. `);
+        } else {
+            const profileLink = '<a href="/profile" target="_blank">profile settings</a>';
+            appendMessage('Assistant', `I couldn't find a connection string in your profile. You can add one in your ${profileLink}. For now, please enter your MongoDB connection string to load data. (Don't worry, it will be handled securely and won't be stored.)`);
+
+        }
         const response = await fetch('/api/check_connection', {
             method: 'POST',
             headers: {

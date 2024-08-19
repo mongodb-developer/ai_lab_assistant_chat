@@ -1,5 +1,4 @@
 {% extends "base.html" %}
-
 {% block content %}
 <div class="container mt-5">
     <h1 class="mb-4">User Profile</h1>
@@ -9,43 +8,59 @@
                 <div class="mb-3 row">
                     <label for="email" class="col-sm-3 col-form-label">Email:</label>
                     <div class="col-sm-9">
-                        <input type="email" class="form-control-plaintext" id="email" name="email" value="{{ user.email }}" readonly>
+                        <input type="email" class="form-control-plaintext" id="email" name="email"
+                            value="{{ user.email }}" readonly>
                     </div>
                 </div>
                 <div class="mb-3 row">
                     <label for="name" class="col-sm-3 col-form-label">Name:</label>
                     <div class="col-sm-9">
-                        <input type="text" class="form-control-plaintext" id="name" name="name" value="{{ user.name }}" readonly>
+                        <input type="text" class="form-control-plaintext" id="name" name="name" value="{{ user.name }}"
+                            readonly>
                     </div>
                 </div>
                 <div class="mb-3 row">
-                    <label for="atlas_connection_string" class="col-sm-3 col-form-label">Atlas Connection String:</label>
+                    <label for="atlas_connection_string" class="col-sm-3 col-form-label">Atlas Connection
+                        String:</label>
                     <div class="col-sm-9">
                         <div class="input-group">
-                            <input type="text" class="form-control" id="atlas_connection_string" name="atlas_connection_string" value="{{ obfuscate_connection_string(user.atlas_connection_string) }}">
-                            <button class="btn btn-outline-secondary" type="button" id="toggleConnectionString">Show</button>
+                            <input type="text" class="form-control" id="atlas_connection_string"
+                                name="atlas_connection_string"
+                                value="{{ obfuscate_connection_string(user.atlas_connection_string) }}">
+                            <button class="btn btn-outline-secondary" type="button"
+                                id="toggleConnectionString">Show</button>
                         </div>
                     </div>
                 </div>
                 <div class="mb-3 row">
                     <label for="database_username" class="col-sm-3 col-form-label">Database Username:</label>
                     <div class="col-sm-9">
-                        <input type="text" class="form-control" id="database_username" name="database_username" value="{{ user.database_username }}">
+                        <input type="text" class="form-control" id="database_username" name="database_username"
+                            value="{{ user.database_username }}">
                     </div>
                 </div>
-                <div class="mb-3 row">
-                    <label for="database_password" class="col-sm-3 col-form-label">Database Password:</label>
+                <div class="input-group mb-3 row">
+                    <label for="database_password" class="col-sm-3 col-form-label">Database Password</label>
                     <div class="col-sm-9">
-                        <input type="password" class="form-control" id="database_password" name="database_password" value="{{ user.database_password }}">
+                        <input type="text" class="form-control" id="database_password" name="database_password" value="{{ user.database_password }}" aria-label="Database password with two button addons">
+
+                        <button class="btn btn-outline-secondary fas fa-eye" type="password" id="togglePassword">Show</button>
+                        <button class="btn btn-outline-secondary fas fa-lock" type="button" id="toggleUriEncoded">Encode</button>
                     </div>
                 </div>
+                <!-- <div class="input-group mb-3">
+                    <button class="btn btn-outline-secondary" type="button" id="togglePassword2">Show</button>
+                    <button class="btn btn-outline-secondary" type="button" id="toggleUriEncoded2">Encode</button>
+                    <input type="text" class="form-control" id="database_password2" name="database_password" value="{{ user.database_password }}" aria-label="Database password with two button addons">
+                </div> -->
                 <div class="mb-3 row">
                     <label for="github_codespace_url" class="col-sm-3 col-form-label">GitHub Codespace URL:</label>
                     <div class="col-sm-9">
-                        <input type="text" class="form-control" id="github_codespace_url" name="github_codespace_url" value="{{ user.github_codespace_url }}">
+                        <input type="text" class="form-control" id="github_codespace_url" name="github_codespace_url"
+                            value="{{ user.github_codespace_url }}">
                     </div>
                 </div>
-                
+
                 <div class="text-end">
                     <button type="submit" class="btn btn-primary">Update Profile</button>
                 </div>
@@ -58,13 +73,51 @@
 {% block scripts %}
 {{ super() }}
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
+    document.addEventListener('DOMContentLoaded', function () {
+        const passwordInput = document.getElementById('database_password');
+        const togglePasswordButton = document.getElementById('togglePassword');
+        const toggleUriEncodedButton = document.getElementById('toggleUriEncoded');
+        let isPasswordVisible = false;
+        let isUriEncoded = false;
+
+        togglePasswordButton.addEventListener('click', function () {
+            isPasswordVisible = !isPasswordVisible;
+            passwordInput.type = isPasswordVisible ? 'text' : 'password';
+            this.textContent = isPasswordVisible ? 'Hide' : 'Show';
+        });
+
+        toggleUriEncodedButton.addEventListener('click', function () {
+            const currentValue = passwordInput.value;
+            if (isUriEncoded) {
+                passwordInput.value = decodeURIComponent(currentValue);
+                this.textContent = 'Encode';
+            } else {
+                passwordInput.value = encodeURIComponent(currentValue);
+                this.textContent = 'Decode';
+            }
+            isUriEncoded = !isUriEncoded;
+        });
+
+        function updateUriButtonState() {
+            const hasSpecialChars = /[!@#$%^&*(),.?":{}|<>]/.test(passwordInput.value);
+            toggleUriEncodedButton.disabled = !hasSpecialChars;
+            toggleUriEncodedButton.style.opacity = hasSpecialChars ? '1' : '0.5';
+            toggleUriEncodedButton.style.cursor = hasSpecialChars ? 'pointer' : 'not-allowed';
+        }
+
+        // Initial check for special characters
+        updateUriButtonState();
+
+        // Update URI button state on input
+        passwordInput.addEventListener('input', updateUriButtonState);
+
+        // Connection string toggle logic (unchanged)
         const connectionStringInput = document.getElementById('atlas_connection_string');
         const toggleButton = document.getElementById('toggleConnectionString');
         let isObfuscated = true;
         let fullConnectionString = '{{ user.atlas_connection_string }}';
 
-        toggleButton.addEventListener('click', function() {
+        toggleButton.addEventListener('click', function () {
             if (isObfuscated) {
                 connectionStringInput.value = fullConnectionString;
                 toggleButton.textContent = 'Hide';
@@ -79,14 +132,14 @@
             if (!str) return '';
             const parts = str.split('@');
             if (parts.length < 2) return str;
-            
+
             const credentials = parts[0].split(':');
             if (credentials.length < 3) return str;
-            
+
             const username = credentials[1];
             const password = credentials[2];
             const obfuscatedPassword = password.substring(0, 3) + '*'.repeat(Math.max(0, password.length - 3));
-            
+
             return `${credentials[0]}:${username}:${obfuscatedPassword}@${parts[1]}`;
         }
     });

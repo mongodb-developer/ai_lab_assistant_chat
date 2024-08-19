@@ -83,8 +83,8 @@ export function populateUsersTable(users) {
         <td>${user.last_login}</td>
         <td>${user.isAdmin ? 'Yes' : 'No'}</td>
         <td>
-<button class="btn btn-sm btn-primary toggle-admin-btn" data-id="${user._id}" data-is-admin="${user.isAdmin}">Toggle Admin</button>
-
+            <button class="btn btn-sm btn-primary toggle-admin-btn" data-id="${user._id}" data-is-admin="${user.isAdmin}">Toggle Admin</button>
+            <button class="btn btn-sm btn-danger delete-user-btn" data-id="${user._id}">Delete</button>
         </td>
     `;
         tableBody.appendChild(row);
@@ -94,6 +94,41 @@ export function populateUsersTable(users) {
             toggleAdminStatus(this);
         });
     });
+    document.querySelectorAll('.delete-user-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            deleteUser(this);
+        });
+    });
+}
+
+/**
+ * Deletes a user from the system.
+ * @function
+ * @async
+ * @param {HTMLElement} button - The button element that triggered the action.
+ */
+export async function deleteUser(button) {
+    const id = button.getAttribute('data-id');
+    if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+        try {
+            const url = `/api/users/${id}`;
+            console.log('Sending DELETE request to:', url);  // Debug log
+            const response = await fetch(url, {
+                method: 'DELETE',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+            });
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            console.log('Delete response:', await response.json());  // Debug log
+            await fetchUsers();
+        } catch (error) {
+            console.error('Error deleting user:', error);
+            alert('An error occurred while deleting the user. Please try again.');
+        }
+    }
 }
 
 /**
