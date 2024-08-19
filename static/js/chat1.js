@@ -880,6 +880,8 @@ async function checkConnection() {
         const data = await response.json();
         if (!data.success) {
             appendMessage('Assistant', data.message);
+            //appendMessage('User', 'How can I update the firewall in Atlas to enable connections from anywhere?');
+            sendMessage(null,'How can I update the firewall in Atlas to enable connections from anywhere?' );
         } else {
             let databaseInfoMessage = formatDatabaseInfo(data.database_info);
             appendMessage('Assistant', `Connection successful: ${data.message}\n${databaseInfoMessage}`);
