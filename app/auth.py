@@ -28,7 +28,7 @@ def init_oauth(app):
 
 class User(UserMixin):
     def __init__(self, user_id, email, name, profile_pic, is_admin=False, last_login=None,
-                 atlas_connection_string='', github_codespace_url='', 
+                 atlas_connection_string='', github_codespace_frontend_url='', github_codespace_backend_url='',
                  database_username='', database_password=''):
         self.id = str(user_id)
         self.email = email
@@ -37,7 +37,8 @@ class User(UserMixin):
         self.is_admin = is_admin
         self.last_login = last_login
         self.atlas_connection_string = atlas_connection_string
-        self.github_codespace_url = github_codespace_url
+        self.github_codespace_frontend_url = github_codespace_frontend_url
+        self.github_codespace_backend_url = github_codespace_backend_url
         self.database_username = database_username
         self.database_password = database_password
         
@@ -68,7 +69,8 @@ def load_user(db, user_id):
         is_admin=user_data.get('isAdmin', False),
         last_login=user_data.get('last_login'),
         atlas_connection_string=user_data.get('atlas_connection_string', ''),
-        github_codespace_url=user_data.get('github_codespace_url', ''),
+        github_codespace_frontend_url=user_data.get('github_codespace_frontend_url', ''),
+        github_codespace_backend_url=user_data.get('github_codespace_backend_url', ''),
         database_username=user_data.get('database_username', ''),
         database_password=user_data.get('database_password', '')
     )

@@ -656,6 +656,11 @@ function handleCommand(command) {
         case '/c':
             if (action.toLowerCase() === 'connection') {
                 checkConnection();
+            } else if (action.toLowerCase() === 'backend') {
+                checkCodeSpace(action.toLowerCase());
+            } else if (action.toLowerCase() === 'frontend') {
+                appendMessage('Assistant', 'front-end checking is not supported at this time.')
+                return;
             }
             break;
         case '/load':
@@ -835,7 +840,31 @@ function resetConnectionStringWaiting() {
 function saveChatState() {
     localStorage.setItem('chatState', JSON.stringify(chatState));
 }
+async function checkCodeSpace(checkType) {
+    try {
+        const response = await fetch(`/api/check_codespace/${checkType}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
 
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        appendMessage('Assistant', `${checkType.charAt(0).toUpperCase() + checkType.slice(1)} check result: ${data.message}. ${data.details}`);
+        
+        if (data.sample_book) {
+            appendMessage('Assistant', `Sample book from ${checkType}: ${JSON.stringify(data.sample_book)}`);
+        }
+    } catch (error) {
+        console.error('Error during codespace check:', error);
+        appendMessage('Assistant', `Error checking ${checkType} codespace: ${error.message}`);
+    }
+}
 async function checkConnectionString() {
     try {
         const response = await fetch('/api/user_profile');

@@ -23,6 +23,7 @@ import openai
 import PyPDF2
 import io
 from dotenv import load_dotenv
+from requests.exceptions import RequestException, Timeout, ConnectionError
 
 from app.utils import (
     generate_embedding,
@@ -213,7 +214,8 @@ def get_user_profile():
                 'email': user.get('email', ''),
                 'name': user.get('name', ''),
                 'atlas_connection_string': obfuscate_connection_string(user.get('atlas_connection_string', '')),
-                'github_codespace_url': user.get('github_codespace_url', ''),
+                'github_codespace_frontend_url': user.get('github_codespace_frontend_url', ''),
+                'github_codespace_backend_url': user.get('github_codespace_backend_url', ''),
                 'database_username': user.get('database_username', '')
                 # Add any other fields you want to include
             }
@@ -748,7 +750,8 @@ def profile():
     if request.method == 'POST':
         # Update user profile
         current_user.atlas_connection_string = request.form.get('atlas_connection_string')
-        current_user.github_codespace_url = request.form.get('github_codespace_url')
+        current_user.github_codespace_frontend_url = request.form.get('github_codespace_frontend_url')
+        current_user.github_codespace_backend_url = request.form.get('github_codespace_backend_url')
         current_user.database_username = request.form.get('database_username')
         current_user.database_password = request.form.get('database_password')
 
@@ -758,7 +761,8 @@ def profile():
             {'_id': ObjectId(current_user.id)},
             {'$set': {
                 'atlas_connection_string': current_user.atlas_connection_string,
-                'github_codespace_url': current_user.github_codespace_url,
+                'github_codespace_frontend_url': current_user.github_codespace_frontend_url,
+                'github_codespace_backend_url': current_user.github_codespace_backend_url,
                 'database_username': current_user.database_username,
                 'database_password': current_user.database_password
             }}
@@ -2085,7 +2089,84 @@ def background_import_data(connection_string):
         current_app.logger.info("Ending import_data task")
         socket_manager.end_task('import_data')
 
+@main.route('/api/check_codespace/<check_type>', methods=['GET'])
+@login_required
+def check_codespace(check_type):
+    if check_type not in ['frontend', 'backend']:
+        return jsonify({'error': 'Invalid check type'}), 400
 
+    github_codespace_frontend_url = current_user.github_codespace_frontend_url
+    github_codespace_backend_url = current_user.github_codespace_backend_url
+    if (not github_codespace_frontend_url or not github_codespace_backend_url):
+        return jsonify({'error': 'GitHub Codespace URLs not set in user profile'}), 400
+
+    try:
+        if check_type == 'frontend':
+            url = f"{github_codespace_frontend_url.rstrip('/')}/catalogue"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            # Parse the HTML content
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Check if the page contains expected elements
+            book_elements = soup.find_all('div', class_='book-card')  # Adjust class name as needed
+            if not book_elements:
+                raise ValueError("No book elements found on the page")
+
+            return jsonify({
+                'message': 'Frontend is responsive',
+                'status': 'success',
+                'details': f'Successfully loaded catalogue page with {len(book_elements)} books',
+                'sample_book': str(book_elements[0]) if book_elements else None
+            }), 200
+        else:  # backend
+            url = f"{github_codespace_backend_url.rstrip('/')}/books"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+
+            books = response.json()
+            if not isinstance(books, list):
+                raise ValueError("Expected a JSON array of books")
+
+            return jsonify({
+                'message': 'Backend API is responsive',
+                'status': 'success',
+                'details': f'Successfully retrieved {len(books)} books',
+                'sample_book': books[0] if books else None
+            }), 200
+
+    except Timeout:
+        current_app.logger.error(f"Timeout error checking {check_type} API")
+        return jsonify({
+            'error': f'Timeout connecting to {check_type} API',
+            'details': 'The server took too long to respond. It might be down or overloaded.'
+        }), 500
+    except ConnectionError:
+        current_app.logger.error(f"Connection error checking {check_type} API")
+        return jsonify({
+            'error': f'Failed to connect to {check_type} API',
+            'details': 'Could not establish a connection. The server might be down or the URL might be incorrect.'
+        }), 500
+    except RequestException as e:
+        current_app.logger.error(f"Error checking {check_type} API: {str(e)}")
+        return jsonify({
+            'error': f'Failed to connect to {check_type} API',
+            'details': str(e)
+        }), 500
+    except ValueError as e:
+        current_app.logger.error(f"Invalid response from {check_type} API: {str(e)}")
+        return jsonify({
+            'error': f'Invalid response from {check_type} API',
+            'details': str(e)
+        }), 500
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error checking {check_type} API: {str(e)}")
+        return jsonify({
+            'error': f'Unexpected error occurred while checking {check_type} API',
+            'details': str(e)
+        }), 500
+    
 @socket_manager.on('import-data')
 def import_data(data):
     connection_string = current_user.atlas_connection_string

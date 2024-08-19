@@ -54,10 +54,17 @@
                     <input type="text" class="form-control" id="database_password2" name="database_password" value="{{ user.database_password }}" aria-label="Database password with two button addons">
                 </div> -->
                 <div class="mb-3 row">
-                    <label for="github_codespace_url" class="col-sm-3 col-form-label">GitHub Codespace URL:</label>
+                    <label for="github_codespace_frontend_url" class="col-sm-3 col-form-label">GitHub Codespace Front End URL:</label>
                     <div class="col-sm-9">
-                        <input type="text" class="form-control" id="github_codespace_url" name="github_codespace_url"
-                            value="{{ user.github_codespace_url }}">
+                        <input type="text" class="form-control" id="github_codespace_frontend_url" name="github_codespace_frontend_url"
+                            value="{{ user.github_codespace_frontend_url }}">
+                    </div>
+                </div>
+                <div class="mb-3 row">
+                    <label for="github_codespace_backendend_url" class="col-sm-3 col-form-label">GitHub Codespace Backend End URL:</label>
+                    <div class="col-sm-9">
+                        <input type="text" class="form-control" id="github_codespace_backend_url" name="github_codespace_backend_url"
+                            value="{{ user.github_codespace_backend_url }}">
                     </div>
                 </div>
 
