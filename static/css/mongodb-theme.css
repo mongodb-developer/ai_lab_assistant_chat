@@ -337,3 +337,33 @@
   #data-point {
     fill: #13aa52;
   }
+
+  .workshop-links-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.workshop-links-table th, .workshop-links-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.workshop-links-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.workshop-links-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.workshop-links-table a {
+    color: #00cc3a;
+    text-decoration: none;
+}
+
+.workshop-links-table a:hover {
+    text-decoration: underline;
+}

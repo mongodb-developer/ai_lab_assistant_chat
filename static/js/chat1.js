@@ -347,8 +347,10 @@
         }
     }
 
+
     async function sendMessage(event, presetMessage = null) {
         const userInput = document.getElementById('user-input');
+
         const moduleSelect = document.getElementById('moduleDropdown');
         const message = presetMessage || userInput.value.trim();
         let selectedModule = moduleSelect.textContent.trim();
@@ -641,6 +643,42 @@ function getCsrfToken() {
         return null;
     }
 }
+function showWorkshopLinks() {
+    const workshopLinks = [
+        { title: "Intro Lab", url: "https://mongodb-developer.github.io/intro-lab/" },
+        { title: "Aggregation Pipeline Lab", url: "https://mongodb-developer.github.io/aggregation-pipeline-lab/" },
+        { title: "Search Lab", url: "https://mongodb-developer.github.io/search-lab/" },
+        { title: "AI RAG Lab", url: "https://mongodb-developer.github.io/ai-rag-lab/" }
+    ];
+
+    let tableHTML = `
+        <table class="table table-striped workshop-links-table">
+            <thead>
+                <tr>
+                    <th scope="col">Workshop</th>
+                    <th scope="col">Link</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    workshopLinks.forEach(workshop => {
+        tableHTML += `
+            <tr>
+                <td>${workshop.title}</td>
+                <td><a href="${workshop.url}" target="_blank">${workshop.url}</a></td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+
+    const message = `Here are the links to our MongoDB workshops:<br><br>${tableHTML}`;
+    appendMessage('Assistant', message);
+}
 
 function handleCommand(command) {
     const [baseCommand, ...args] = command.split(' ');
@@ -651,6 +689,10 @@ function handleCommand(command) {
         case '/help':
         case '/h':
             showHelpInformation();
+            break;
+        case '/workshops':
+        case '/w':
+            showWorkshopLinks();
             break;
         case '/check':
         case '/c':
@@ -800,6 +842,10 @@ function showHelpInformation() {
                     <td>Test a MongoDB connection string</td>
                 </tr>
                 <tr>
+                    <td>/workshops or /w</td>
+                    <td>Show links to the Developer Days workshops</td>
+                </tr>
+                <tr>
                     <td>/load or /l data</td>
                     <td>Start the data loading process</td>
                 </tr>
@@ -862,7 +908,7 @@ async function checkCodeSpace(checkType) {
         }
     } catch (error) {
         console.error('Error during codespace check:', error);
-        appendMessage('Assistant', `Error checking ${checkType} codespace: ${error.message}`);
+        appendMessage('Assistant', `Error checking ${checkType} codespace: ${error.message}. Verify the GitHub Codespace backend URL, and try to restart your codespaces instance and ensure that you've set the ports to public. If codespaces becomes unresponsive, destory the codespace and re-launch.  https://github.com/codespaces/new/mongodb-developer/library-management-system?quickstart=1`);
     }
 }
 async function checkConnectionString() {
