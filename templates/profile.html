@@ -42,7 +42,7 @@
                 <div class="input-group mb-3 row">
                     <label for="database_password" class="col-sm-3 col-form-label">Database Password</label>
                     <div class="col-sm-9">
-                        <input type="text" class="form-control" id="database_password" name="database_password" value="{{ user.database_password }}" aria-label="Database password with two button addons">
+                        <input type="password" class="form-control" id="database_password" name="database_password" value="{{ user.database_password }}" aria-label="Database password with two button addons">
 
                         <button class="btn btn-outline-secondary fas fa-eye" type="password" id="togglePassword">Show</button>
                         <button class="btn btn-outline-secondary fas fa-lock" type="button" id="toggleUriEncoded">Encode</button>
@@ -61,7 +61,7 @@
                     </div>
                 </div>
                 <div class="mb-3 row">
-                    <label for="github_codespace_backendend_url" class="col-sm-3 col-form-label">GitHub Codespace Backend End URL:</label>
+                    <label for="github_codespace_backend_url" class="col-sm-3 col-form-label">GitHub Codespace Backend End URL:</label>
                     <div class="col-sm-9">
                         <input type="text" class="form-control" id="github_codespace_backend_url" name="github_codespace_backend_url"
                             value="{{ user.github_codespace_backend_url }}">
@@ -81,43 +81,91 @@
 {{ super() }}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const passwordInput = document.getElementById('database_password');
-        const togglePasswordButton = document.getElementById('togglePassword');
-        const toggleUriEncodedButton = document.getElementById('toggleUriEncoded');
-        let isPasswordVisible = false;
-        let isUriEncoded = false;
+        console.log('DOM fully loaded and parsed');
 
-        togglePasswordButton.addEventListener('click', function () {
-            isPasswordVisible = !isPasswordVisible;
-            passwordInput.type = isPasswordVisible ? 'text' : 'password';
-            this.textContent = isPasswordVisible ? 'Hide' : 'Show';
-        });
+const passwordInput = document.getElementById('database_password');
+const togglePasswordButton = document.getElementById('togglePassword');
+const toggleUriEncodedButton = document.getElementById('toggleUriEncoded');
 
-        toggleUriEncodedButton.addEventListener('click', function () {
-            const currentValue = passwordInput.value;
-            if (isUriEncoded) {
-                passwordInput.value = decodeURIComponent(currentValue);
-                this.textContent = 'Encode';
-            } else {
-                passwordInput.value = encodeURIComponent(currentValue);
-                this.textContent = 'Decode';
-            }
-            isUriEncoded = !isUriEncoded;
-        });
+console.log('passwordInput:', passwordInput);
+console.log('togglePasswordButton:', togglePasswordButton);
+console.log('toggleUriEncodedButton:', toggleUriEncodedButton);
 
-        function updateUriButtonState() {
-            const hasSpecialChars = /[!@#$%^&*(),.?":{}|<>]/.test(passwordInput.value);
-            toggleUriEncodedButton.disabled = !hasSpecialChars;
-            toggleUriEncodedButton.style.opacity = hasSpecialChars ? '1' : '0.5';
-            toggleUriEncodedButton.style.cursor = hasSpecialChars ? 'pointer' : 'not-allowed';
+if (!passwordInput || !togglePasswordButton || !toggleUriEncodedButton) {
+    console.error('One or more elements not found');
+    return;
+}
+
+let isPasswordVisible = false;
+let isUriEncoded = false;
+
+function customEncode(str) {
+    return str.replace(/[^A-Za-z0-9]/g, function(char) {
+        return '%' + char.charCodeAt(0).toString(16).padStart(2, '0');
+    });
+}
+
+function customDecode(str) {
+    return decodeURIComponent(str.replace(/%(?![0-9a-fA-F]{2})/g, '%25'));
+}
+
+togglePasswordButton.addEventListener('click', function (e) {
+    console.log('Toggle password button clicked');
+    e.preventDefault();
+    isPasswordVisible = !isPasswordVisible;
+    passwordInput.type = isPasswordVisible ? 'text' : 'password';
+    this.textContent = isPasswordVisible ? 'Hide' : 'Show';
+    this.classList.toggle('btn-secondary', isPasswordVisible);
+    this.classList.toggle('btn-outline-secondary', !isPasswordVisible);
+});
+
+toggleUriEncodedButton.addEventListener('click', function (e) {
+    console.log('Toggle URI encoded button clicked');
+    e.preventDefault();
+    const currentValue = passwordInput.value;
+    console.log('Current value:', currentValue);
+    if (isUriEncoded) {
+        try {
+            passwordInput.value = customDecode(currentValue);
+            console.log('Decoded value:', passwordInput.value);
+            this.textContent = 'Encode';
+            isUriEncoded = false;
+        } catch (e) {
+            console.error('Failed to decode:', e);
+            alert('Failed to decode. The value may not be properly encoded.');
+            return;
         }
+    } else {
+        passwordInput.value = customEncode(currentValue);
+        console.log('Encoded value:', passwordInput.value);
+        this.textContent = 'Decode';
+        isUriEncoded = true;
+    }
+    this.classList.toggle('btn-secondary', isUriEncoded);
+    this.classList.toggle('btn-outline-secondary', !isUriEncoded);
+    updateUriButtonState();
+});
 
-        // Initial check for special characters
-        updateUriButtonState();
+function updateUriButtonState() {
+    const hasSpecialChars = /[^A-Za-z0-9]/.test(passwordInput.value) || isUriEncoded;
+    toggleUriEncodedButton.disabled = !hasSpecialChars && !isUriEncoded;
+    toggleUriEncodedButton.style.opacity = (hasSpecialChars || isUriEncoded) ? '1' : '0.5';
+    toggleUriEncodedButton.style.cursor = (hasSpecialChars || isUriEncoded) ? 'pointer' : 'not-allowed';
+    console.log('URI button state updated:', {hasSpecialChars, isUriEncoded, disabled: toggleUriEncodedButton.disabled});
+}
 
-        // Update URI button state on input
-        passwordInput.addEventListener('input', updateUriButtonState);
+// Initial check for special characters
+updateUriButtonState();
 
+// Update URI button state on input
+passwordInput.addEventListener('input', function() {
+    console.log('Password input changed');
+    isUriEncoded = false;
+    toggleUriEncodedButton.textContent = 'Encode';
+    toggleUriEncodedButton.classList.remove('btn-secondary');
+    toggleUriEncodedButton.classList.add('btn-outline-secondary');
+    updateUriButtonState();
+});
         // Connection string toggle logic (unchanged)
         const connectionStringInput = document.getElementById('atlas_connection_string');
         const toggleButton = document.getElementById('toggleConnectionString');
