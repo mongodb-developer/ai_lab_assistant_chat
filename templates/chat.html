@@ -1,10 +1,39 @@
 {% extends "base.html" %}
 {% block title %}Chat - AI Lab Assistant{% endblock %}
+{% block head %}
+    {{ super() }}
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
+{% endblock %}
 {% block css %}
 <link href="{{ url_for('static', filename='css/chat.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/banner.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
+<link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
+{{ super() }}
+<style>
+
+    .related-concepts-container {
+        margin-top: 15px;
+    }
+
+    .accordion-button {
+        padding: 0.5rem 1rem;
+        font-size: 0.9rem;
+    }
+
+    .accordion-body {
+        padding: 1rem;
+    }
+
+    .knowledge-graph {
+        margin-bottom: 15px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+    }
+    </style>
 {% endblock %}
+
 {% block content %}
 <div id="review-banner" class="review-banner">
     <i class="fas fa-pencil-alt"></i>
@@ -81,6 +110,7 @@
 
 {% endblock %}
 {% block scripts %}
+<script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.3/dist/umd/popper.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="{{ url_for('static', filename='js/chat1.js') }}"></script>
@@ -100,4 +130,5 @@
         // })
     });
 </script>
+
 {% endblock %}

@@ -1023,3 +1023,66 @@ body.chat-page .navbar {
   .thumbs-down:hover {
     color: #F44336; /* Soft red on hover */
   }
+
+  .related-concepts {
+    margin-top: 15px;
+    padding: 10px;
+    background-color: #f0f0f0;
+    border-radius: 5px;
+}
+
+.related-concepts h4 {
+    margin-bottom: 5px;
+    color: #333;
+}
+
+.related-concepts ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.related-concepts li {
+    margin-bottom: 5px;
+}
+
+.related-concepts a {
+    color: #007bff;
+    text-decoration: none;
+}
+
+.related-concepts a:hover {
+    text-decoration: underline;
+}
+
+.related-concepts {
+    margin-top: 15px;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 5px;
+}
+
+.related-concepts ul {
+    list-style-type: none;
+    padding-left: 0;
+}
+
+.related-concepts li {
+    margin-bottom: 10px;
+}
+
+.description-preview {
+    color: #666;
+}
+
+.toggle-description {
+    background-color: #f0f0f0;
+    border: none;
+    padding: 2px 5px;
+    cursor: pointer;
+    margin-left: 5px;
+    font-size: 0.8em;
+}
+
+.toggle-description:hover {
+    background-color: #e0e0e0;
+}

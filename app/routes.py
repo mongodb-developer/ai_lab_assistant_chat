@@ -23,6 +23,7 @@ import io
 
 from app.utils import (
     generate_embedding,
+    get_related_concepts,
     search_similar_questions,
     add_question_answer,
     check_database_connection,
@@ -225,6 +226,19 @@ def chat_api():
             # Check if the best match is actually relevant
             if best_match['combined_score'] > SIMILARITY_THRESHOLD and verify_question_similarity(user_question, best_match['question']) >= 0.8:
                 response_message = best_match['answer']
+                related_concepts = get_related_concepts(user_question, response_message)
+                expanded_concepts = []
+                for concept in related_concepts:
+                    expanded_concepts.append(concept)
+                    secondary_concepts = get_related_concepts(user_question, concept['concept'], limit=3)  # Fetch up to 3 related concepts for each primary concept
+                    expanded_concepts.extend(secondary_concepts)
+                seen = set()
+                unique_concepts = []
+                for concept in expanded_concepts:
+                    if concept['concept'] not in seen:
+                        seen.add(concept['concept'])
+                        unique_concepts.append(concept)
+                
                 response_data = {
                     'question': best_match['question'],
                     'answer': response_message,
@@ -234,6 +248,7 @@ def chat_api():
                     'references': best_match.get('references', ''),
                     'source': 'database',
                     'match_score': round(best_match['combined_score'], 4),
+                    'related_concepts': unique_concepts,
                     "debug_info": debug_info
 
                 }
@@ -247,7 +262,8 @@ def chat_api():
                     'summary': response_message.get('summary', ''),
                     'references': response_message.get('references', ''),
                     'source': 'LLM',
-                    "debug_info": debug_info
+                    "debug_info": debug_info,
+                    'related_concepts': response_message.get('related_concepts', [])
 
                 }
                 add_unanswered_question(user_id, user_name, user_question, response_data, selected_module)
@@ -261,6 +277,7 @@ def chat_api():
                 'summary': response_message.get('summary', ''),
                 'references': response_message.get('references', ''),
                 'source': 'LLM',
+                'related_concepts': response_message.get('related_concepts', []),
                 "debug_info": debug_info
 
             }
