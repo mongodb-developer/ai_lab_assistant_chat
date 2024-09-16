@@ -44,16 +44,28 @@ def get_db_connection() -> Optional[Database]:
     if 'mongo_client' not in current_app.config:
         try:
             current_app.logger.info(f"Attempting to connect to MongoDB with URI: {current_app.config['MONGODB_URI']}")
-            current_app.config['mongo_client'] = MongoClient(current_app.config['MONGODB_URI'])
+            client = MongoClient(current_app.config['MONGODB_URI'], 
+                                 serverSelectionTimeoutMS=5000)  # 5 second timeout
+            # Verify the connection
+            client.server_info()
+            current_app.config['mongo_client'] = client
             current_app.logger.info("Successfully connected to MongoDB")
+        except pymongo.errors.ServerSelectionTimeoutError as e:
+            current_app.logger.error(f"Failed to connect to MongoDB (timeout): {str(e)}")
+            return None
         except Exception as e:
             current_app.logger.error(f"Failed to connect to MongoDB: {str(e)}")
             return None
 
     try:
         db = current_app.config['mongo_client'].get_database(current_app.config['MONGODB_DB'])
+        # Verify database access
+        db.command('ping')
         current_app.logger.info(f"Successfully got database: {current_app.config['MONGODB_DB']}")
         return db
+    except pymongo.errors.OperationFailure as e:
+        current_app.logger.error(f"Failed to access database (permission error): {str(e)}")
+        return None
     except Exception as e:
         current_app.logger.error(f"Failed to get database: {str(e)}")
         return None
@@ -80,14 +92,15 @@ def with_db_connection(f):
 
 def init_db(app):
     with app.app_context():
+        app.logger.info("Starting database initialization")
         db = get_db_connection()
-        # Perform any initial setup if needed
-        # For example, creating indexes
-    if db is not None:
-        app.config['db'] = db
-    else:
-        raise Exception("Failed to initialize the database.")            # Your index creation code here
-    pass
+        if db is not None:
+            app.config['db'] = db
+            app.logger.info("Database initialized successfully")
+            # Perform any additional setup here if needed
+        else:
+            app.logger.error("Failed to initialize the database")
+            raise Exception("Failed to initialize the database")
 
 SIMILARITY_THRESHOLD = 0.91  # Governs matching of similar questions from database collection `documents`
 
