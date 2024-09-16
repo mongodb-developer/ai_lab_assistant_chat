@@ -30,3 +30,6 @@ class Config:
     UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
     SOURCE=os.environ.get('SOURCE')
     FLASK_SECRET_KEY=os.environ.get('FLASK_SECRET_KEY')
+    OAUTH_CLIENT_ID = os.getenv('OAUTH_CLIENT_ID')
+    OAUTH_CLIENT_SECRET = os.getenv('OAUTH_CLIENT_SECRET')
+    OAUTH_REDIRECT_URI = os.getenv('OAUTH_REDIRECT_URI')
