@@ -4,6 +4,10 @@ from app.socket_manager import socket_manager
 import cProfile
 import pstats
 import io
+import eventlet
+
+eventlet.monkey_patch()
+
 
 from app import create_app
 
@@ -62,5 +66,6 @@ if __name__ == '__main__':
             host='0.0.0.0',
             port=443 if ssl_context else 8080,
             ssl_context=ssl_context,
-            debug=True
+            debug=True,
+            use_reloader=False
         )

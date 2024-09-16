@@ -45,7 +45,10 @@ def create_app(config_class=Config):
 
     from .routes import main
 
-    socket_manager = init_socket_manager(app)
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+    app.socketio = socketio
+
+    socket_manager = init_socket_manager(app, socketio)
     app.socket_manager = socket_manager
 
     app.register_blueprint(main)

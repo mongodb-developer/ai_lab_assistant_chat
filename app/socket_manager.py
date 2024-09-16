@@ -2,6 +2,9 @@ from flask_socketio import SocketIO
 import logging
 import threading
 from queue import Queue
+import eventlet
+
+eventlet.monkey_patch()
 
 class SocketConnectionManager:
     def __init__(self):
@@ -13,8 +16,11 @@ class SocketConnectionManager:
         self.connection_pool = Queue(maxsize=5)  # Adjust the pool size as needed
         self.disconnect_timer = None
 
-    def init_app(self, app):
-        self.socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+    def init_app(self, app, socketio=None):
+        if socketio:
+            self.socketio = socketio
+        else:
+            self.socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
         self.logger.info("SocketConnectionManager initialized")
 
     def connect(self):
@@ -92,6 +98,8 @@ class SocketConnectionManager:
 
 socket_manager = SocketConnectionManager()
 
-def init_socket_manager(app):
-    socket_manager.init_app(app)
+def init_socket_manager(app, socketio=None):
+    if socketio is None:
+        socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
+    socket_manager.init_app(app, socketio)
     return socket_manager
