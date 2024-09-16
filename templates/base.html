@@ -10,13 +10,8 @@
     <link href="{{ url_for('static', filename='css/base.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
-    <meta http-equiv="Content-Security-Policy" content="
-        default-src 'self';
-        script-src 'self' 'sha256-nJfXomEbaSABt86Abg0LPGOatpIs5zM8ESxfUv59l+M=';
-        img-src 'self' data:;
-        style-src 'self';
-        frame-ancestors 'self' https://docs.google.com;
-    ">
+    <meta http-equiv="Content-Security-Policy" content="style-src 'self' 'unsafe-inline';">
+
     <script type="module" src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
 
     {% block css %}{% endblock %}
