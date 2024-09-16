@@ -11,6 +11,7 @@
     <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
     <link rel="shortcut icon" href="{{ url_for('static', filename='img/favicon.ico') }}">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; frame-ancestors 'self' https://docs.google.com;">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; img-src 'self' data:;">
 
     {% block css %}{% endblock %}
 </head>

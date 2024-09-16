@@ -1038,7 +1038,7 @@ function sanitizeConnectionString(connectionString) {
 }
 
 
-function checkConnection(connectionString) {
+async function checkConnection(connectionString) {
     try {
 
         const profile_response = await fetch('/api/user_profile');
