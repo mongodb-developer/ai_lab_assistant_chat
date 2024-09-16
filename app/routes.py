@@ -1528,11 +1528,16 @@ def autocomplete():
     if not prefix:
         return jsonify([]), 200
 
+    collection = get_documents_collection()
+    if not collection:
+        current_app.logger.error("Documents collection is not available.")
+        return jsonify({"error": "Internal Server Error"}), 500
+
     try:
         pipeline = [
             {
                 "$search": {
-                    "index": "autocomplete",  # Make sure to create this index
+                    "index": "autocomplete",
                     "autocomplete": {
                         "query": prefix,
                         "path": "question",
@@ -1547,15 +1552,16 @@ def autocomplete():
                     "score": {"$meta": "searchScore"}
                 }
             },
-            {"$limit": 5}  # Adjust the number of suggestions as needed
+            {"$limit": 5}
         ]
 
-        results = list(get_documents_collection().aggregate(pipeline))
+        results = list(collection.aggregate(pipeline))
         suggestions = [result['question'] for result in results]
         return jsonify(suggestions), 200
     except Exception as e:
         current_app.logger.error(f"Error in autocomplete: {str(e)}")
         return jsonify({"error": "An error occurred during autocomplete"}), 500
+
     
 @main.route('/api/design_review', methods=['POST'])
 def design_review():
