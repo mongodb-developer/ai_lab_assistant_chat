@@ -1,3 +1,4 @@
+import os  # Add this line
 import openai
 from pymongo import MongoClient, ASCENDING
 from pymongo.operations import IndexModel
