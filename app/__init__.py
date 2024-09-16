@@ -1,5 +1,5 @@
 print("Starting to import in __init__.py")
-from flask import Flask
+from flask import Flask, make_response
 from flask_login import login_required, current_user, user_logged_in
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
@@ -60,6 +60,22 @@ def create_app(config_class=Config):
     def _track_logins(sender, user, **extra):
         update_user_login_info(str(user.id))
     csrf.init_app(app)
+    
+    @app.after_request
+    def add_csp_headers(response):
+        """
+        Add Content Security Policy headers to the response.
+        This allows loading styles from cdnjs.cloudflare.com while maintaining security.
+        """
+        csp = "default-src 'self'; " \
+              "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " \
+              "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " \
+              "font-src 'self' https://cdnjs.cloudflare.com; " \
+              "img-src 'self' data:; " \
+              "connect-src 'self'"
+        
+        response.headers['Content-Security-Policy'] = csp
+        return response
     print("Finished create_app function")
 
     return app
