@@ -10,3 +10,5 @@ env_variables:
   NLTK_DATA: "/tmp/nltk_data"
   MONGODB_URI: 'mongodb+srv://mike:Password123%21@labassistant.xvoen.mongodb.net/?retryWrites=true&w=majority&appName=labassistant'
   MONGODB_DB: 'lab'
+  SIMILARITY_THRESHOLD: '0.8'  # or whatever value you prefer
+

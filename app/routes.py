@@ -88,7 +88,7 @@ DEFAULT_SESSIONS = [
     {"name": "Atlas Search", "instructor": ""},
     {"name": "VectorSearch", "instructor": ""}
 ]
-SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is float
+SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD or 0.8)  # Default to 0.8 if not set
 
 @main.route('/')
 def home():
