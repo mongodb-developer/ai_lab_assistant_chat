@@ -2,6 +2,7 @@ import os
 from dotenv import load_dotenv
 from datetime import timedelta
 from pathlib import Path
+
 basedir = Path(__file__).resolve().parent
 
 load_dotenv()
@@ -14,7 +15,7 @@ class Config:
     OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY')
     GOOGLE_CLIENT_ID = os.environ.get('GOOGLE_CLIENT_ID')
     GOOGLE_CLIENT_SECRET = os.environ.get('GOOGLE_CLIENT_SECRET')
-    SERVER_NAME = 'lab-assistant.localhost.com'
+    SERVER_NAME = os.environ.get('SERVER_NAME') or 'lab-assistant.localhost.com'
     SESSION_COOKIE_NAME = 'google-login-session'
     PERMANENT_SESSION_LIFETIME = timedelta(days=5)
     SESSION_TYPE = 'filesystem'
@@ -24,9 +25,7 @@ class Config:
     OAUTHLIB_RELAX_TOKEN_SCOPE = True
     OAUTHLIB_INSECURE_TRANSPORT = os.environ.get('OAUTHLIB_INSECURE_TRANSPORT', '1') == '1'
     OAUTHLIB_REDIRECT_URI = os.environ.get('OAUTHLIB_REDIRECT_URI', 'https://lab-assistant.localhost.com/login/authorized')
-    SIMILARITY_THRESHOLD = os.environ.get('SIMILARITY_THRESHOLD', '0.8')  # Default to 0.8 if not set
+    SIMILARITY_THRESHOLD = float(os.environ.get('SIMILARITY_THRESHOLD', '0.8'))
     GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
     UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
-    SOURCE=mongodb+srv://mike:Password123%21@labassistant.xvoen.mongodb.net/library?retryWrites=true&w=majority&appName=labassistant
-
-
+    SOURCE = os.environ.get('SOURCE') or 'mongodb+srv://mike:Password123%21@labassistant.xvoen.mongodb.net/library?retryWrites=true&w=majority&appName=labassistant'
