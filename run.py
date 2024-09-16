@@ -4,10 +4,8 @@ from app.socket_manager import socket_manager
 import cProfile
 import pstats
 import io
-import eventlet
-
-eventlet.monkey_patch()
-
+from gevent import pywsgi
+from geventwebsocket.handler import WebSocketHandler
 
 from app import create_app
 
@@ -61,11 +59,22 @@ if __name__ == '__main__':
                 '/path/to/your/key.pem'
             )
 
-        socket_manager.run(
-            profiled_app,
-            host='0.0.0.0',
-            port=443 if ssl_context else 8080,
-            ssl_context=ssl_context,
-            debug=True,
-            use_reloader=False
-        )
+        port = 443 if ssl_context else 8080
+        
+        if ssl_context:
+            server = pywsgi.WSGIServer(
+                ('0.0.0.0', port), 
+                profiled_app, 
+                handler_class=WebSocketHandler,
+                keyfile=ssl_context[1],
+                certfile=ssl_context[0]
+            )
+        else:
+            server = pywsgi.WSGIServer(
+                ('0.0.0.0', port), 
+                profiled_app, 
+                handler_class=WebSocketHandler
+            )
+
+        print(f"Server starting on port {port}")
+        server.serve_forever()

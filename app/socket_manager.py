@@ -2,9 +2,9 @@ from flask_socketio import SocketIO
 import logging
 import threading
 from queue import Queue
-import eventlet
-
-eventlet.monkey_patch()
+import gevent
+from gevent import monkey
+monkey.patch_all()
 
 class SocketConnectionManager:
     def __init__(self):
@@ -20,7 +20,7 @@ class SocketConnectionManager:
         if socketio:
             self.socketio = socketio
         else:
-            self.socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+            self.socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')
         self.logger.info("SocketConnectionManager initialized")
 
     def connect(self):
@@ -100,6 +100,6 @@ socket_manager = SocketConnectionManager()
 
 def init_socket_manager(app, socketio=None):
     if socketio is None:
-        socketio = SocketIO(app, async_mode='eventlet', cors_allowed_origins="*")
+        socketio = SocketIO(app, async_mode='gevent', cors_allowed_origins="*")
     socket_manager.init_app(app, socketio)
     return socket_manager

@@ -33,6 +33,8 @@ google-crc32c==1.5.0
 google-resumable-media==2.7.1
 googleapis-common-protos==1.63.2
 gunicorn==22.0.0
+gevent==21.8.0
+gevent-websocket==0.10.1
 h11==0.14.0
 idna==3.7
 itsdangerous==2.2.0
