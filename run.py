@@ -5,6 +5,11 @@ import cProfile
 import pstats
 import io
 
+from app import create_app
+
+# Expose the Flask app instance for Gunicorn
+app = create_app()
+
 def profile_app():
     profiler = cProfile.Profile()
     profiler.enable()
@@ -20,7 +25,7 @@ def profile_app():
         return
 
     try:
-        app = create_app()
+        app_profiled = create_app()
         print("Successfully created app")
     except Exception as e:
         print(f"Failed to create app: {e}")
@@ -38,12 +43,13 @@ def profile_app():
     ps.print_stats(20)  # Print top 20 time-consuming functions
     print(s.getvalue())
 
-    return app
+    return app_profiled
 
 if __name__ == '__main__':
-    app = profile_app()
+    # Only run profiling and development server when executing run.py directly
+    profiled_app = profile_app()
 
-    if app:
+    if profiled_app:
         ssl_context = None
         if os.getenv('FLASK_ENV') == 'development':
             ssl_context = (
@@ -52,7 +58,7 @@ if __name__ == '__main__':
             )
 
         socket_manager.run(
-            app,
+            profiled_app,
             host='0.0.0.0',
             port=443 if ssl_context else 8080,
             ssl_context=ssl_context,
