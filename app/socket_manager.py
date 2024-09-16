@@ -10,7 +10,7 @@ class SocketConnectionManager:
         self.socketio = None
         self.active_tasks = set()
         self.logger = logging.getLogger(__name__)
-        self.disconnect_timer = None
+        self.disconnect_event = threading.Event()
         self.should_stop = threading.Event()
 
     def init_app(self, app):
@@ -24,18 +24,18 @@ class SocketConnectionManager:
         if self.disconnect_timer:
             self.disconnect_timer.cancel()
         self.should_stop.clear()
+        self.disconnect_event.clear()
         self.logger.info("SocketIO connection established")
 
     def disconnect(self):
-        if self.disconnect_timer:
-            self.disconnect_timer.cancel()
-        self.disconnect_timer = Timer(5.0, self._disconnect)  # 5-second delay
-        self.disconnect_timer.start()
+        self.disconnect_event.set()
+        threading.Thread(target=self._disconnect).start()
 
     def _disconnect(self):
-        if not self.active_tasks:
-            self.should_stop.set()
-            self.logger.info("SocketIO disconnected due to inactivity")
+        if self.disconnect_event.wait(5.0):  # Wait for 5 seconds
+            if not self.active_tasks:
+                self.should_stop.set()
+                self.logger.info("SocketIO disconnected due to inactivity")
 
     def start_task(self, task_name):
         self.active_tasks.add(task_name)

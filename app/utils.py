@@ -27,12 +27,19 @@ from functools import wraps
 
 nltk.data.path.append('/tmp/nltk_data')
 
-# Download necessary NLTK data
-nltk.download('punkt')
-nltk.download('stopwords')
-nltk.download('averaged_perceptron_tagger')
-nltk.download('maxent_ne_chunker')
-nltk.download('words')
+def download_nltk_data():
+    nltk.download('punkt', quiet=True)
+    nltk.download('stopwords', quiet=True)
+    nltk.download('averaged_perceptron_tagger', quiet=True)
+    nltk.download('maxent_ne_chunker', quiet=True)
+    nltk.download('words', quiet=True)
+    
+def ensure_nltk_data():
+    if not os.path.exists('/tmp/nltk_data'):
+        download_nltk_data()
+
+ensure_nltk_data()
+
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -575,6 +582,8 @@ def get_or_create_conversation(user_id):
         return create_new_conversation(user_id)
 
 def extract_topics(text, top_n=5):
+    ensure_nltk_data()
+
     # Tokenize the text
     tokens = word_tokenize(text.lower())
     
@@ -591,6 +600,8 @@ def extract_topics(text, top_n=5):
     return topics
 
 def extract_entities(text):
+    ensure_nltk_data()
+
     # Tokenize and tag the text
     tokens = word_tokenize(text)
     tagged = nltk.pos_tag(tokens)
