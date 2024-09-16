@@ -22,3 +22,5 @@ env.sh
 node_modules
 venv
 *bak
+.env
+*.pyc
