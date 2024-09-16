@@ -165,3 +165,4 @@ stash
 .DS_Store
 env.sh
 *bak
+app.yaml
