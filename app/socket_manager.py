@@ -4,6 +4,8 @@ from flask_socketio import SocketIO
 import logging
 from threading import Timer
 import threading
+from queue import Queue
+
 
 class SocketConnectionManager:
     def __init__(self):
@@ -12,6 +14,8 @@ class SocketConnectionManager:
         self.logger = logging.getLogger(__name__)
         self.disconnect_event = threading.Event()
         self.should_stop = threading.Event()
+        self.connection_pool = Queue(maxsize=5)  # Adjust the pool size as needed
+
 
     def init_app(self, app):
         self.socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
@@ -26,6 +30,21 @@ class SocketConnectionManager:
         self.should_stop.clear()
         self.disconnect_event.clear()
         self.logger.info("SocketIO connection established")
+        
+    def get_connection(self):
+        if self.connection_pool.empty():
+            return self.create_new_connection()
+        return self.connection_pool.get()
+
+    def create_new_connection(self):
+        pass
+
+
+    def release_connection(self, connection):
+        if self.connection_pool.full():
+            connection.close()
+        else:
+            self.connection_pool.put(connection)
 
     def disconnect(self):
         self.disconnect_event.set()
