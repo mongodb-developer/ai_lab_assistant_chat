@@ -3,14 +3,17 @@ document.addEventListener('DOMContentLoaded', function () {
     let currentFocus;
     function loadChatState() {
         const savedState = localStorage.getItem('chatState');
-        console.log("chatState: ", savedState)
         if (savedState) {
-            return JSON.parse(savedState);
+            const parsedState = JSON.parse(savedState);
+            console.log("Loaded chatState:", parsedState);
+            return parsedState;
         }
-        return {
+        const initialState = {
             waitingForConnectionString: false,
             currentModule: null
         };
+        console.log("Initialized chatState:", initialState);
+        return initialState;
     }
 
     let chatState = loadChatState();
