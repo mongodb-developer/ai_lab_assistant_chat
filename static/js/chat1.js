@@ -8,6 +8,14 @@
         console.log("DOM fully loaded");
         chatState = loadChatState();
         console.log("Initial chat state:", chatState);
+
+        if (typeof bootstrap === 'undefined') {
+            console.error('Bootstrap is not loaded. Please check your script loading order.');
+            appendMessage('Assistant', 'An internal error occurred. Please refresh the page.');
+            return;
+        } else {
+            console.log('Bootstrap is loaded successfully.');
+        }
         document.getElementById('user-input').addEventListener('keypress', function(e) {
             if (e.key === 'Enter') {
                 e.preventDefault();
