@@ -1,21 +1,27 @@
+print("Starting to import in __init__.py")
 from flask import Flask
 from flask_login import login_required, current_user, user_logged_in
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
 from .config import Config
+print("About to import auth")
 from .auth import auth, oauth, login_manager, init_oauth
+print("About to import utils")
 from .utils import init_db, update_user_login_info
+print("About to import socket_manager")
 from .socket_manager import init_socket_manager
 
 import os
 import logging
 
 def create_app(config_class=Config):
+    print("Starting create_app function")
     app = Flask(__name__,
                 template_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '../templates')),
                 static_folder=os.path.abspath(os.path.join(os.path.dirname(__file__), '../static')))
 
     app.config.from_object(config_class)
+    print("Loaded config")
     
     CORS(app, resources={r"/*": {"origins": ["https://lab-assistant.localhost.com", "https://lab-ai-assistant.ue.r.appspot.com"]}}, supports_credentials=True)
     init_db(app)  # Add this line
@@ -54,5 +60,6 @@ def create_app(config_class=Config):
     def _track_logins(sender, user, **extra):
         update_user_login_info(str(user.id))
     csrf.init_app(app)
+    print("Finished create_app function")
 
     return app
