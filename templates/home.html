@@ -4,43 +4,147 @@
 
 {% block css %}
     <link href="{{ url_for('static', filename='css/home.css') }}" rel="stylesheet">
+    <style>
+        .carousel-item {
+            height: 280px;
+            background-size: cover;
+            background-position: center;
+        }
+        .carousel-caption {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+    </style>
 {% endblock %}
 
 {% block content %}
 <div class="container mt-5">
     <div class="home-page">
-        <h1>Welcome to the AI Lab Assistant</h1>
-        <p>
-            The AI Lab Assistant is designed to help you with commonly encountered issues while working on
-            MongoDB projects. Whether you're having trouble connecting to your MongoDB cluster, displaying data in your
-            application, or launching your GitHub codespace, the AI Lab Assistant is here to provide guidance and solutions.
-        </p>
-        <h3>Key Features:</h3>
-        <ul>
-            <li><strong>Real-time Assistance:</strong> Get immediate help with common MongoDB issues through our
-                chat interface.</li>
-            <li><strong>Sample Questions:</strong> Quickly access solutions to frequently asked questions about
-                MongoDB setup and troubleshooting.</li>
-            <li><strong>Admin Panel:</strong> Admins can manage questions and review unanswered queries to
-                improve our knowledge base.</li>
-            <li><strong>Labs Access:</strong> Explore our developer labs to deepen your MongoDB knowledge and
-                skills.</li>
-        </ul>
-        <h3>Get Involved</h3>
-        <p>We encourage you to fork the repository and review the code to gain a deeper understanding of how
-            MongoDB VectorSearch can be implemented to build a similar system.</p>
-        <p>Check out, or <a href="https://github.com/mongodb-developer/ai_lab_assistant_chat/fork">fork</a>
-            the project on GitHub: <a href="https://github.com/mongodb-developer/ai_lab_assistant_chat/">AI Lab
-                Assistant Chat</a>.</p>
-        <p>By exploring the code and the design patterns used, you can learn how to create scalable and
-            efficient applications using MongoDB. Happy coding!</p>
-        <p>
-            <a href="{{ url_for('main.chat') }}" class="btn btn-primary">Start a Conversation</a>
-        </p>
-        <div class="alert alert-info" role="alert">
-            <strong>Note Regarding This Software:</strong> This system is in beta testing and may have bugs.
-            If you encounter any issues, please notify your instructor.
+        <div id="aiLabAssistantCarousel" class="carousel slide" data-bs-ride="carousel">
+            <div class="carousel-indicators">
+                <button type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+                <button type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+                <button type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+                <button type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide-to="3" aria-label="Slide 4"></button>
+            </div>
+            <div class="carousel-inner">
+                <div class="carousel-item active" style="background-image: url('{{ url_for('static', filename='img/hero-bg-1.png') }}');">
+                    <div class="carousel-caption d-none d-md-block">
+                        <h1>Welcome to the AI Lab Assistant</h1>
+                        <p>Your intelligent companion for MongoDB Workshops</p>
+                        <a href="{{ url_for('main.chat') }}" class="btn btn-primary btn-lg">Start a Conversation</a>
+                    </div>
+                </div>
+                <div class="carousel-item" style="background-image: url('{{ url_for('static', filename='img/hero-bg-2.png') }}');">
+                    <div class="carousel-caption d-none d-md-block">
+                        <div class="feature-icon">💬</div>
+                        <h2>Real-time Assistance</h2>
+                        <p>Get immediate help with common MongoDB issues through our chat interface</p>
+                    </div>
+                </div>
+                <div class="carousel-item" style="background-image: url('{{ url_for('static', filename='img/hero-bg-3.png') }}');">
+                    <div class="carousel-caption d-none d-md-block">
+                        <div class="feature-icon">🔍</div>
+                        <h2>Sample Questions</h2>
+                        <p>Quickly access solutions to frequently asked questions about MongoDB setup and troubleshooting</p>
+                    </div>
+                </div>
+                <div class="carousel-item" style="background-image: url('{{ url_for('static', filename='img/hero-bg-5.png') }}');">
+                    <div class="carousel-caption d-none d-md-block">
+                        <div class="feature-icon">🧪</div>
+                        <h2>Labs Access</h2>
+                        <p>Explore our developer labs to deepen your MongoDB knowledge and skills</p>
+                        <a href="#labs-section" class="btn btn-secondary">View Labs</a>
+                    </div>
+                </div>
+                <div class="carousel-item" style="background-image: url('{{ url_for('static', filename='img/hero-bg-6.png') }}');">
+                    <div class="carousel-caption d-none d-md-block">
+                        <div class="feature-icon">🧪</div>
+                        <h2>Design Reviews</h2>
+                        <p>Discuss your applications with MongoDB Experts</p>
+                        <a href="#labs-section" class="btn btn-secondary">View Labs</a>
+                    </div>
+                </div>
+            </div>
+            <button class="carousel-control-prev" type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide="prev">
+                <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Previous</span>
+            </button>
+            <button class="carousel-control-next" type="button" data-bs-target="#aiLabAssistantCarousel" data-bs-slide="next">
+                <span class="carousel-control-next-icon" aria-hidden="true"></span>
+                <span class="visually-hidden">Next</span>
+            </button>
         </div>
-    </div>
+    
+        <div class="container mt-5">
+            <h2>Key Features</h2>
+            <div class="row">
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">💬</h3>
+                            <h4 class="card-subtitle mb-2">Real-time Assistance</h4>
+                            <p class="card-text">Get immediate help with common MongoDB issues through our chat interface.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">🔍</h3>
+                            <h4 class="card-subtitle mb-2">Sample Questions</h4>
+                            <p class="card-text">Quickly access solutions to frequently asked questions about MongoDB setup and troubleshooting.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">👨‍💼</h3>
+                            <h4 class="card-subtitle mb-2">Admin Panel</h4>
+                            <p class="card-text">Admins can manage questions and review unanswered queries to improve our knowledge base.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h3 class="card-title">🧪</h3>
+                            <h4 class="card-subtitle mb-2">Labs Access</h4>
+                            <p class="card-text">Explore our developer labs to deepen your MongoDB knowledge and skills.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    
+        <div class="container mt-5" id="labs-section">
+            <h2>Our Labs</h2>
+            <div class="row">
+                {% for lab in labs %}
+                <div class="col-md-3 mb-4">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">{{ lab.title }}</h5>
+                            <p class="card-text">{{ lab.description }}</p>
+                            <a href="{{ lab.url }}" target="_blank" class="btn btn-primary">Start Lab</a>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    
+        <div class="container mt-5">
+            <div class="alert alert-info" role="alert">
+                <h4 class="alert-heading">Note Regarding This Software</h4>
+                <p>This system is in beta testing and may have bugs. If you encounter any issues, please notify your instructor.</p>
+            </div>
+        </div>
 </div>
 {% endblock %}

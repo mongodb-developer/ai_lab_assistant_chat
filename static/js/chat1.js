@@ -2,10 +2,27 @@
     let chatContainer;
     let currentConversationId = null;
     let currentFocus = -1;
+    let chatState;
 
     document.addEventListener('DOMContentLoaded', function () {
         console.log("DOM fully loaded");
-
+        chatState = loadChatState();
+        console.log("Initial chat state:", chatState);
+        document.getElementById('user-input').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                sendMessage();
+            }
+        });
+        // Reset any lingering connection string waiting states
+        chatState.waitingForConnectionString = false;
+        chatState.waitingForConnectionStringConfirmation = false;
+        chatState.loadDataPending = false;
+        chatState.addVectorsPending = false;
+        saveChatState();
+    
+        console.log("Reset chat state:", chatState);
+    
         // Initialize chatContainer
         chatContainer = document.getElementById('chat-container');
         if (!chatContainer) {
@@ -13,7 +30,16 @@
             return;
         }
 
+        document.getElementById('cancel-workflow').addEventListener('click', function() {
+            chatState.waitingForConnectionString = false;
+            chatState.loadDataPending = false;
+            saveChatState();
+            hideWorkflowIndicator();
+            appendMessage('Assistant', "Workflow cancelled. How else can I assist you?");
+        });
+
         const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
+    
         if (autocompleteDropdown) {
             autocompleteDropdown.addEventListener('click', function (event) {
                 if (event.target.classList.contains('autocomplete-item')) {
@@ -23,10 +49,52 @@
                 }
             });
         }
+    
+        // Function to clear autocomplete
+        function clearAutocomplete() {
+            if (autocompleteDropdown) {
+                autocompleteDropdown.innerHTML = '';
+                autocompleteDropdown.style.display = 'none';
+            }
+        }
+    
 
         const userInput = document.getElementById('user-input');
         if (autocompleteDropdown && !autocompleteDropdown.contains(event.target) && event.target !== userInput) {
             hideAutocompleteDropdown();
+        }
+
+        document.querySelectorAll('.ask-question').forEach(button => {
+            button.addEventListener('click', function(event) {
+                event.preventDefault();
+                const question = this.getAttribute('data-question');
+                document.getElementById('user-input').value = question;
+                sendMessage(null, question);
+            });
+        });
+    
+
+        if (userInput && autocompleteDropdown) {
+            // Add keydown event listener to the user input
+            userInput.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    hideAutocompleteDropdown();
+                }
+            });
+    
+            // Add keydown event listener to the document
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape') {
+                    hideAutocompleteDropdown();
+                }
+            });
+    
+            // Existing click event listener
+            document.addEventListener('click', function(event) {
+                if (!autocompleteDropdown.contains(event.target) && event.target !== userInput) {
+                    hideAutocompleteDropdown();
+                }
+            });
         }
 
         var dropdownToggle = document.querySelector('#moduleDropdown');
@@ -64,7 +132,6 @@
         });
 
         const sendButton = document.getElementById('send-button');
-        // const userInput = document.getElementById('user-input');
         if (userInput) {
             userInput.addEventListener('focus', function () {
                 var bsDropdown = bootstrap.Dropdown.getInstance(dropdownMenu);
@@ -77,14 +144,17 @@
             userInput.addEventListener('keypress', function (event) {
                 if (event.key === 'Enter') {
                     event.preventDefault();
-                    sendMessage();
+                    sendMessage(event);
+                    hideAutocompleteDropdown();
                 }
             });
 
             sendButton.addEventListener('click', sendMessage);
             sendButton.addEventListener('touchstart', function (event) {
                 event.preventDefault();
-                sendMessage();
+                sendMessage(event);
+                hideAutocompleteDropdown();
+
             });
         } else {
             console.error('User input or send button not found');
@@ -277,13 +347,25 @@
         }
     }
 
-    async function sendMessage(event) {
+
+    async function sendMessage(event, presetMessage = null) {
         const userInput = document.getElementById('user-input');
+
         const moduleSelect = document.getElementById('moduleDropdown');
-        const message = userInput.value.trim();
+        const message = presetMessage || userInput.value.trim();
         let selectedModule = moduleSelect.textContent.trim();
+        const loader = appendLoader();
+
         if (selectedModule.toLowerCase() === "select a module") {
             selectedModule = "";
+        }
+    
+        if ((message.startsWith('/') || chatState.waitingForConnectionString)) {
+            userInput.value = '';
+            removeLoader(loader);
+            hideAutocompleteDropdown();
+            handleCommand(message);
+            return;
         }
         if (message) {
             hideAutocompleteDropdown();  // Hide autocomplete dropdown
@@ -294,15 +376,13 @@
             if (bsDropdown) {
                 bsDropdown.hide();
             }
-            const loader = appendLoader();
-
+    
             try {
                 const userId = await getCurrentUserId();
                 if (!userId) {
                     // If getUserId returned null, the redirect to login should have already happened
                     return;
                 }
-
                 const response = await fetch('/api/chat', {
                     method: 'POST',
                     headers: {
@@ -354,7 +434,15 @@
             console.error('Chat container not available. Message not appended.');
             return;
         }
-
+        if (message.startsWith('mongodb://') || message.startsWith('mongodb+srv://')) {
+            chatState.waitingForConnectionString = false;
+            saveChatState();
+            hideAutocompleteDropdown();
+            checkConnection(message);
+            removeLoader(loader);
+            hideWorkflowIndicator();
+            return;
+        }
         console.log(`Appending message from ${sender}:`, message);
 
         const messageId = generateUniqueId();
@@ -363,11 +451,33 @@
         messageElement.id = messageId;
 
         if (sender.toLowerCase() === 'assistant') {
-            const bubbleContent = document.createElement('div');
-            bubbleContent.classList.add('bubble-content');
-            bubbleContent.innerHTML = marked.parse(escapeSpecialChars(message));
-            messageElement.appendChild(bubbleContent);
-
+            if (message.includes('<')) {
+                messageElement.innerHTML = message;
+            } else {
+                const bubbleContent = document.createElement('div');
+                bubbleContent.classList.add('bubble-content');
+                bubbleContent.innerHTML = marked.parse(escapeSpecialChars(message));
+                messageElement.appendChild(bubbleContent);
+            }
+        // Check if we are waiting for a connection string confirmation
+        if (chatState.waitingForConnectionStringConfirmation) {
+            const buttonContainer = document.createElement('div');
+            buttonContainer.classList.add('confirmation-buttons');
+            
+            const yesButton = document.createElement('button');
+            yesButton.textContent = 'Yes';
+            yesButton.classList.add('btn', 'btn-success', 'mr-2');
+            yesButton.onclick = () => handleConnectionStringConfirmation('yes');
+            
+            const noButton = document.createElement('button');
+            noButton.textContent = 'No';
+            noButton.classList.add('btn', 'btn-danger');
+            noButton.onclick = () => handleConnectionStringConfirmation('no');
+            
+            buttonContainer.appendChild(yesButton);
+            buttonContainer.appendChild(noButton);
+            messageElement.appendChild(buttonContainer);
+        }
             // Create and append the source element
             const sourceElement = document.createElement('div');
             sourceElement.classList.add('source-info');
@@ -378,7 +488,7 @@
                 const scoreText = data.score ? ` (Match score: ${data.score.toFixed(4)})` : '';
                 sourceElement.textContent = `Source: From previous response${scoreText}`;
             } else {
-                sourceElement.textContent = 'Source: Unknown';
+                sourceElement.textContent = 'Source: Assistant';
             }
             messageElement.appendChild(sourceElement);
             if (data && data.related_concepts && data.related_concepts.length > 0) {
@@ -513,142 +623,17 @@
 
         chatContainer.appendChild(messageElement);
         chatContainer.scrollTop = chatContainer.scrollHeight;
-    }
-
-    function createKnowledgeGraph(containerId, concepts, originalQuestion) {
-        console.log(`Attempting to create knowledge graph for container: ${containerId}`);
-        
-        const container = document.getElementById(containerId);
-        if (!container) {
-            console.error(`Container with id ${containerId} not found`);
-            return;
-        }
-    
-        console.log(`Container found: `, container);
-    
-        if (typeof vis === 'undefined') {
-            console.error('vis is not defined. Make sure the vis.js library is properly loaded.');
-            return;
-        }
-    
-        // Clear the container before creating a new graph
-        container.innerHTML = '';
-    
-        const nodes = [
-            { id: 'question', label: originalQuestion, color: '#FFA500', font: { size: 18 } }  // Orange for the original question
-        ];
-        const edges = [];
-
-        const nodeMap = new Map();
-        nodeMap.set(originalQuestion, 'question');
-
-        concepts.forEach((concept, index) => {
-            if (!nodeMap.has(concept.concept)) {
-                const nodeId = `concept${index}`;
-                nodes.push({ 
-                    id: nodeId, 
-                    label: concept.concept, 
-                    color: '#4CAF50',  // Green for primary related concepts
-                    font: { size: 14 }
-                });
-                nodeMap.set(concept.concept, nodeId);
-                edges.push({ from: 'question', to: nodeId, length: 150 });  // Reduced length from 200 to 100
+            // Add a small delay to force the browser to render everything together
+    if (chatState.waitingForConnectionStringConfirmation) {
+        setTimeout(() => {
+            const buttonContainer = messageElement.querySelector('.confirmation-buttons');
+            if (buttonContainer) {
+                buttonContainer.style.display = 'flex';
             }
-    
-            // Add secondary connections
-            if (concept.related_concepts) {
-                concept.related_concepts.forEach((relatedConcept, relIndex) => {
-                    if (!nodeMap.has(relatedConcept)) {
-                        const nodeId = `related${index}_${relIndex}`;
-                        nodes.push({ 
-                            id: nodeId, 
-                            label: relatedConcept, 
-                            color: '#2196F3',  // Blue for secondary related concepts
-                            font: { size: 12 }
-                        });
-                        nodeMap.set(relatedConcept, nodeId);
-                    }
-                    edges.push({ from: nodeMap.get(concept.concept), to: nodeMap.get(relatedConcept), length: 75 });  // Reduced length from 150 to 75
-                });
-            }
-        });
-    
-        const data = {
-            nodes: new vis.DataSet(nodes),
-            edges: new vis.DataSet(edges)
-        };
-    
-        const options = {
-            nodes: {
-                shape: 'dot',
-                size: 16,
-                font: {
-                    size: 12,
-                    face: 'Tahoma'
-                }
-            },
-            edges: {
-                width: 0.15,
-                color: { inherit: 'both' },
-                smooth: {
-                    type: 'continuous'
-                }
-            },
-            physics: {
-                enabled: true,
-                barnesHut: {
-                    gravitationalConstant: -2000,  // Reduced from -80000 to bring nodes closer
-                    centralGravity: 0.3,           // Added to keep nodes more centered
-                    springLength: 95,              // Reduced from 200 to make connections shorter
-                    springConstant: 0.04,          // Increased from 0.001 to make edges shorter
-                    damping: 0.09                  // Added to reduce oscillation
-                },
-                stabilization: {
-                    iterations: 200                // Increased for better initial layout
-                }
-            },
-            layout: {
-                improvedLayout: true,
-                clusterThreshold: 150,             // Added to improve layout for larger graphs
-                randomSeed: 2                      // Added for consistency in layout
-            },
-            interaction: {
-                tooltipDelay: 200,
-                hideEdgesOnDrag: true,
-                multiselect: true,
-                dragNodes: true,                   // Ensure nodes are draggable
-                zoomView: true                     // Allow zooming
-            }
-        };
-    
-        try {
-            new vis.Network(container, data, options);
-            console.log(`Knowledge graph created successfully for ${containerId}`);
-            network.on("doubleClick", function() {
-                network.fit({ animation: true });
-            });
-        } catch (error) {
-            console.error(`Error creating knowledge graph for ${containerId}:`, error);
-        }
+        }, 0); // You can tweak this delay as needed
     }
-
-    function createConceptCards(concepts) {
-        return concepts.map((concept, index) => `
-            <div class="concept-card" data-concept="${escapeHTML(concept.concept)}">
-                <h3>${escapeHTML(concept.concept)}</h3>
-                <p class="description-preview">${escapeHTML(concept.description.substring(0, 100))}...</p>
-                <div class="description-full" style="display: none;">
-                    ${escapeHTML(concept.description)}
-                </div>
-                <button class="toggle-description" data-target="${index}">Learn More</button>
-                <div class="concept-actions">
-                    <button class="explore-btn">Explore in Graph</button>
-                    <button class="ask-btn">Ask About This</button>
-                </div>
-            </div>
-        `).join('');
     }
-
+ 
     function submitAppFeedback(rating) {
         fetch('/api/app_feedback', {
             method: 'POST',
@@ -720,26 +705,607 @@
         }[tag] || tag));
     }
 
-    function unescapeHTML(str) {
-        if (typeof str !== 'string') {
-            console.warn('unescapeHTML received a non-string value:', str);
-            return '';
-        }
-        return str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, tag => ({
-            '&amp;': '&',
-            '&lt;': '<',
-            '&gt;': '>',
-            '&#39;': "'",
-            '&quot;': '"'
-        }[tag] || tag));
+function unescapeHTML(str) {
+    if (typeof str !== 'string') {
+        console.warn('unescapeHTML received a non-string value:', str);
+        return '';
     }
-    function getCsrfToken() {
-        const tokenElement = document.querySelector('meta[name="csrf-token"]');
-        if (tokenElement) {
-            return tokenElement.getAttribute('content');
+    return str.replace(/&amp;|&lt;|&gt;|&#39;|&quot;/g, tag => ({
+        '&amp;': '&',
+        '&lt;': '<',
+        '&gt;': '>',
+        '&#39;': "'",
+        '&quot;': '"'
+    }[tag] || tag));
+}
+function getCsrfToken() {
+    const tokenElement = document.querySelector('meta[name="csrf-token"]');
+    if (tokenElement) {
+        return tokenElement.getAttribute('content');
+    } else {
+        console.error('CSRF token not found. Ensure the meta tag is present in the HTML.');
+        return null;
+    }
+}
+function showWorkshopLinks() {
+    const workshopLinks = [
+        { title: "Intro Lab", url: "https://mongodb-developer.github.io/intro-lab/" },
+        { title: "Aggregation Pipeline Lab", url: "https://mongodb-developer.github.io/aggregation-pipeline-lab/" },
+        { title: "Search Lab", url: "https://mongodb-developer.github.io/search-lab/" },
+        { title: "AI RAG Lab", url: "https://mongodb-developer.github.io/ai-rag-lab/" }
+    ];
+
+    let tableHTML = `
+        <table class="table table-striped workshop-links-table">
+            <thead>
+                <tr>
+                    <th scope="col">Workshop</th>
+                    <th scope="col">Link</th>
+                </tr>
+            </thead>
+            <tbody>
+    `;
+
+    workshopLinks.forEach(workshop => {
+        tableHTML += `
+            <tr>
+                <td>${workshop.title}</td>
+                <td><a href="${workshop.url}" target="_blank">${workshop.url}</a></td>
+            </tr>
+        `;
+    });
+
+    tableHTML += `
+            </tbody>
+        </table>
+    `;
+
+    const message = `Here are the links to our MongoDB workshops:<br><br>${tableHTML}`;
+    appendMessage('Assistant', message);
+}
+
+function handleCommand(command) {
+    const [baseCommand, ...args] = command.split(' ');
+    const action = args.join(' ').toLowerCase();
+    appendMessage('User', baseCommand);
+
+    switch (baseCommand.toLowerCase()) {
+        case '/help':
+        case '/h':
+            showHelpInformation();
+            break;
+        case '/workshops':
+        case '/w':
+            showWorkshopLinks();
+            break;
+        case '/check':
+        case '/c':
+            if (action.toLowerCase() === 'connection') {
+                checkConnection();
+            } else if (action.toLowerCase() === 'backend') {
+                checkCodeSpace(action.toLowerCase());
+            } else if (action.toLowerCase() === 'frontend') {
+                appendMessage('Assistant', 'front-end checking is not supported at this time.')
+                return;
+            }
+            break;
+        case '/load':
+        case '/l':
+            if (action.toLowerCase() === 'data') {
+                loadData();
+            }
+            break;
+        case '/add':
+        case '/a':
+            if (action.toLowerCase() === 'vectors') {
+                addVectors();
+            }
+            break;
+        case '/mongo':
+        case '/m':
+            executeMongoShellCommand(command);
+            break;
+        default:
+            appendMessage('Assistant', 'Invalid command. Please check the available commands.');
+    }
+}
+
+async function executeMongoShellCommand(command) {
+    try {
+        const response = await fetch('/api/mongodb_shell', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ command })
+        });
+
+        const data = await response.json();
+        if (data.success) {
+            appendMessage('Assistant', `<pre>${data.result}</pre>`);
         } else {
-            console.error('CSRF token not found. Ensure the meta tag is present in the HTML.');
-            return null;
+            appendMessage('Assistant', `<pre style="color: red;">${data.message}</pre>`);
+        }
+    } catch (error) {
+        appendMessage('Assistant', 'There was an error processing your MongoDB command.');
+        console.error('Error in executeMongoShellCommand:', error);
+    }
+}
+
+function handleConnectionStringConfirmation(response) {
+    chatState.waitingForConnectionStringConfirmation = false;
+
+    if (response.toLowerCase() === 'yes') {
+        if (chatState.loadDataPending) {
+            loadData(chatState.storedConnectionString);
+        } else if (chatState.addVectorsPending) {
+            appendMessage('Assistant', "Great! Now, please specify the provider (serverless, vertex, openai, or sagemaker).");
+            chatState.waitingForProviderInput = true;
+        } else {
+            checkConnection(chatState.storedConnectionString);
+        }
+    } else {
+        if (chatState.loadDataPending) {
+            appendMessage('Assistant', "Alright, please enter your MongoDB connection string manually to load data.");
+        } else if (chatState.addVectorsPending) {
+            appendMessage('Assistant', "Alright, please enter your MongoDB connection string manually to add vectors. Also, specify the provider (serverless, vertex, openai, or sagemaker).");
+        } else {
+            appendMessage('Assistant', "Alright, please enter your MongoDB connection string manually.");
+        }
+        chatState.waitingForConnectionString = true;
+    }
+
+    if (response.toLowerCase() === 'no') {
+        chatState.storedConnectionString = null;
+    }
+    
+    saveChatState();
+}
+
+function handleProviderInput(command) {
+    const provider = command.trim().toLowerCase();
+    if (['serverless', 'vertex', 'openai', 'sagemaker'].includes(provider)) {
+        addVectors(chatState.storedConnectionString, provider);
+        chatState.waitingForProviderInput = false;
+        chatState.addVectorsPending = false;
+        chatState.storedConnectionString = null;
+        saveChatState();
+    } else {
+        appendMessage('Assistant', "Invalid provider. Please specify either serverless, vertex, openai, or sagemaker.");
+    }
+}
+
+function handleConnectionStringInput(command) {
+    if (command.startsWith('mongodb://') || command.startsWith('mongodb+srv://')) {
+        if (chatState.loadDataPending) {
+            loadData(command);
+            chatState.loadDataPending = false;
+        } else if (chatState.addVectorsPending) {
+            appendMessage('Assistant', "Connection string received. Now, please specify the provider (serverless, vertex, openai, or sagemaker).");
+            chatState.waitingForProviderInput = true;
+            chatState.storedConnectionString = command;
+        } else {
+            checkConnection(command);
+        }
+        chatState.waitingForConnectionString = false;
+        saveChatState();
+        hideWorkflowIndicator();
+    } else if (command.toLowerCase() === '/cancel') {
+        resetConnectionStringWaiting();
+        hideWorkflowIndicator();
+        appendMessage('Assistant', "Operation cancelled. How else can I assist you?");
+    } else {
+        appendMessage('Assistant', "That doesn't look like a valid MongoDB connection string. Please make sure it starts with 'mongodb://' or 'mongodb+srv://'. Try again or type '/cancel' to cancel the operation.");
+    }
+}
+
+function showHelpInformation() {
+    const helpMessage = `
+        <h4>Welcome to the AI Lab Assistant!</h4>
+        <p>Here are some tips on how to use this chat system:</p>
+        <ul>
+            <li>Ask clear, specific questions about MongoDB, its features, or best practices.</li>
+            <li>You can ask follow-up questions to get more detailed information.</li>
+            <li>If you need to see code examples, just ask!</li>
+        </ul>
+        <h5>Available Commands:</h5>
+        <table class="table table-striped">
+            <thead>
+                <tr>
+                    <th>Command</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td>/help or /h</td>
+                    <td>Show this help information</td>
+                </tr>
+                <tr>
+                    <td>/check or /c connection</td>
+                    <td>Test a MongoDB connection string</td>
+                </tr>
+                <tr>
+                    <td>/workshops or /w</td>
+                    <td>Show links to the Developer Days workshops</td>
+                </tr>
+                <tr>
+                    <td>/load or /l data</td>
+                    <td>Start the data loading process</td>
+                </tr>
+                <tr>
+                    <td>/add or /a vectors</td>
+                    <td>Add vectors to your library database</td>
+                </tr>
+            </tbody>
+        </table>
+        <p>Feel free to ask if you need any clarification or have more questions!</p>
+    `;
+
+    appendMessage('Assistant', helpMessage);
+}
+
+// Function to load chat state from localStorage
+function loadChatState() {
+    const savedState = localStorage.getItem('chatState');
+    if (savedState) {
+        return JSON.parse(savedState);
+    }
+    return {
+        waitingForConnectionString: false,
+        currentModule: null
+    };
+}
+
+function resetConnectionStringWaiting() {
+    chatState.waitingForConnectionString = false;
+    chatState.waitingForConnectionStringConfirmation = false;
+    chatState.waitingForProviderInput = false;
+    chatState.loadDataPending = false;
+    chatState.addVectorsPending = false;
+    chatState.storedConnectionString = null;
+    saveChatState();
+}
+
+function saveChatState() {
+    localStorage.setItem('chatState', JSON.stringify(chatState));
+}
+async function checkCodeSpace(checkType) {
+    try {
+        const response = await fetch(`/api/check_codespace/${checkType}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const data = await response.json();
+        
+        appendMessage('Assistant', `${checkType.charAt(0).toUpperCase() + checkType.slice(1)} check result: ${data.message}. ${data.details}`);
+        
+        if (data.sample_book) {
+            appendMessage('Assistant', `Sample book from ${checkType}: ${JSON.stringify(data.sample_book)}`);
+        }
+    } catch (error) {
+        console.error('Error during codespace check:', error);
+        appendMessage('Assistant', `Error checking ${checkType} codespace: ${error.message}. Verify the GitHub Codespace backend URL, and try to restart your codespaces instance and ensure that you've set the ports to public. If codespaces becomes unresponsive, destory the codespace and re-launch.  https://github.com/codespaces/new/mongodb-developer/library-management-system?quickstart=1`);
+    }
+}
+async function checkConnectionString() {
+    try {
+        const response = await fetch('/api/user_profile');
+        const profileData = await response.json();
+        
+        if (profileData.atlas_connection_string) {
+            chatState.storedConnectionString = profileData.atlas_connection_string; // Store the full connection string
+            const sanitizedConnectionString = sanitizeConnectionString(chatState.storedConnectionString); // Sanitize for display
+            
+            chatState.waitingForConnectionStringConfirmation = true;
+            appendMessage('Assistant', `I found a connection string stored in your profile. The sanitized version is: ${sanitizedConnectionString}. Would you like to use it?`);
+        } else {
+            const profileLink = '<a href="/profile" target="_blank">profile settings</a>';
+            appendMessage('Assistant', `I couldn't find a connection string in your profile. You can add one in your ${profileLink}. For now, please enter your MongoDB connection string manually. (Don't worry, it will be handled securely and won't be stored.)`);
+            chatState.waitingForConnectionString = true;
+        }
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string...");
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        appendMessage('Assistant', "There was an error retrieving your profile information. Please enter your MongoDB connection string manually.");
+        chatState.waitingForConnectionString = true;
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string...");
+    }
+}
+
+function sanitizeConnectionString(connectionString) {
+    // Check if connection string starts with a protocol
+    if (!connectionString.startsWith('http://') && !connectionString.startsWith('https://')) {
+        // Default to http if no protocol is provided
+        connectionString = 'http://' + connectionString;
+    }
+
+    try {
+        return new URL(connectionString);  // Create URL object
+    } catch (error) {
+        console.error('Invalid URL format:', error);
+        throw new Error('Invalid connection string format');
+    }
+}
+
+
+function checkConnection(connectionString) {
+    try {
+
+        const profile_response = await fetch('/api/user_profile');
+        const profileData = await profile_response.json();
+        
+        if (profileData.atlas_connection_string) {
+            const sanitizedURL = sanitizeConnectionString(connectionString);
+            appendMessage('Assistant', `I found a connection string stored in your profile. The sanitized version is: ${sanitizedConnectionString}. `);
+        } else {
+            const profileLink = '<a href="/profile" target="_blank">profile settings</a>';
+            appendMessage('Assistant', `I couldn't find a connection string in your profile. You can add one in your ${profileLink}. For now, please enter your MongoDB connection string to load data. (Don't worry, it will be handled securely and won't be stored.)`);
+
+        }
+        const response = await fetch('/api/check_connection', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            credentials: 'include' // Ensure cookies are sent with the request
+        });
+
+        const data = await response.json();
+        if (!data.success) {
+            appendMessage('Assistant', data.message);
+            //appendMessage('User', 'How can I update the firewall in Atlas to enable connections from anywhere?');
+            sendMessage(null,'How can I update the firewall in Atlas to enable connections from anywhere?' );
+        } else {
+            let databaseInfoMessage = formatDatabaseInfo(data.database_info);
+            appendMessage('Assistant', `Connection successful: ${data.message}\n${databaseInfoMessage}`);
+            // Handle additional database info display if needed
+        }
+    } catch (error) {
+        appendMessage('Assistant', 'There was an error processing your request.');
+        console.error('Error in checkConnection:', error);
+    }
+}
+
+function formatDatabaseInfo(databaseInfo) {
+    if (!databaseInfo || Object.keys(databaseInfo).length === 0) {
+        return "No database information available.";
+    }
+
+    let formattedInfo = "Database Information:\n";
+    for (const [collectionName, collectionInfo] of Object.entries(databaseInfo)) {
+        formattedInfo += `\nCollection: ${collectionName}\n`;
+        formattedInfo += `Documents: ${collectionInfo.document_count}\n`;
+
+        if (collectionInfo.indexes && collectionInfo.indexes.length > 0) {
+            formattedInfo += `Indexes:\n`;
+            collectionInfo.indexes.forEach(index => {
+                formattedInfo += `  - ${index.name}: ${JSON.stringify(index.keys)}${index.unique ? ' (unique)' : ''}\n`;
+            });
+        } else {
+            formattedInfo += `No indexes found.\n`;
         }
     }
+
+    return formattedInfo;
+}
+
+function showModuleSelectionPopup() {
+    const availableModules = [
+        'Atlas Setup', 'Data Modeling', 'Aggregation Framework',
+        'Atlas Search', 'Atlas Vector Search', 'AI / RAG', 'Library Management Application'
+    ];
+
+    let modalContent = `
+    <div class="modal fade" id="moduleSelectionModal" tabindex="-1" aria-labelledby="moduleSelectionModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header" style="background-color: #343a40; color: #ffffff;">
+                    <h5 class="modal-title" id="moduleSelectionModalLabel" style="font-weight: bold; font-size: 1.25rem;">Select a Module</h5>
+
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">`;
+
+    availableModules.forEach(module => {
+        modalContent += `<button type="button" class="btn btn-primary module-btn" data-module="${module}">${module}</button><br/>`;
+    });
+
+    modalContent += `
+                </div>
+            </div>
+        </div>
+    </div>`;
+
+    document.body.insertAdjacentHTML('beforeend', modalContent);
+
+    const modalElement = new bootstrap.Modal(document.getElementById('moduleSelectionModal'));
+    modalElement.show();
+
+    document.querySelectorAll('.module-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            const selectedModule = this.getAttribute('data-module');
+            startModule(selectedModule);
+            modalElement.hide();
+        });
+    });
+
+    document.getElementById('moduleSelectionModal').addEventListener('hidden.bs.modal', function () {
+        this.remove(); // Clean up the modal after it's closed
+    });
+}
+// Load data functions
+
+async function handleLoadDataCommand() {
+    try {
+        const response = await fetch('/api/user_profile');
+        const profileData = await response.json();
+        
+        if (profileData.atlas_connection_string) {
+            chatState.storedConnectionString = profileData.atlas_connection_string; // Store the full connection string
+            const sanitizedConnectionString = sanitizeConnectionString(chatState.storedConnectionString); // Sanitize for display
+            
+            chatState.waitingForConnectionStringConfirmation = true;
+            chatState.loadDataPending = true;
+            appendMessage('Assistant', `I found a connection string stored in your profile. The sanitized version is: ${sanitizedConnectionString}. Would you like to use it for loading data?`);
+        } else {
+            const profileLink = '<a href="/profile" target="_blank">profile settings</a>';
+            appendMessage('Assistant', `I couldn't find a connection string in your profile. You can add one in your ${profileLink}. For now, please enter your MongoDB connection string to load data. (Don't worry, it will be handled securely and won't be stored.)`);
+            chatState.waitingForConnectionString = true;
+            chatState.loadDataPending = true;
+        }
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string to load data...");
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        appendMessage('Assistant', "There was an error retrieving your profile information. Please enter your MongoDB connection string manually to load data.");
+        chatState.waitingForConnectionString = true;
+        chatState.loadDataPending = true;
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string to load data...");
+    }
+}
+
+async function handleAddVectorsCommand() {
+    try {
+        const response = await fetch('/api/user_profile');
+        const profileData = await response.json();
+        
+        if (profileData.atlas_connection_string) {
+            chatState.storedConnectionString = profileData.atlas_connection_string; // Store the full connection string
+            const sanitizedConnectionString = sanitizeConnectionString(chatState.storedConnectionString); // Sanitize for display
+            
+            chatState.waitingForConnectionStringConfirmation = true;
+            chatState.addVectorsPending = true;
+            appendMessage('Assistant', `I found a connection string stored in your profile. The sanitized version is: ${sanitizedConnectionString}. Would you like to use it for adding vectors?`);
+        } else {
+            const profileLink = '<a href="/profile" target="_blank">profile settings</a>';
+            appendMessage('Assistant', `I couldn't find a connection string in your profile. You can add one in your ${profileLink}. For now, please enter your MongoDB connection string to add vectors. (Don't worry, it will be handled securely and won't be stored.)`);
+            chatState.waitingForConnectionString = true;
+            chatState.addVectorsPending = true;
+        }
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string to add vectors...");
+    } catch (error) {
+        console.error('Error fetching user profile:', error);
+        appendMessage('Assistant', "There was an error retrieving your profile information. Please enter your MongoDB connection string manually to add vectors.");
+        chatState.waitingForConnectionString = true;
+        chatState.addVectorsPending = true;
+        saveChatState();
+        showWorkflowIndicator("Waiting for connection string to add vectors...");
+    }
+}
+
+async function loadData(connectionString) {
+    appendMessage('Assistant', "Starting data import process...");
+    try {
+        const response = await fetch('/api/load_data', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ connectionString: connectionString })
+        });
+        const data = await response.json();
+        if (data.success) {
+            appendMessage('Assistant', "Data import process has been initiated. You'll see updates here as the process progresses.");
+        } else {
+            appendMessage('Assistant', `Error starting data import: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        appendMessage('Assistant', "Sorry, there was an error starting the data import process. Please try again later.");
+    }
+    chatState.loadDataPending = false;
+    saveChatState();
+}
+
+async function addVectors(connectionString, provider) {
+    appendMessage('Assistant', "Starting vector addition process...");
+    try {
+        const response = await fetch('/api/add_vectors', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ connectionString: connectionString, provider: provider })
+        });
+        const data = await response.json();
+        if (data.success) {
+            appendMessage('Assistant', "Vector addition process has been initiated. You'll see updates here as the process progresses.");
+        } else {
+            appendMessage('Assistant', `Error starting vector addition: ${data.message}`);
+        }
+    } catch (error) {
+        console.error('Error:', error);
+        appendMessage('Assistant', "Sorry, there was an error starting the vector addition process. Please try again later.");
+    }
+    chatState.addVectorsPending = false;
+    saveChatState();
+    hideWorkflowIndicator();
+}
+
+// load data stuff
+
+// Add socket.io connection for real-time updates
+const socket = io();
+
+socket.on('connect', function() {
+    console.log('Connected to server');
+});
+
+socket.on('message', (data) => {
+    appendMessage('Assistant', data.message);
+});
+
+socket.on('status', (data) => {
+    appendMessage('Assistant', `${data.collection}: ${data.count}/${data.total} documents imported`);
+});
+
+socket.on('import-complete', (data) => {
+    appendMessage('Assistant', data.message);
+    hideWorkflowIndicator();
+
+});
+
+socket.on('vector-data-complete', (data) => {
+    appendMessage('Assistant', data.message);
+    hideWorkflowIndicator();
+});
+
+function showWorkflowIndicator(message) {
+    const indicator = document.getElementById('workflow-indicator');
+    const messageSpan = document.getElementById('workflow-message');
+    messageSpan.textContent = message;
+    indicator.style.display = 'flex';
+    indicator.style.opacity = '0';
+    setTimeout(() => {
+        indicator.style.transition = 'opacity 0.3s ease-in-out';
+        indicator.style.opacity = '1';
+    }, 10);
+}
+
+function hideWorkflowIndicator() {
+    const indicator = document.getElementById('workflow-indicator');
+    indicator.style.opacity = '0';
+    setTimeout(() => {
+        indicator.style.display = 'none';
+    }, 300);
+}
+document.getElementById('user-input').addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+        e.preventDefault();
+        sendMessage();
+    }
+});
+
 })();

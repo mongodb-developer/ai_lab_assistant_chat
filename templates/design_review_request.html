@@ -17,11 +17,11 @@
             <h3>Basic Information</h3>
             <div class="mb-3">
                 <label for="full-name" class="form-label">Full Name *</label>
-                <input type="text" class="form-control" id="full-name" name="full-name" required>
+                <input type="text" class="form-control" id="full_name" name="full_name" required>
             </div>
             <div class="mb-3">
                 <label for="company-name" class="form-label">Company Name *</label>
-                <input type="text" class="form-control" id="company-name" name="company-name" required>
+                <input type="text" class="form-control" id="company_name" name="company_name" required>
             </div>
             <button type="button" class="btn btn-primary next-step">Next</button>
         </div>
@@ -29,8 +29,8 @@
         <div id="step2" class="step" style="display: none;">
             <h3>Project Details</h3>
             <div class="mb-3">
-                <label for="application-status" class="form-label">What is the Application/Workload's status: *</label>
-                <select class="form-select" id="application-status" name="application-status" required>
+                <label for="application_status" class="form-label">What is the Application/Workload's status: *</label>
+                <select class="form-select" id="application_status" name="application_status" required>
                     <option value="In design phase">In design phase</option>
                     <option value="In production">In production</option>
                     <option value="Not started">Not started</option>
@@ -41,8 +41,8 @@
                 <input type="text" class="form-control" id="model-ready" name="model-ready" required>
             </div>
             <div class="mb-3">
-                <label for="project-description" class="form-label">Project name and short description (business function, tech stack and immediate challenges) *</label>
-                <textarea class="form-control" id="project-description" name="project-description" rows="3" required></textarea>
+                <label for="project_description" class="form-label">Project name and short description (business function, tech stack and immediate challenges) *</label>
+                <textarea class="form-control" id="project_description" name="project_description" rows="3" required></textarea>
             </div>
             <button type="button" class="btn btn-secondary prev-step">Previous</button>
             <button type="button" class="btn btn-primary next-step">Next</button>
@@ -51,8 +51,8 @@
         <div id="step3" class="step" style="display: none;">
             <h3>Technical Details</h3>
             <div class="mb-3">
-                <label for="skill-level" class="form-label">What is your MongoDB skill level? *</label>
-                <select class="form-select" id="skill-level" name="skill-level" required>
+                <label for="skill_level" class="form-label">What is your MongoDB skill level? *</label>
+                <select class="form-select" id="skill_level" name="skill_level" required>
                     <option value="Beginner">Beginner</option>
                     <option value="Intermediate">Intermediate</option>
                     <option value="Expert">Expert</option>
@@ -77,16 +77,16 @@
                 </select>
             </div>
             <div class="mb-3">
-                <label for="data-size" class="form-label">Please share an estimate of the size of existing application data (GB/TB/PB) currently in production or estimated size in year 1: *</label>
-                <input type="text" class="form-control" id="data-size" name="data-size" required>
+                <label for="data_size" class="form-label">Please share an estimate of the size of existing application data (GB/TB/PB) currently in production or estimated size in year 1: *</label>
+                <input type="text" class="form-control" id="data_size" name="data_size" required>
             </div>
             <div class="mb-3">
-                <label for="uptime-sla" class="form-label">Any uptime SLAs this application needs guaranteed? *</label>
-                <textarea class="form-control" id="uptime-sla" name="uptime-sla" rows="2" required></textarea>
+                <label for="uptime_sla" class="form-label">Any uptime SLAs this application needs guaranteed? *</label>
+                <textarea class="form-control" id="uptime_sla" name="uptime_sla" rows="2" required></textarea>
             </div>
             <div class="mb-3">
-                <label for="cloud-provider" class="form-label">What cloud provider will this application be deployed in? *</label>
-                <input type="text" class="form-control" id="cloud-provider" name="cloud-provider" required>
+                <label for="cloud_provider" class="form-label">What cloud provider will this application be deployed in? *</label>
+                <input type="text" class="form-control" id="cloud_provider" name="cloud_provider" required>
             </div>
             <button type="button" class="btn btn-secondary prev-step">Previous</button>
             <button type="button" class="btn btn-primary next-step">Next</button>
@@ -95,20 +95,20 @@
         <div id="step4" class="step" style="display: none;">
             <h3>Additional Information</h3>
             <div class="mb-3">
-                <label for="team-members" class="form-label">Is there anyone else from your team here today that you would like to be included in the session? *</label>
-                <textarea class="form-control" id="team-members" name="team-members" rows="2" required></textarea>
+                <label for="team_members" class="form-label">Is there anyone else from your team here today that you would like to be included in the session? *</label>
+                <textarea class="form-control" id="team_members" name="team_members" rows="2" required></textarea>
             </div>
             <div class="mb-3">
-                <label for="team-goals" class="form-label">Could you provide further details on what goals your team is pursuing, if they haven't been covered already? *</label>
-                <textarea class="form-control" id="team-goals" name="team-goals" rows="2" required></textarea>
+                <label for="team_goals" class="form-label">Could you provide further details on what goals your team is pursuing, if they haven't been covered already? *</label>
+                <textarea class="form-control" id="team_goals" name="team_goals" rows="2" required></textarea>
             </div>
             <div class="mb-3">
-                <label for="sample-documents" class="form-label">Sample Documents</label>
-                <input type="file" class="form-control" id="sample-documents" name="sample-documents" multiple>
+                <label for="sample_documents" class="form-label">Sample Documents</label>
+                <input type="file" class="form-control" id="sample_documents" name="sample_documents" multiple>
             </div>
             <div class="mb-3">
-                <label for="sample-queries" class="form-label">Sample Queries</label>
-                <input type="file" class="form-control" id="sample-queries" name="sample-queries" multiple>
+                <label for="sample_queries" class="form-label">Sample Queries</label>
+                <input type="file" class="form-control" id="sample_queries" name="sample_queries" multiple>
             </div>
             <button type="button" class="btn btn-secondary prev-step">Previous</button>
             <button type="submit" class="btn btn-primary">Submit Request</button>
@@ -119,4 +119,5 @@
 
 {% block scripts %}
 <script src="{{ url_for('static', filename='js/designReviewRequest.js') }}"></script>
+
 {% endblock %}

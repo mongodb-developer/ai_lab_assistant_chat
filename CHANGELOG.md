@@ -1,5 +1,53 @@
 # Changelog
 
+## 2024-08-17
+- add sample questions (33aaece)
+
+## 2024-08-17
+- Add workflow diagram and fix duplicate functions (d169706)
+
+## 2024-08-16
+- Design Review Markdown Report generation (e011543)
+
+## 2024-08-15
+- design review updates (393bcd4)
+
+## 2024-08-11
+- fix feedback on questions (71643f2)
+
+## 2024-08-07
+- add workshop content, and content tags (7c5637c)
+
+## 2024-08-07
+- Fix reliance on module and correct case insensitivty for exact matches (c4e8bd3)
+
+## 2024-08-07
+- Fix module dropdown (56a6832)
+
+## 2024-08-07
+- Fix 'book now' modal' (3074065)
+
+## 2024-08-05
+- Fix redirection in index route (b4b5a81)
+
+## 2024-08-04
+- fix requirements (265cfae)
+
+## 2024-08-04
+- fix question editing (6e750bd)
+
+## 2024-08-04
+- add source-info back (e462b6e)
+
+## 2024-08-02
+- modularize code and move admin functions to separate javascript files (7101238)
+
+## 2024-07-29
+- Fix display issues and add feedback form with memory (3ce1437)
+
+## 2024-07-28
+- Add changelog updates (e75830a)
+
 ## 2024-07-26
 - fix mobile version not sending message (ab37067)
 

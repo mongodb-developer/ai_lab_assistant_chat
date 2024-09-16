@@ -248,9 +248,25 @@
     width: 90%;
 }
 .modal-dialog.wide-modal {
-    max-width: 90%; /* Adjust this value as needed */
-    width: 90%;
-  }
+  max-width: 80%; /* Adjust this percentage as needed */
+  width: 80%; /* Adjust this percentage as needed */
+}
+
+/* Ensure the modal is centered */
+.modal-dialog.wide-modal {
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* Optional: Adjust the width of form elements inside the modal */
+.modal-dialog.wide-modal .form-control {
+  max-width: 100%;
+}
+
+/* Optional: Adjust padding for better spacing in a wider modal */
+.modal-dialog.wide-modal .modal-body {
+  padding: 20px 30px;
+}
   
   /* For smaller screens, you might want to limit the minimum width */
   @media (max-width: 768px) {
@@ -258,4 +274,96 @@
       max-width: 95%;
       width: 95%;
     }
+    @media (min-width: 768px) {
+      .sample-question-card {
+          width: calc(25% - 1rem);  /* Adjust for 4 cards per row */
+      }
+    }
   }
+  .sample-questions-container {
+    background-color: #f9fbfa;
+    padding: 12px;
+    border-radius: 8px;
+  }
+  .sample-question-card {
+    background-color: #ffffff;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    transition: all 0.3s ease;
+  }
+  .sample-question-card:hover {
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+  }
+  .sample-question-card .card-title {
+    color: #13aa52;  /* MongoDB Green */
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+  }
+  .sample-question-card .card-title i {
+    margin-right: 9px;
+    font-size: 0.7em;
+  }
+  .sample-question-card .card-text {
+    color: #1c2d5a;
+    font-size: smaller;
+  }
+  .sample-question-card .btn-outline-primary {
+    color: #13aa52;
+    border-color: #13aa52;
+  }
+  .sample-question-card .btn-outline-primary:hover {
+    background-color: #13aa52;
+    color: #ffffff;
+  }
+
+  #workflow-animation {
+    display: none;
+    margin-top: 20px;
+    padding: 20px;
+    background-color: #f0f0f0;
+    border-radius: 8px;
+  }
+  .system-component {
+    fill: #ffffff;
+    stroke: #13aa52;
+    stroke-width: 2;
+  }
+  .system-text {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    fill: #1c2d5a;
+  }
+  #data-point {
+    fill: #13aa52;
+  }
+
+  .workshop-links-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 10px;
+}
+
+.workshop-links-table th, .workshop-links-table td {
+    border: 1px solid #ddd;
+    padding: 8px;
+    text-align: left;
+}
+
+.workshop-links-table th {
+    background-color: #f2f2f2;
+    font-weight: bold;
+}
+
+.workshop-links-table tr:nth-child(even) {
+    background-color: #f9f9f9;
+}
+
+.workshop-links-table a {
+    color: #00cc3a;
+    text-decoration: none;
+}
+
+.workshop-links-table a:hover {
+    text-decoration: underline;
+}

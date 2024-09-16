@@ -3,6 +3,7 @@ from pymongo import MongoClient, ASCENDING
 from pymongo.operations import IndexModel
 from pymongo.collection import Collection
 from pymongo.database import Database
+from pymongo.errors import ConnectionFailure, ConfigurationError, ServerSelectionTimeoutError
 from typing import Optional
 from config import Config
 import json
@@ -1068,9 +1069,10 @@ def analyze_transcript(filepath, user_context):
         Please provide a summary in the following format:
         1. What We Heard: Summarize the main points discussed in the meeting, incorporating relevant user context.
         2. Key Issues: Identify the main challenges or problems mentioned, considering the user's specific situation.
-        3. What We Advise: Based on the discussion and user context, what recommendations would you make?
+        3. What We Advise: Based on the discussion and user context, what recommendations would you make... please keep this in line with MongoDB Best Practices for scalable application design and data modeling... feel free to include information about data modeling design patterns where applicable.
+        4. References: Links to MongoDB Documentation, MongoDB Articles and Best Practices based on the advice we're providing. 
 
-        Provide your analysis as plain text, not in JSON format. Use the exact headings "What We Heard:", "Key Issues:", and "What We Advise:" to separate the sections.
+        Provide your analysis as plain text, not in JSON format. Use the exact headings "What We Heard:", "Key Issues:", "What We Advise:", and "References:" to separate the sections.
         """
 
         # Call the OpenAI API using the new interface
@@ -1089,17 +1091,17 @@ def analyze_transcript(filepath, user_context):
         print("Raw API response:", analysis)
 
         # Parse the response into sections
-        sections = re.split(r'(What We Heard:|Key Issues:|What We Advise:)', analysis)[1:]  # Split and keep separators
+        sections = re.split(r'(What We Heard:|Key Issues:|What We Advise:|References:)', analysis)[1:]  # Split and keep separators
         parsed_response = {}
         current_key = None
         for item in sections:
-            if item in ["What We Heard:", "Key Issues:", "What We Advise:"]:
+            if item in ["What We Heard:", "Key Issues:", "What We Advise:", "References:"]:
                 current_key = item.strip(':').lower().replace(' ', '_')
             elif current_key:
                 parsed_response[current_key] = item.strip()
 
         # If any section is missing, add a placeholder
-        for key in ['what_we_heard', 'key_issues', 'what_we_advise']:
+        for key in ['what_we_heard', 'key_issues', 'what_we_advise', 'references']:
             if key not in parsed_response:
                 parsed_response[key] = f"No {key.replace('_', ' ')} provided in the analysis."
         return parsed_response
@@ -1109,7 +1111,8 @@ def analyze_transcript(filepath, user_context):
         return {
             'what_we_heard': f'Error occurred during analysis: {str(e)}',
             'key_issues': 'Error occurred during analysis.',
-            'what_we_advise': 'Error occurred during analysis.'
+            'what_we_advise': 'Error occurred during analysis.',
+            'references': 'Error occurred during analysis.'
         }
     
 def update_design_review_data(review_id, update_data):
@@ -1125,46 +1128,62 @@ def update_design_review_data(review_id, update_data):
     else:
         return False
     
-@with_db_connection
-def get_related_concepts(db, question, answer, limit=10):
-    """
-    Fetch related concepts from the knowledge_graph collection based on the question and answer.
-    
-    :param db: MongoDB database connection
-    :param question: The user's question
-    :param answer: The assistant's answer
-    :param limit: Maximum number of related concepts to return
-    :return: List of related concepts
-    """
-    knowledge_graph_collection = db.knowledge_graph
-    
-    # Combine question and answer to create a context for searching related concepts
-    context = f"{question} {answer}"
-    
-    # Generate embedding for the context
-    context_embedding, _ = generate_embedding(context)
-    
-    # Perform a vector search in the knowledge_graph collection
-    pipeline = [
-        {
-            "$vectorSearch": {
-                "index": "concept_index",
-                "path": "embedding",
-                "queryVector": context_embedding,
-                "numCandidates": 20,
-                "limit": limit
-            }
-        },
-        {
-            "$project": {
-                "concept": 1,
-                "description": 1,
-                "_id": 0,
-                "score": {"$meta": "vectorSearchScore"}
-            }
-        }
-    ]
-    
-    related_concepts = list(knowledge_graph_collection.aggregate(pipeline))
-    return related_concepts
+def sanitize_connection_string(connection_string):
+    # Remove password from connection string for logging purposes
+    return re.sub(r'(:)(?:[^@]+)(@)', r'\1*****\2', connection_string)
 
+def test_mongodb_connection(connection_string):
+    try:
+        client = MongoClient(connection_string, serverSelectionTimeoutMS=5000)
+        client.admin.command('ismaster')
+        
+        # Check 'library' database, count documents, and get index information
+        db = client['library']
+        database_info = {}
+        for collection_name in db.list_collection_names():
+            collection = db[collection_name]
+            document_count = collection.count_documents({})
+            
+            # Get index information
+            indexes = list(collection.list_indexes())
+            index_info = []
+            for index in indexes:
+                index_info.append({
+                    "name": index["name"],
+                    "keys": index["key"],
+                    "unique": index.get("unique", False)
+                })
+            
+            database_info[collection_name] = {
+                "document_count": document_count,
+                "indexes": index_info
+            }
+        
+        return True, "Connection successful!", database_info
+    except ConnectionFailure:
+        return False, "Failed to connect to the MongoDB cluster.", None
+    except ConfigurationError:
+        return False, "There's an error in your connection string.", None
+    except ServerSelectionTimeoutError:
+        return False, "Timed out while attempting to connect.", None
+    except Exception as e:
+        return False, f"An unexpected error occurred: {str(e)}", None
+    finally:
+        if 'client' in locals():
+            client.close()
+
+def obfuscate_connection_string(connection_string):
+    if not connection_string:
+        return ''
+    parts = connection_string.split('@')
+    if len(parts) < 2:
+        return connection_string
+    
+    credentials = parts[0].split(':')
+    if len(credentials) < 3:
+        return connection_string
+    
+    protocol, username, password = credentials
+    obfuscated_password = password[:3] + '*' * max(0, len(password) - 3)
+    
+    return f"{protocol}:{username}:{obfuscated_password}@{parts[1]}"

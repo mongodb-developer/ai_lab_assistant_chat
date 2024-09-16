@@ -30,11 +30,11 @@
                     <a id="admin-link" class="nav-link {% if request.endpoint=='main.admin' %}active-page{% endif %}" href="{{ url_for('main.admin') }}">Admin</a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link" href="https://mongodb.com/docs" target="_blank">Help</a>
+                    <a class="nav-link" href="https://mongodb.com/docs" target="_blank">Docs</a>
                 </li>
-                <li class="nav-item">
+                <!-- <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('main.feedback') }}">Feedback</a>
-                </li>
+                </li> -->
                 {% if current_user.is_authenticated %}
                     <li class="nav-item">
                         <span class="nav-link">Welcome, <a href="{{ url_for('main.profile') }}">{{ current_user.name.split()  | first | capitalize}}</a>!</span>

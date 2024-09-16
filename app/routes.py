@@ -4,6 +4,7 @@ import traceback
 import logging
 from flask import Blueprint, flash, redirect, request, jsonify, render_template, current_app, session, send_from_directory, url_for
 from flask_login import login_required, current_user
+from .socket_manager import socket_manager
 from bson import ObjectId
 from pymongo import MongoClient
 from config import Config
@@ -14,12 +15,16 @@ from .question_generator import process_content, save_to_mongodb, fetch_content_
 import requests
 from werkzeug.utils import secure_filename
 import pytz
-from app.utils import analyze_transcript, update_design_review_data, get_collection, get_or_create_conversation, create_new_conversation, close_active_conversations, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity
+from app.utils import analyze_transcript, update_design_review_data, get_collection, get_or_create_conversation, create_new_conversation, close_active_conversations, get_conversation_collection, get_unanswered_collection, get_documents_collection, get_users_collection, get_feedback_collection, get_answer_feedback_collection, get_events_collection, verify_question_similarity, sanitize_connection_string, test_mongodb_connection, obfuscate_connection_string
 from .design_review_service import DesignReviewService
 from bson.son import SON
+from bson import MinKey
 import openai
 import PyPDF2
 import io
+from dotenv import load_dotenv
+from requests.exceptions import RequestException, Timeout, ConnectionError
+from .data_utils import connect_to_mongodb, import_collection
 
 from app.utils import (
     generate_embedding,
@@ -50,25 +55,30 @@ from werkzeug.exceptions import HTTPException
 
 main = Blueprint('main', __name__)
 
+load_dotenv()
+
+SOURCE_URI = os.getenv('SOURCE')
+APP_NAME_DEV_DAY = "devrel.workshop.devday"
+SOURCE_DATABASE = "library"
+SOURCE_COLLECTIONS = ["authors", "books", "issueDetails", "reviews", "users"]
+LIMIT = 2000
+
 def custom_json_encoder(obj):
     if isinstance(obj, ObjectId):
         return str(obj)
     raise TypeError(f"Object of type {obj.__class__.__name__} is not JSON serializable")
     
+class JSONEncoder(json.JSONEncoder):
+    def default(self, o):
+        if isinstance(o, ObjectId):
+            return str(o)
+        if isinstance(o, datetime):
+            return o.isoformat()
+        return json.JSONEncoder.default(self, o)
 
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname=s - %(message)s')
 logger = logging.getLogger(__name__)
-
-# # MongoDB client and collections
-# client = MongoClient(Config.MONGODB_URI)
-# db = client[Config.MONGODB_DB]
-# conversation_collection = db['conversations']
-# documents_collection = db['documents']
-# unanswered_collection = db['unanswered_questions']
-# users_collection = db['users']
-# feedback_collection = db['feedback']
-# events_collection = db['events']
 
 # Default sessions
 DEFAULT_SESSIONS = [
@@ -82,15 +92,39 @@ SIMILARITY_THRESHOLD = float(Config.SIMILARITY_THRESHOLD)  # Ensure this is floa
 
 @main.route('/')
 def home():
+
+    labs = [
+        {
+            "title": "Intro Lab",
+            "description": "Get started with MongoDB basics",
+            "url": "https://mongodb-developer.github.io/intro-lab/"
+        },
+        {
+            "title": "Search Lab",
+            "description": "Learn about MongoDB's search capabilities",
+            "url": "https://mongodb-developer.github.io/search-lab/"
+        },
+        {
+            "title": "Aggregation Pipeline Lab",
+            "description": "Master MongoDB's powerful aggregation framework",
+            "url": "https://mongodb-developer.github.io/aggregation-pipeline-lab/"
+        },
+        {
+            "title": "Relational Migrator Lab",
+            "description": "Migrate from relational databases to MongoDB",
+            "url": "https://mongodb-developer.github.io/relational-migrator-lab/"
+        }
+    ]
     try:
         current_app.logger.debug("Entering home route")
-        return render_template('home.html')
+        return render_template('home.html', labs=labs)
     except Exception as e:
         current_app.logger.error(f"Error in home route: {str(e)}")
         current_app.logger.error(traceback.format_exc())
         return "An error occurred", 500
 
 @main.route('/chat')
+@login_required
 def chat():
     try:
         current_app.logger.debug("Entering chat route")
@@ -101,15 +135,6 @@ def chat():
         current_app.logger.error(f"Error in chat route: {str(e)}")
         current_app.logger.error(traceback.format_exc())
         return "An error occurred", 500
-    
-    # user_data = get_users_collection().find_one({'_id': ObjectId(current_user.id)})
-    # logger.info("User:" + jsonify(user_data).get_json())
-    # try:
-    #     # Your existing chat route code here
-    #     return render_template('index.html', is_chat=True, user=user_data)
-    # except Exception as e:
-    #     logger.error(f"Error in chat route: {str(e)}", exc_info=True)
-    #     return "An error occurred", 500
 
 # Route: Index
 # Description: Renders the main page of the application
@@ -161,20 +186,28 @@ def index():
         current_app.logger.error(f"Traceback: {traceback.format_exc()}")
         return jsonify({"error": "An internal error occurred"}), 500
 
-# # Route: Chat
-# # Description: Renders the chat page of the application
-# # Parameters: None
-# # Returns: Rendered index.html template with is_chat=True
-# @main.route('/chat')
-# @login_required
-# def chat():
-#     try:
-#         current_app.logger.debug(f"Request received for chat route")
-        
-#         return render_template('index.html', is_chat=True)
-#     except Exception as e:
-#         current_app.logger.error(f"Error in chat route: {str(e)}")
-#         return jsonify({"error": "An internal error occurred"}), 500
+@main.route('/api/user_profile', methods=['GET'])
+@login_required
+def get_user_profile():
+    try:
+        user_id = current_user.get_id()
+        user = get_users_collection().find_one({'_id': ObjectId(user_id)})
+        if user:
+            profile_data = {
+                'email': user.get('email', ''),
+                'name': user.get('name', ''),
+                'atlas_connection_string': obfuscate_connection_string(user.get('atlas_connection_string', '')),
+                'github_codespace_frontend_url': user.get('github_codespace_frontend_url', ''),
+                'github_codespace_backend_url': user.get('github_codespace_backend_url', ''),
+                'database_username': user.get('database_username', '')
+                # Add any other fields you want to include
+            }
+            return jsonify(profile_data), 200
+        else:
+            return jsonify({'error': 'User not found'}), 404
+    except Exception as e:
+        current_app.logger.error(f"Error fetching user profile: {str(e)}")
+        return jsonify({'error': 'An internal error occurred'}), 500
     
 @main.route('/api/chat', methods=['POST'])
 @login_required
@@ -197,6 +230,9 @@ def chat_api():
         user_id = current_user.get_id()
         user_name = current_user.name
 
+        if user_question.lower() == '/check connection':
+            return handle_connection_check(user_id)
+        
         # Check for active conversation or create a new one
         active_conversation = get_active_conversation(user_id)
         
@@ -296,6 +332,47 @@ def chat_api():
         debug_info['error'] = str(e)
         debug_info['traceback'] = traceback.format_exc()
         return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
+
+def handle_connection_check(user_id):
+    try:
+        response = requests.get(url_for('main.get_user_profile', _external=True), 
+                                headers={'Authorization': f'Bearer {current_user.get_id()}'})
+        if response.status_code == 200:
+            user_profile = response.json()
+            stored_connection_string = user_profile.get('atlas_connection_string', '')
+
+            if stored_connection_string:
+                response_data = {
+                    'question': '/check connection',
+                    'answer': f"I found a connection string stored in your profile. Would you like to use it to check the connection?\n\n"
+                              f"Stored connection string: {stored_connection_string}\n\n"
+                              f"Reply with 'Yes' to use this connection string, or 'No' to enter a different one.",
+                    'requires_action': True,
+                    'action_type': 'confirm_connection_string',
+                    'stored_connection_string': stored_connection_string
+                }
+            else:
+                response_data = {
+                    'question': '/check connection',
+                    'answer': "You don't have a connection string stored in your profile. Please enter your MongoDB Atlas connection string:",
+                    'requires_action': True,
+                    'action_type': 'input_connection_string'
+                }
+        else:
+            response_data = {
+                'question': '/check connection',
+                'answer': "There was an error retrieving your profile information. Please enter your MongoDB Atlas connection string manually:",
+                'requires_action': True,
+                'action_type': 'input_connection_string'
+            }
+
+        return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
+    except Exception as e:
+        current_app.logger.error(f"Error in handle_connection_check: {str(e)}")
+        return json.dumps({
+            'error': 'An error occurred while processing your request',
+            'debug_info': {'error': str(e), 'traceback': traceback.format_exc()}
+        }, default=json_serialize), 500, {'Content-Type': 'application/json'}
 
 # Route: Get Questions
 # Description: Retrieves all questions from the database
@@ -551,6 +628,35 @@ def update_user(id):
     get_users_collection().update_one({'_id': ObjectId(id)}, {'$set': data})
     return '', 204
 
+@main.route('/api/users/<user_id>', methods=['DELETE'])
+@login_required
+def delete_user(user_id):
+    current_app.logger.info(f"Received DELETE request for user_id: {user_id}")
+
+    if not current_user.is_admin:
+        current_app.logger.warning(f"Unauthorized delete attempt for user_id: {user_id}")
+        return jsonify({'error': 'Unauthorized access'}), 403
+    
+    try:
+        users_collection = get_users_collection()
+        
+        # Check if user exists before attempting to delete
+        user = users_collection.find_one({'_id': ObjectId(user_id)})
+        if not user:
+            current_app.logger.warning(f"User not found in database: {user_id}")
+            return jsonify({'error': 'User not found'}), 404
+        
+        result = users_collection.delete_one({'_id': ObjectId(user_id)})
+        current_app.logger.info(f"Delete result: {result.raw_result}")
+        
+        if result.deleted_count == 1:
+            return jsonify({'message': 'User deleted successfully'}), 200
+        else:
+            current_app.logger.error(f"Unexpected result when deleting user: {user_id}")
+            return jsonify({'error': 'An unexpected error occurred'}), 500
+    except Exception as e:
+        current_app.logger.error(f"Error deleting user: {str(e)}", exc_info=True)
+        return jsonify({'error': 'An internal server error occurred'}), 500
 @main.route('/feedback')
 def feedback():
     try:
@@ -637,10 +743,34 @@ def changelog():
         current_app.logger.error(f"Error reading CHANGELOG.md: {str(e)}")
         return jsonify({'error': 'An internal error occurred while reading the changelog.'}), 500
 
-@main.route('/profile')
+@main.route('/profile', methods=['GET', 'POST'])
 @login_required
 def profile():
-    return render_template('profile.html', user=current_user)
+    if request.method == 'POST':
+        # Update user profile
+        current_user.atlas_connection_string = request.form.get('atlas_connection_string')
+        current_user.github_codespace_frontend_url = request.form.get('github_codespace_frontend_url')
+        current_user.github_codespace_backend_url = request.form.get('github_codespace_backend_url')
+        current_user.database_username = request.form.get('database_username')
+        current_user.database_password = request.form.get('database_password')
+
+        # Save changes to database
+        db = get_db_connection()
+        db.users.update_one(
+            {'_id': ObjectId(current_user.id)},
+            {'$set': {
+                'atlas_connection_string': current_user.atlas_connection_string,
+                'github_codespace_frontend_url': current_user.github_codespace_frontend_url,
+                'github_codespace_backend_url': current_user.github_codespace_backend_url,
+                'database_username': current_user.database_username,
+                'database_password': current_user.database_password
+            }}
+        )
+
+        flash('Your profile has been updated!', 'success')
+        return redirect(url_for('main.profile'))
+
+    return render_template('profile.html', user=current_user, obfuscate_connection_string=obfuscate_connection_string)
 
 @main.route('/api/generate_answer', methods=['POST'])
 @login_required
@@ -1524,69 +1654,25 @@ def design_review():
         print(f"Error in design_review: {e}")
         return jsonify({'error': 'Failed to submit Design Review request.'}), 500
 
-def calculate_completeness_score(full_name, company_name, application_status, project_description, sample_doc_paths, sample_query_paths, model_ready):
-    score = 0
-    if full_name: score += 5
-    if company_name: score += 5
-    if application_status: score += 5
-    if project_description: score += 5
-    if sample_doc_paths: score += 5
-    if sample_query_paths: score += 5
-    if model_ready and isinstance(model_ready, str):
-        if model_ready.lower() != 'yes': 
-            score -= 5  # Subtract points if the model is not ready
-    return score
-
-def calculate_skill_level_score(skill_level):
-    if skill_level == 'Expert': return 15
-    if skill_level == 'Intermediate': return 10
-    if skill_level == 'Beginner': return 5
-    return 0
-
-def calculate_application_status_score(application_status):
-    if application_status == 'In production': return 15
-    if application_status == 'In design phase': return 10
-    if application_status == 'Not started': return 0
-    return 0
-
-def calculate_use_case_score(requirements):
-    score = 0
-    if 'Transactional guarantees' in requirements: score += 2
-    if 'Full-Text Search' in requirements: score += 2
-    if 'Cross-Region HA' in requirements: score += 2
-    if 'Cloud to on-prem replication (or vice versa)' in requirements: score += 2
-    if 'Time series capabilities' in requirements: score += 2
-    if 'Data tiering' in requirements: score += 2
-    if 'Multi-cloud' in requirements: score += 2
-    if 'Data modeling guidance' in requirements: score += 2
-    if 'Development assistance/guidance' in requirements: score += 2
-    if 'Edge database (mobile or otherwise)' in requirements: score += 2
-    return score
-
-def calculate_data_volume_score(data_size):
-    if data_size and int(data_size) >= 1000: return 10
-    if data_size and int(data_size) >= 100: return 5
-    return 0
-
-def calculate_uptime_sla_score(uptime_sla):
-    if uptime_sla and float(uptime_sla) >= 99.99: return 5
-    return 0
-
-def calculate_previous_interaction_score(previous_interaction):
-    if previous_interaction: return 5
-    return 0
-
 @main.route('/api/design_reviews', methods=['GET'])
 @login_required
 def get_all_design_reviews():
     try:
         reviews = DesignReviewService.get_all_reviews()
         if reviews:
-            # Convert ObjectId to string for each review
             serialized_reviews = []
             for review in reviews:
-                review['_id'] = str(review['_id'])
-                serialized_reviews.append(review)
+                serialized_review = {
+                    '_id': str(review['_id']),
+                    'full_name': review.get('full_name', 'N/A'),
+                    'company_name': review.get('company_name', 'N/A'),
+                    'application_status': review.get('application_status', 'N/A'),
+                    'skill_level': review.get('skill_level', 'N/A'),
+                    'total_score': review.get('total_score', 0),
+                    'review_status': review.get('review_status', 'N/A'),
+                    'review_details': review.get('review_details', '')
+                }
+                serialized_reviews.append(serialized_review)
             return jsonify(serialized_reviews), 200
         return jsonify({'message': 'No reviews found'}), 204
     except Exception as e:
@@ -1600,8 +1686,8 @@ def get_design_review(review_id):
     try:
         review = DesignReviewService.get_review(review_id)
         if review:
-            review['_id'] = str(review['_id'])
-            return jsonify(review), 200
+            # Use the custom JSONEncoder to handle ObjectId serialization
+            return json.dumps(review, cls=JSONEncoder), 200, {'Content-Type': 'application/json'}
         return jsonify({'error': 'Review not found'}), 404
     except Exception as e:
         current_app.logger.error(f"Error fetching design review: {str(e)}")
@@ -1611,17 +1697,44 @@ def get_design_review(review_id):
 @login_required
 def update_design_review(review_id):
     try:
+        current_app.logger.info(f"Received PUT request for review_id: {review_id}")
         data = request.json
+        current_app.logger.info(f"Request data: {data}")
+
         if not data:
+            current_app.logger.warning("No data provided in the request")
             return jsonify({'error': 'No data provided'}), 400
 
-        if DesignReviewService.update_review(review_id, data):
-            return jsonify({'message': 'Review updated successfully'}), 200
+        # Validate the input data
+        allowed_fields = ['what_we_heard', 'key_issues', 'what_we_advise', 'references']
+        update_data = {k: v for k, v in data.items() if k in allowed_fields}
+        current_app.logger.info(f"Filtered update data: {update_data}")
+        
+        if not update_data:
+            current_app.logger.warning("No valid fields to update")
+            return jsonify({'error': 'No valid fields to update'}), 400
+
+        # Update the review
+        current_app.logger.info(f"Attempting to update review {review_id}")
+        success, status = DesignReviewService.update_review(review_id, update_data)
+        
+        if success:
+            if status == "Updated":
+                current_app.logger.info(f"Successfully updated review {review_id}")
+                return jsonify({'message': 'Review updated successfully', 'review_id': review_id}), 200
+            elif status == "No changes":
+                current_app.logger.info(f"No changes made to review {review_id}")
+                return jsonify({'message': 'No changes were necessary', 'review_id': review_id}), 200
         else:
-            return jsonify({'error': 'Failed to update the review'}), 500
+            if status == "Not found":
+                current_app.logger.warning(f"Review {review_id} not found")
+                return jsonify({'error': 'Design review not found'}), 404
+            else:
+                current_app.logger.error(f"Failed to update review {review_id}: {status}")
+                return jsonify({'error': f'Failed to update the review: {status}'}), 500
     except Exception as e:
-        current_app.logger.error(f"Error updating design review: {str(e)}")
-        return jsonify({'error': 'An error occurred while updating the review'}), 500
+        current_app.logger.error(f"Error updating design review {review_id}: {str(e)}", exc_info=True)
+        return jsonify({'error': f'An error occurred while updating the review: {str(e)}'}), 500
 
 @main.route('/api/design_reviews/<review_id>', methods=['DELETE'])
 @login_required
@@ -1731,7 +1844,8 @@ def summarize_transcription(review_id):
     update_design_review(review_id, {
         'what_we_heard': summary['what_we_heard'],
         'key_issues': summary['key_issues'],
-        'what_we_recommend': summary['what_we_recommend']
+        'what_we_recommend': summary['what_we_recommend'],
+        'references': summary['references']
     })
 
     return jsonify(summary), 200
@@ -1742,13 +1856,26 @@ def request_design_review():
     return render_template('design_review_request.html')
 
 @main.route('/api/design_reviews', methods=['POST'])
+@login_required
 def submit_design_review():
     try:
         data = request.json
-        
+        current_app.logger.info(f"Received design review submission: {data}")
+
+        if not data:
+            current_app.logger.error("No data provided in the request")
+            return jsonify({'error': 'No data provided'}), 400
+
         # Convert hyphenated keys to underscore keys
         converted_data = {k.replace('-', '_'): v for k, v in data.items()}
-        
+
+        # Validate required fields
+        required_fields = ['full_name', 'company_name', 'application_status', 'skill_level']
+        for field in required_fields:
+            if field not in converted_data:
+                current_app.logger.error(f"Missing required field: {field}")
+                return jsonify({'error': f'Missing required field: {field}'}), 400
+
         # Convert data size to integer (GB)
         data_size_str = converted_data.get('data_size', '0').lower().replace('gb', '').strip()
         try:
@@ -1757,53 +1884,48 @@ def submit_design_review():
         except ValueError:
             return jsonify({'error': 'Invalid data size format. Please enter a number in GB.'}), 400
 
+        # Set initial status
+        converted_data['status'] = 'SUBMITTED'
+
+        # Add user_id and timestamp
+        converted_data['user_id'] = current_user.id
+        converted_data['submitted_at'] = datetime.utcnow()
+
         # Calculate scores
-        completeness_score = calculate_completeness_score(
-            converted_data.get('full_name'), 
-            converted_data.get('company_name'), 
-            converted_data.get('application_status'), 
-            converted_data.get('project_description'), 
-            converted_data.get('sample_documents', []),
-            converted_data.get('sample_queries', []),
-            converted_data.get('model_ready')
-        )
-        skill_level_score = calculate_skill_level_score(converted_data.get('skill_level'))
-        application_status_score = calculate_application_status_score(converted_data.get('application_status'))
-        use_case_score = calculate_use_case_score(converted_data.get('requirements', []))
-        data_volume_score = calculate_data_volume_score(data_size)
-        uptime_sla_score = calculate_uptime_sla_score(converted_data.get('uptime_sla'))
-        previous_interaction_score = calculate_previous_interaction_score(converted_data.get('team_members'))
+        converted_data['completeness_score'] = DesignReviewService.calculate_completeness_score(converted_data)
+        converted_data['skill_level_score'] = DesignReviewService.calculate_skill_level_score(converted_data.get('skill_level'))
+        converted_data['application_status_score'] = DesignReviewService.calculate_application_status_score(converted_data.get('application_status'))
+        converted_data['use_case_score'] = DesignReviewService.calculate_use_case_score(converted_data.get('requirements', []))
+        converted_data['data_volume_score'] = DesignReviewService.calculate_data_volume_score(converted_data.get('data_size'))
+        converted_data['uptime_sla_score'] = DesignReviewService.calculate_uptime_sla_score(converted_data.get('uptime_sla'))
+        converted_data['previous_interaction_score'] = DesignReviewService.calculate_previous_interaction_score(converted_data.get('team_members'))
 
-        total_score = (completeness_score + skill_level_score + application_status_score + 
-                       use_case_score + data_volume_score + uptime_sla_score + 
-                       previous_interaction_score)
+        converted_data['total_score'] = sum([
+            converted_data['completeness_score'],
+            converted_data['skill_level_score'],
+            converted_data['application_status_score'],
+            converted_data['use_case_score'],
+            converted_data['data_volume_score'],
+            converted_data['uptime_sla_score'],
+            converted_data['previous_interaction_score']
+        ])
 
-        # Add calculated scores to the data
-        converted_data['completeness_score'] = completeness_score
-        converted_data['skill_level_score'] = skill_level_score
-        converted_data['application_status_score'] = application_status_score
-        converted_data['use_case_score'] = use_case_score
-        converted_data['data_volume_score'] = data_volume_score
-        converted_data['uptime_sla_score'] = uptime_sla_score
-        converted_data['previous_interaction_score'] = previous_interaction_score
-        converted_data['total_score'] = total_score
-
-        # Determine opportunity level based on total score
-        if total_score >= 80:
+        # Determine opportunity level
+        if converted_data['total_score'] >= 80:
             converted_data['opportunity_level'] = 'High'
-        elif total_score >= 50:
+        elif converted_data['total_score'] >= 50:
             converted_data['opportunity_level'] = 'Medium'
         else:
             converted_data['opportunity_level'] = 'Low'
 
         # Insert the document into the database
-        result = get_collection('design_reviews').insert_one(converted_data)
+        result = DesignReviewService.create_review(converted_data)
         
-        if result.inserted_id:
+        if result:
             return jsonify({
                 'message': 'Design review request submitted successfully', 
-                'id': str(result.inserted_id),
-                'total_score': total_score,
+                'id': result,
+                'total_score': converted_data['total_score'],
                 'opportunity_level': converted_data['opportunity_level']
             }), 201
         else:
@@ -1811,4 +1933,326 @@ def submit_design_review():
 
     except Exception as e:
         current_app.logger.error(f"Error in submit_design_review: {str(e)}", exc_info=True)
-        return jsonify({'error': 'An unexpected error occurred'}), 500
+        return jsonify({'error': 'An unexpected error occurred', 'details': str(e)}), 500
+
+@main.route('/api/design_reviews/<review_id>/accept', methods=['POST'])
+@login_required
+def accept_design_review(review_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.accept_review(review_id, current_user.id):
+        return jsonify({'message': 'Design review accepted'}), 200
+    return jsonify({'error': 'Failed to accept design review'}), 400
+
+@main.route('/api/design_reviews/<review_id>/reject', methods=['POST'])
+@login_required
+def reject_design_review(review_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.reject_review(review_id, current_user.id):
+        return jsonify({'message': 'Design review rejected'}), 200
+    return jsonify({'error': 'Failed to reject design review'}), 400
+
+@main.route('/api/design_reviews/<review_id>/assign', methods=['POST'])
+@login_required
+def assign_design_review(review_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    reviewer_id = request.json.get('reviewer_id')
+    if DesignReviewService.assign_reviewer(review_id, reviewer_id):
+        return jsonify({'message': 'Reviewer assigned successfully'}), 200
+    return jsonify({'error': 'Failed to assign reviewer'}), 400
+
+@main.route('/api/design_reviews/<review_id>/schedule', methods=['POST'])
+@login_required
+def schedule_design_review(review_id):
+    review = DesignReviewService.get_review(review_id)
+    if str(review['assigned_reviewer_id']) != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.schedule_review(review_id):
+        return jsonify({'message': 'Design review scheduled'}), 200
+    return jsonify({'error': 'Failed to schedule design review'}), 400
+
+@main.route('/api/design_reviews/<review_id>/complete', methods=['POST'])
+@login_required
+def complete_design_review(review_id):
+    review = DesignReviewService.get_review(review_id)
+    if str(review['assigned_reviewer_id']) != current_user.id:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.complete_review(review_id):
+        return jsonify({'message': 'Design review completed'}), 200
+    return jsonify({'error': 'Failed to complete design review'}), 400
+
+@main.route('/api/design_reviews/<review_id>/send_report', methods=['POST'])
+@login_required
+def send_design_review_report(review_id):
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    if DesignReviewService.send_report(review_id):
+        return jsonify({'message': 'Report sent successfully'}), 200
+    return jsonify({'error': 'Failed to send report'}), 400
+
+@main.route('/api/check_connection', methods=['POST'])
+@login_required
+def check_connection():
+    try:
+        # Retrieve the connection string from the current user's profile
+        connection_string = current_user.atlas_connection_string
+        
+        if not connection_string:
+            return jsonify({"success": False, "message": "Please add a MongoDB connection string to your profile."}), 400
+        
+        # Test the MongoDB connection using the connection string
+        success, message, database_info = test_mongodb_connection(connection_string)
+        
+        if success:
+            return jsonify({
+                "success": True, 
+                "message": "Connection successful!",
+                "database_info": database_info
+            })
+        else:
+            return jsonify({
+                "success": False, 
+                "message": f"Connection failed: {message}"
+            }), 500
+        
+    except Exception as e:
+        current_app.logger.error(f"Error in check_connection: {str(e)}")
+        return jsonify({"success": False, "message": "An internal server error occurred."}), 500
+
+SOURCE_URI = os.getenv('SOURCE')
+APP_NAME_DEV_DAY = "devrel.workshop.devday"
+SOURCE_DATABASE = "library"
+SOURCE_COLLECTIONS = ["authors", "books", "issueDetails", "reviews", "users"]
+LIMIT = 2000
+
+source_client = MongoClient(SOURCE_URI, appName=APP_NAME_DEV_DAY)
+cache = {}
+doc_counts = {}
+
+for collection in SOURCE_COLLECTIONS:
+    doc_counts[collection] = source_client[SOURCE_DATABASE][collection].count_documents({})
+
+def get_documents(collection, last_id=None):
+    if not last_id:
+        last_id = MinKey()
+    if collection in cache and last_id in cache[collection]:
+        return cache[collection][last_id]
+    else:
+        source_collection = source_client[SOURCE_DATABASE][collection]
+        documents = list(source_collection.find({'_id': {'$gt': last_id}}).sort('_id', 1).limit(LIMIT))
+        if collection not in cache:
+            cache[collection] = {}
+        cache[collection][last_id] = documents
+        return documents
+    
+@main.route('/api/check_codespace/<check_type>', methods=['GET'])
+@login_required
+def check_codespace(check_type):
+    if check_type not in ['frontend', 'backend']:
+        return jsonify({'error': 'Invalid check type'}), 400
+
+    github_codespace_frontend_url = current_user.github_codespace_frontend_url
+    github_codespace_backend_url = current_user.github_codespace_backend_url
+    if (not github_codespace_frontend_url or not github_codespace_backend_url):
+        return jsonify({'error': 'GitHub Codespace URLs not set in user profile'}), 400
+
+    try:
+        if check_type == 'frontend':
+            url = f"{github_codespace_frontend_url.rstrip('/')}/catalogue"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+            
+            # Parse the HTML content
+            soup = BeautifulSoup(response.text, 'html.parser')
+            
+            # Check if the page contains expected elements
+            book_elements = soup.find_all('div', class_='book-card')  # Adjust class name as needed
+            if not book_elements:
+                raise ValueError("No book elements found on the page")
+
+            return jsonify({
+                'message': 'Frontend is responsive',
+                'status': 'success',
+                'details': f'Successfully loaded catalogue page with {len(book_elements)} books',
+                'sample_book': str(book_elements[0]) if book_elements else None
+            }), 200
+        else:  # backend
+            url = f"{github_codespace_backend_url.rstrip('/')}/books"
+            response = requests.get(url, timeout=10)
+            response.raise_for_status()
+
+            books = response.json()
+            if not isinstance(books, list):
+                raise ValueError("Expected a JSON array of books")
+
+            return jsonify({
+                'message': 'Backend API is responsive',
+                'status': 'success',
+                'details': f'Successfully retrieved {len(books)} books',
+                'sample_book': books[0] if books else None
+            }), 200
+
+    except Timeout:
+        current_app.logger.error(f"Timeout error checking {check_type} API")
+        return jsonify({
+            'error': f'Timeout connecting to {check_type} API',
+            'details': 'The server took too long to respond. It might be down or overloaded.'
+        }), 500
+    except ConnectionError:
+        current_app.logger.error(f"Connection error checking {check_type} API")
+        return jsonify({
+            'error': f'Failed to connect to {check_type} API',
+            'details': 'Could not establish a connection. The server might be down or the URL might be incorrect.'
+        }), 500
+    except RequestException as e:
+        current_app.logger.error(f"Error checking {check_type} API: {str(e)}")
+        return jsonify({
+            'error': f'Failed to connect to {check_type} API',
+            'details': str(e)
+        }), 500
+    except ValueError as e:
+        current_app.logger.error(f"Invalid response from {check_type} API: {str(e)}")
+        return jsonify({
+            'error': f'Invalid response from {check_type} API',
+            'details': str(e)
+        }), 500
+    except Exception as e:
+        current_app.logger.error(f"Unexpected error checking {check_type} API: {str(e)}")
+        return jsonify({
+            'error': f'Unexpected error occurred while checking {check_type} API',
+            'details': str(e)
+        }), 500
+        
+def background_import_data(connection_string):
+    client = connect_to_mongodb(connection_string)
+    if not client:
+        return
+
+    socket_manager.emit('message', {'message': 'Starting data import'})
+    for collection in ["authors", "books", "issueDetails", "reviews", "users"]:
+        import_collection(client, collection)
+
+    socket_manager.emit('import-complete', {'message': 'Imported data successfully!'})
+    socket_manager.end_task('import_data')
+
+@socket_manager.on('import-data')
+def import_data(data):
+    connection_string = current_user.atlas_connection_string
+    
+    if not connection_string:
+        return jsonify({"success": False, "message": "Please add a MongoDB connection string to your profile."}), 400
+    
+    target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
+
+    try:
+        target_client.admin.command('ping')
+        socket_manager.emit('message', {'message': 'Connected to target database'})
+    except Exception as e:
+        socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+        return
+
+    socket_manager.emit('message', {'message': 'Starting data import'})
+
+    for collection in SOURCE_COLLECTIONS:
+        import_collection(target_client, collection)
+
+    socket_manager.emit('import-complete', {'message': 'Imported data successfully!'})
+
+def add_vectors(data):
+    try:
+        connection_string = data['connectionString']
+        provider = data['provider']
+        target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
+
+        try:
+            target_client.admin.command('ping')
+            socket_manager.emit('message', {'message': 'Connected to target database'})
+        except Exception as e:
+            socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
+            return
+
+        socket_manager.emit('message', {'message': 'Starting to add vectors'})
+
+        vector_collection = {
+            'openai': 'openaiBooks',
+            'vertex': 'vertexBooks',
+            'sagemaker': 'sagemakerBooks'
+        }.get(provider, 'vertexBooks')
+
+        import_collection(target_client, vector_collection)
+
+        socket_manager.emit('vector-data-complete', {'message': 'Imported vector data successfully!'})
+    finally:
+        socket_manager.end_task('add_vectors')  # Always end the task, even if an error occurs
+
+
+
+@main.route('/api/load_data', methods=['POST'])
+@login_required
+def load_data():
+    try:
+        data = request.json
+        connection_string = current_user.atlas_connection_string
+        
+        if not connection_string:
+            current_app.logger.error("No connection string provided in user profile")
+            return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
+
+        current_app.logger.info("Initiating socket connection")
+        socket_manager.connect()  # Establish connection
+        
+        current_app.logger.info("Starting import_data task")
+        socket_manager.start_task('import_data')
+        
+        current_app.logger.info("Launching background import task")
+        socket_manager.start_background_task(background_import_data_wrapper, current_app._get_current_object(), connection_string)
+        
+        current_app.logger.info("Data loading initiated successfully")
+        return jsonify({'success': True, 'message': 'Data loading started'}), 200
+
+    except Exception as e:
+        current_app.logger.error(f"Error in load_data route: {str(e)}", exc_info=True)
+        return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
+
+def background_import_data_wrapper(app, connection_string):
+    with app.app_context():
+        background_import_data(connection_string)
+
+@main.route('/api/add_vectors', methods=['POST'])
+@login_required
+def add_vectors_route():
+    data = request.json
+    connection_string = current_user.atlas_connection_string
+    if not connection_string:
+        return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
+
+    provider = 'serverless'
+    socket_manager.connect()  # Establish connection
+    socket_manager.start_task('add_vectors')
+    socket_manager.start_background_task(add_vectors, {'connectionString': connection_string, 'provider': provider})
+    return jsonify({'success': True, 'message': 'Vector addition started'})
+
+@main.route('/api/mongodb_shell', methods=['POST'])
+@login_required
+def mongodb_shell():
+    command = request.json.get('command')
+    connection_string = current_user.atlas_connection_string
+    
+    if not connection_string:
+        return jsonify({'success': False, 'message': 'No connection string provided. Please update your profile.'}), 400
+
+    try:
+        client = MongoClient(connection_string)
+        db = client.get_default_database()  # Assume the default database is being used
+
+        # Execute the command
+        result = eval(f"db.{command}")
+        client.close()
+
+        # Convert result to JSON string
+        result_json = json_util.dumps(result)
+        return jsonify({'success': True, 'result': result_json})
+    except Exception as e:
+        return jsonify({'success': False, 'message': str(e)}), 500

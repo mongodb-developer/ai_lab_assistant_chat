@@ -24,6 +24,9 @@
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
+    height: calc(100vh - 150px); /* Adjust height to fit within the viewport minus space for the input */
+    padding-bottom: 20px; /* Extra padding to prevent overlap with the input field */
+
 }
 
 #chat-container::before {
@@ -41,18 +44,12 @@
     z-index: -1;
 }
 
-.input-container {
+#input-container {
     position: fixed;
     bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: #fff;
-    padding: 10px;
-    border-top: 1px solid #d4d4d4;
-    z-index: 1000;
-    display: flex;
-    justify-content: center;
     width: 100%;
+    background-color: white; /* Make sure input stays visible */
+    padding: 10px;
 }
 
 .input-group {
@@ -319,131 +316,72 @@
     background-color: #f8f9fa;
   }
 
-  .related-concepts {
-    margin-top: 15px;
-    padding: 10px;
-    background-color: #fcf8eb;
-    border-radius: 5px;
+  .workflow-indicator {
+    position: fixed;
+    bottom: 60px;
+    right: 20px;
+    background-color: #faf1c9;
+    color: black;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    z-index: 1000; /* Ensure it's above other content */
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 300px;
 }
 
-.related-concepts h4 {
-    margin-bottom: 5px;
-    color: #333;
-}
-
-.related-concepts ul {
-    list-style-type: none;
-    padding-left: 0;
-}
-
-.related-concepts li {
-    margin-bottom: 5px;
-}
-
-.related-concepts a {
-    color: #12b746;
-    text-decoration: none;
-}
-
-.related-concept-link a {
-    color: #079b36;
-    text-decoration: none;
-}
-
-.related-concept-link {
-    color: #079b36;
-    text-decoration: none;
-}
-
-.related-concepts a:hover {
-    text-decoration: underline;
-}
-
-.related-concepts {
-    margin-top: 15px;
-    padding: 10px;
-    border: 1px solid #e0e0e0;
-    border-radius: 5px;
-}
-
-.related-concepts ul {
-    list-style-type: none;
-    padding-left: 0;
-}
-
-.related-concepts li {
-    margin-bottom: 10px;
-}
-
-.description-preview {
-    color: #666;
-}
-
-.chat-bubble.assistant .related-concepts-container {
-    margin-top: 15px;
-    border-top: 1px solid rgba(0, 0, 0, 0.1);
-    padding-top: 10px;
-}
-
-.related-concepts-header {
-    cursor: pointer;
-    color: #007bff;
+.workflow-indicator span {
     font-weight: bold;
     margin-bottom: 10px;
 }
 
-.related-concepts-header:hover {
-    text-decoration: underline;
-}
-
-.related-concepts-header i {
-    transition: transform 0.3s ease;
-}
-
-.related-concepts-header[aria-expanded="true"] i {
-    transform: rotate(90deg);
-}
-
-.knowledge-graph {
-    margin-bottom: 15px;
-    border: 1px solid rgba(0, 0, 0, 0.1);
-    border-radius: 4px;
-}
-
-.related-concepts-list {
-    list-style-type: none;
-    padding-left: 0;
-}
-
-.related-concepts-list li {
-    margin-bottom: 10px;
-}
-
-.description-preview {
-    color: #666;
-}
-
-.toggle-description {
-    background-color: transparent;
+#cancel-workflow {
+    align-self: flex-end;
+    background-color: #ffffff;
+    color: #4682b4;
     border: none;
-    color: #007bff;
-    padding: 0;
-    font-size: 0.9em;
+    padding: 5px 10px;
+    border-radius: 4px;
     cursor: pointer;
+    transition: background-color 0.3s;
 }
 
-.toggle-description:hover {
-    text-decoration: underline;
-}
-.vis-network .vis-node {
-    border-width: 2px;
-    border-color: #333;
+#cancel-workflow:hover {
+    background-color: #e6e6e6;
 }
 
-.vis-network .vis-node[style*="color: #4527A0"] {
-    box-shadow: 0 0 10px #4527A0;
+.chat-bubble.assistant table {
+    margin-top: 10px;
+    margin-bottom: 10px;
+    width: 100%;
 }
 
-.vis-network .vis-node[style*="color: #7E57C2"] {
-    box-shadow: 0 0 5px #7E57C2;
+.chat-bubble.assistant th,
+.chat-bubble.assistant td {
+    padding: 8px;
+    border: 1px solid #ddd;
+}
+
+.chat-bubble.assistant th {
+    background-color: #f2f2f2;
+}
+
+.confirmation-buttons {
+    margin-top: 10px;
+}
+
+.confirmation-buttons button {
+    margin-right: 10px;
+}
+
+.btn-success {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    color: white;
 }

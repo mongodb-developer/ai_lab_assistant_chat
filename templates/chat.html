@@ -9,38 +9,42 @@
 <link href="{{ url_for('static', filename='css/chat.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/banner.css') }}" rel="stylesheet">
 <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
-<link href="https://unpkg.com/vis-network/styles/vis-network.min.css" rel="stylesheet" type="text/css" />
-{{ super() }}
-<style>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
 
-    .related-concepts-container {
-        margin-top: 15px;
-    }
 
-    .accordion-button {
-        padding: 0.5rem 1rem;
-        font-size: 0.9rem;
-    }
-
-    .accordion-body {
-        padding: 1rem;
-    }
-
-    .knowledge-graph {
-        margin-bottom: 15px;
-        border: 1px solid #ddd;
-        border-radius: 4px;
-    }
-    </style>
 {% endblock %}
 
 {% block content %}
-<div id="review-banner" class="review-banner">
-    <i class="fas fa-pencil-alt"></i>
-    <span>Book a Design Review - Have your app reviewed by MongoDB Experts</span>
-    <button id="book-review-btn" class="btn btn-sm btn-light ml-2">Book Now</button>
-    <a href="{{ url_for('main.request_design_review') }}" id="request-review-btn" class="btn btn-sm btn-primary ml-2">Request Review</a>
-
+<div id="bannerCarousel" class="carousel slide review-banner" data-bs-ride="carousel">
+    <div class="carousel-inner">
+        <!-- First message -->
+        <div class="carousel-item active">
+            <i class="fas fa-pencil-alt"></i>
+            <span>Book a Design Review - Have your app reviewed by MongoDB Experts</span>
+            <button id="book-review-btn" class="btn btn-sm btn-dark ml-2">Book Now</button>
+        </div>
+        <!-- Second message -->
+        <div class="carousel-item">
+            <i class="fas fa-lightbulb"></i>
+            <span>Explore our Labs - Deepen your MongoDB skills with hands-on labs</span>
+            <button class="btn btn-sm btn-dark ml-2">Explore Labs</button>
+        </div>
+        <!-- Third message -->
+        <div class="carousel-item">
+            <i class="fas fa-question-circle"></i>
+            <span>Have Questions? - Get instant help with our real-time chat</span>
+            <button class="btn btn-sm btn-dark ml-2">Start Chat</button>
+        </div>
+    </div>
+    <!-- Carousel controls -->
+    <button class="carousel-control-prev" type="button" data-bs-target="#bannerCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#bannerCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+    </button>
 </div>
 <div id="error-container" class="alert alert-danger" style="display: none;" role="alert">
     <span id="error-message"></span>
@@ -52,11 +56,229 @@
     <div class="row">
         <div class="chat-page">
             <div class="chat-content">
+                <div id="sample-questions" class="container mt-4 mb-4 sample-questions-container">
+                    <h5 class="mb-3" style="color: #1c2d5a;">Sample Questions to Get Started</h5>
+                    <div class="row row-cols-1 row-cols-md-4 g-4">
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-cloud"></i>System Workflow</h6>
+                                    <p class="card-text">How does the chat system process my questions?</p>
+                                    <button class="btn btn-sm btn-outline-primary" id="show-workflow" data-question="Show Workflow"><i class="fas fa-arrow-right">&nbsp;</i>Show me the
+                                        workflow</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-database"></i>Data Modeling</h6>
+                                    <p class="card-text">What's the best way to model a one-to-many relationship in
+                                        MongoDB?</p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="What's the best way to model a one-to-many relationship in MongoDB?"><i class="fas fa-arrow-right">&nbsp;</i>Ask this
+                                        question</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-filter"></i> Aggregation Framework</h6>
+                                    <p class="card-text">Can you explain the $lookup stage in aggregation pipelines?</p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="Can you explain the $lookup stage in aggregation pipelines?"><i class="fas fa-arrow-right">&nbsp;</i>Ask this
+                                        question</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-search"></i> Atlas Search</h6>
+                                    <p class="card-text">How do I create a text index for full-text search in Atlas?</p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="How do I create a text index for full-text search in Atlas?"><i class="fas fa-arrow-right">&nbsp;</i>Ask this
+                                        question</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-vector-square"></i> Atlas Vector Search</h6>
+                                    <p class="card-text">What are the steps to implement semantic search using Atlas
+                                        Vector Search?</p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="How do I create a text index for full-text search in Atlas?"><i class="fas fa-arrow-right">&nbsp;</i>Ask this
+                                        question</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-plug"></i> Command Help</h6>
+                                    <p class="card-text">Get help with your workshop setup using '/' commands... <pre>/help</pre></p>
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="/help"><i class="fas fa-question">&nbsp;</i>Help</button>
+                                    <button class="btn btn-sm btn-outline-primary ask-question" data-question="/workshops"><i class="fas fa-question">&nbsp;</i>Workshops</button>
+
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-plug"></i> Workshop Tools</h6>
+                                    <p class="card-text">Get help with your workshop progress.  Check your setup progress... <pre>/check connection<p>/check backend</p></pre></p>
+                                    <div class="mb-3">
+                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection"><i class="fas fa-plug">&nbsp;</i>Connect</button>
+                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check backend"><i class="fas fa-wrench">&nbsp;</i>Backend</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col">
+                            <div class="card h-100 sample-question-card">
+                                <div class="card-body">
+                                    <h6 class="card-title"><i class="fas fa-plug"></i> Load Data</h6>
+                                    <p class="card-text">Load data into your Atlas database. Try <pre>/load data</pre> or <pre>/add vectors</pre></p>
+                                    <div class="mb-3">
+                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection">Load Data</button>
+                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/add vectors">Add Vectors</button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="workflow-animation"></div>
+
+                </div>
+                <script src="https://cdn.jsdelivr.net/npm/mermaid/dist/mermaid.min.js"></script>
+
+                <script>
+                    document.addEventListener('DOMContentLoaded', function () {
+                        const sampleQuestions = document.getElementById('sample-questions');
+                        const chatContainer = document.getElementById('chat-container');
+                        const inputContainer = document.getElementById('input-container');
+
+                        mermaid.initialize({ startOnLoad: false });
+
+                        const workflowButton = document.getElementById('show-workflow');
+                        const workflowAnimation = document.getElementById('workflow-animation');
+
+                        workflowButton.addEventListener('click', function() {
+    workflowAnimation.style.display = 'block';
+    workflowAnimation.innerHTML = `
+      <div class="mermaid">
+        sequenceDiagram
+          participant U as User
+          participant C as Chat System
+          participant S as Server
+          participant V as Vector Search
+          participant D as Database
+          participant L as LLM
+
+          U->>+C: Input question
+          C->>+S: Forward question
+          S->>+V: Perform vector search
+          V-->>-S: Return similarity results
+          
+          alt Similar questions found
+              S->>+D: Retrieve answer
+              D-->>-S: Return stored answer
+          else No similar questions
+              S->>+L: Generate new answer
+              L-->>-S: Return generated answer
+          end
+          
+          S-->>-C: Send response
+          C-->>-U: Display answer
+      </div>
+    `;
+    mermaid.init(undefined, document.querySelector(".mermaid"));
+    setTimeout(animateDiagram, 500);
+});
+
+    function animateDiagram() {
+    const elements = document.querySelectorAll('.mermaid .actor, .mermaid .messageLine, .mermaid .messageText');
+    let delay = 0;
+    elements.forEach((el) => {
+      setTimeout(() => {
+        el.style.opacity = '1';
+      }, delay);
+      delay += 300; // Adjust this value to control the speed of the animation
+    });
+  }
+
+  document.querySelectorAll('.ask-question').forEach(button => {
+    button.addEventListener('click', function() {
+        const question = this.getAttribute('data-question'); // Get the question from the data-question attribute
+        
+        // Set the input value to the data-question value
+        const inputElement = findInputElement();
+        if (inputElement) {
+            inputElement.value = question;
+            // Trigger any necessary events
+            inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+            inputElement.focus();
+        }
+        
+        // Trigger the send message action
+        const event = new Event('submit');
+        document.getElementById('chat-form').dispatchEvent(event);
+        
+        hideSampleQuestions(); // Hide the sample questions after selecting one
+    });
+});
+
+
+                        // Function to find the input element
+                        function findInputElement() {
+                            // Try to find textarea first
+                            let input = inputContainer.querySelector('textarea');
+                            // If textarea not found, try to find input
+                            if (!input) {
+                                input = inputContainer.querySelector('input[type="text"]');
+                            }
+                            return input;
+                        }
+
+                        // Hide sample questions when chat starts
+                        function hideSampleQuestions() {
+                            if (sampleQuestions) sampleQuestions.style.display = 'none';
+                            if (chatContainer) chatContainer.style.display = 'block';
+                            if (inputContainer) inputContainer.style.display = 'block';
+                        }
+
+                        // Event listener for ask-question buttons
+                        document.querySelectorAll('.ask-question').forEach(button => {
+                            button.addEventListener('click', function () {
+                                const question = this.getAttribute('data-question');
+                                const inputElement = findInputElement();
+                                if (inputElement) {
+                                    inputElement.value = question;
+                                    // Trigger any necessary events
+                                    inputElement.dispatchEvent(new Event('input', { bubbles: true }));
+                                    inputElement.focus();
+                                }
+                                hideSampleQuestions();
+                                // You might need to call a function or dispatch an event to send the message
+                                // For example: sendMessage(question);
+                            });
+                        });
+
+                        // Hide sample questions when user starts typing
+                        const inputElement = findInputElement();
+                        if (inputElement) {
+                            inputElement.addEventListener('input', hideSampleQuestions);
+                        }
+                    });
+                </script>
                 <div id="chat-container" class="chat-container"></div>
+
             </div>
+
             <div id="input-container" class="input-container">
                 <div class="d-flex align-items-center w-100">
                     <!-- In chat.html -->
+
                     <div class="dropdown me-2">
                         <button class="btn btn-secondary dropdown-toggle" type="button" id="moduleDropdown"
                             data-bs-toggle="dropdown" aria-expanded="false">
@@ -79,6 +301,7 @@
                     <div class="autocomplete-wrapper">
                         <div id="autocomplete-dropdown" class="autocomplete-dropdown" style="display: none;"></div>
                     </div>
+                    
                     <input type="text" id="user-input" class="form-control me-2"
                         placeholder="Type your question here..." aria-label="Text input with dropdown button">
                     <button id="send-button" class="btn btn-primary">Send</button>
@@ -107,7 +330,10 @@
         </div>
     </div>
 </div>
-
+<div id="workflow-indicator" class="workflow-indicator" style="display: none;">
+    <span id="workflow-message"></span>
+    <button id="cancel-workflow" class="btn btn-sm btn-secondary">Cancel</button>
+</div>
 {% endblock %}
 {% block scripts %}
 <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
@@ -116,11 +342,15 @@
 <script src="{{ url_for('static', filename='js/chat1.js') }}"></script>
 <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.2/jquery-ui.js"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var bookReviewBtn = document.getElementById('book-review-btn');
         var calendlyModal = new bootstrap.Modal(document.getElementById('calendlyModal'));
-
+        var bannerCarousel = new bootstrap.Carousel(document.getElementById('bannerCarousel'), {
+            interval: 5000,  // Adjust interval time (in ms) for carousel rotation
+            ride: 'carousel'
+        });
         bookReviewBtn.addEventListener('click', function () {
             calendlyModal.show();
         });

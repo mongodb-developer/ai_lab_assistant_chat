@@ -319,12 +319,6 @@ export async function generateAnswer() {
     }
     const generateBtn = document.getElementById('generate-answer-btn');
     const loader = document.getElementById('generate-loader');
-    const questionInput = document.getElementById('question-input');
-
-    if (!generateBtn || !loader || !questionInput) {
-        console.error('One or more required elements not found');
-        return;
-    }
 
     try {
         loader.style.display = 'inline-block';
@@ -345,15 +339,10 @@ export async function generateAnswer() {
         const data = await response.json();
 
         // Update form fields with generated data
-        const fields = ['title', 'summary', 'answer', 'references'];
-        fields.forEach(field => {
-            const element = document.getElementById(`${field}-input`);
-            if (element) {
-                element.value = data[field.replace('-', '_')] || '';
-            } else {
-                console.warn(`Element with id "${field}-input" not found`);
-            }
-        });
+        document.getElementById('title-input').value = data.title || '';
+        document.getElementById('summary-input').value = data.summary || '';
+        document.getElementById('answer-input').value = data.answer || '';
+        document.getElementById('references-input').value = data.references || '';
 
     } catch (error) {
         console.error('Error generating answer:', error);
@@ -566,6 +555,7 @@ export function showAnswerQuestionForm(button) {
 
     const questionModalLabel = document.getElementById('questionModalLabel');
     const questionInput = document.getElementById('question-input');
+    const questionInputBtn = document.getElementById('question-input-btn');
     const questionTitle = document.getElementById('title-input');
     const questionSummary = document.getElementById('summary-input');
     const questionReferences = document.getElementById('references-input');
@@ -845,3 +835,21 @@ export function truncateText(text, maxLength = 50) {
     }
     return text || '';
 }
+
+document.addEventListener('DOMContentLoaded', () => {
+    const addQuestionBtn = document.getElementById('add-question-btn');
+    if (addQuestionBtn) {
+        addQuestionBtn.addEventListener('click', showAddQuestionForm);
+    } else {
+        console.error('Add question button not found');
+    }    
+    const generateAnswerBtn = document.getElementById('generate-answer-btn');
+    if (generateAnswerBtn) {
+        generateAnswerBtn.addEventListener('click', generateAnswer);
+    } else {
+        console.error('Add generate answer button not found');
+    } 
+});
+window.showAddQuestionForm = showAddQuestionForm;
+window.generateAnswer = generateAnswer;
+

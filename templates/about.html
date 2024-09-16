@@ -10,7 +10,22 @@
     <link href="{{ url_for('static', filename='css/styles.css') }}" rel="stylesheet">
     <link href="{{ url_for('static', filename='css/mongodb-theme.css') }}" rel="stylesheet">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
-
+    <style>
+        .carousel-item {
+            height: 400px;
+            background-size: cover;
+            background-position: center;
+        }
+        .carousel-caption {
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 20px;
+            border-radius: 10px;
+        }
+        .feature-icon {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+    </style>
 </head>
 <body>
     <!-- Include the navigation bar -->

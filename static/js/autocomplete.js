@@ -1,4 +1,24 @@
 document.addEventListener('DOMContentLoaded', function () {
+
+    let currentFocus;
+    function loadChatState() {
+        const savedState = localStorage.getItem('chatState');
+        console.log("chatState: ", savedState)
+        if (savedState) {
+            return JSON.parse(savedState);
+        }
+        return {
+            waitingForConnectionString: false,
+            currentModule: null
+        };
+    }
+
+    let chatState = loadChatState();
+
+    if (chatState.waitingForConnectionString) {
+        clearAutocomplete();
+        return;
+    }
     const userInput = document.getElementById('user-input');
     const autocompleteDropdown = document.getElementById('autocomplete-dropdown');
 
@@ -8,11 +28,10 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     async function getSuggestions() {
-        if (!userInput.value) {
+        if (!userInput.value || userInput.value.startsWith('/')) {
             clearAutocomplete();
             return;
         }
-
         try {
             const response = await fetch(`/api/autocomplete?prefix=${encodeURIComponent(userInput.value)}`);
             if (!response.ok) throw new Error('Network response was not ok');

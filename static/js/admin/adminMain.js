@@ -28,15 +28,19 @@ import * as adminEvents from './adminEvents.js';
 import * as adminSources from './adminSources.js';
 import {
     showDesignReviews,
-    deleteReview,
-    showEditReviewModal,
     editReview,
-    updateReview
+    deleteReview,
+    reviewDesign,
+    generateReport
 } from './adminReviews.js';
+window.showDesignReviews = showDesignReviews;
+window.editReview = editReview;
+window.deleteReview = deleteReview;
+window.reviewDesign = reviewDesign;
+window.generateReport = generateReport;
+window.toggleAdminStatus = toggleAdminStatus;
 import { escapeHTML, showError, unescapeHTML } from './utils.js';
 import * as adminStatistics from './adminStatistics.js';
-
-
 
 /**
  * Initializes the admin panel functionality when the DOM is fully loaded.
@@ -48,6 +52,7 @@ import * as adminStatistics from './adminStatistics.js';
  */
 document.addEventListener('DOMContentLoaded', () => {
     console.log('DOMContentLoaded event fired');
+    setupNavigation();
 
     const sidebar = document.getElementById('sidebar');
     if (sidebar) {
@@ -120,6 +125,20 @@ document.addEventListener('DOMContentLoaded', () => {
         })
     })
 });
+
+export function setupNavigation() {
+    const navItems = document.querySelectorAll('#sidebar .nav-link');
+    navItems.forEach(item => {
+        console.log("item:", item.innerHTML);
+        item.addEventListener('click', (event) => {
+            event.preventDefault();
+            const action = item.getAttribute('data-action');
+            if (typeof window[action] === 'function') {
+                window[action]();
+            }
+        });
+    });
+}
 
 export function handleMainContentClick(e) {
     if (e.target.closest('#conversations-pagination')) {

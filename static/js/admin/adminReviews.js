@@ -1,17 +1,13 @@
 
 export function showDesignReviews() {
     console.log('In showDesignReviews...');
-
     const mainContent = document.getElementById('main-content');
-    console.log('mainContent:', mainContent);
-
     if (!mainContent) {
         console.error('Main content element not found');
         return;
     }
 
     console.log('Creating design reviews container...');
-    // Create design reviews container
     const designReviewsContainer = document.createElement('div');
     designReviewsContainer.id = 'design-reviews';
     designReviewsContainer.innerHTML = `
@@ -25,6 +21,7 @@ export function showDesignReviews() {
                         <th>Application Status</th>
                         <th>Skill Level</th>
                         <th>Score</th>
+                        <th>Review Status</th>
                         <th>Actions</th>
                     </tr>
                 </thead>
@@ -36,7 +33,7 @@ export function showDesignReviews() {
     `;
 
     console.log('Appending design reviews container to main content...');
-    mainContent.innerHTML = ''; // Clear existing content
+    mainContent.innerHTML = '';
     mainContent.appendChild(designReviewsContainer);
 
     console.log('Fetching design reviews...');
@@ -54,37 +51,42 @@ export function showDesignReviews() {
                 console.log('Processing review:', review);
                 const row = document.createElement('tr');
                 row.innerHTML = `
-                    <td>${review.full_name}</td>
-                    <td>${review.company_name}</td>
-                    <td>${review.application_status}</td>
-                    <td>${review.skill_level}</td>
-                    <td>${createScoreIndicator(review.total_score)}</td>
+                    <td>${review.full_name || 'N/A'}</td>
+                    <td>${review.company_name || 'N/A'}</td>
+                    <td>${review.application_status || 'N/A'}</td>
+                    <td>${review.skill_level || 'N/A'}</td>
+                    <td>${createScoreIndicator(review.total_score || 0)}</td>
+                    <td>${review.status || 'N/A'}</td>
                     <td>
                         <button class="btn btn-sm btn-primary edit-review" data-id="${review._id}">Edit</button>
                         <button class="btn btn-sm btn-danger delete-review" data-id="${review._id}">Delete</button>
                         <button class="btn btn-sm btn-secondary review-design" data-id="${review._id}">Review</button>
+                        <button class="btn btn-sm btn-info generate-report" data-id="${review._id}">Generate Report</button>
                     </td>
                 `;
                 designReviewsTableBody.appendChild(row);
             });
-            designReviewsTableBody.addEventListener('click', (event) => {
-                const target = event.target;
-                if (target.classList.contains('edit-review')) {
-                    editReview(target.dataset.id);
-                } else if (target.classList.contains('delete-review')) {
-                    deleteReview(target.dataset.id);
-                } else if (target.classList.contains('review-design')) {
-                    reviewDesign(target.dataset.id);
-                }
-            });
+            designReviewsTableBody.addEventListener('click', handleTableActions);
             console.log('Design reviews table populated');
         })
         .catch(error => console.error('Error fetching design reviews:', error));
 }
 
+function handleTableActions(event) {
+    const target = event.target;
+    if (target.classList.contains('edit-review')) {
+        editReview(target.dataset.id);
+    } else if (target.classList.contains('delete-review')) {
+        deleteReview(target.dataset.id);
+    } else if (target.classList.contains('review-design')) {
+        reviewDesign(target.dataset.id);
+    } else if (target.classList.contains('generate-report')) {
+        generateReport(target.dataset.id);
+    }
+}
+
 export function editReview(id) {
     console.log("Edit Review function called with id:", id);
-
     if (!id) {
         console.error('No review ID provided');
         return;
@@ -109,11 +111,9 @@ export function editReview(id) {
         });
 }
 
-export function updateReview(reviewId) {
-    console.log('Update Review export function called with id:', reviewId);
+function updateReview(reviewId) {
     return function() {
-        console.log('Review ID:', reviewId);
-
+        console.log('Update Review function called with id:', reviewId);
         if (!reviewId) {
             console.error('No review ID found');
             alert('Error: No review ID found. Please try again.');
@@ -124,7 +124,7 @@ export function updateReview(reviewId) {
             full_name: document.getElementById('full-name').value,
             company_name: document.getElementById('company-name').value,
             application_status: document.getElementById('application-status').value,
-            review_status: document.getElementById('review-status').value,
+            status: document.getElementById('review-status').value,
             skill_level: document.getElementById('skill-level').value,
             total_score: document.getElementById('total-score').value,
             review_details: document.getElementById('review-details').value
@@ -151,7 +151,7 @@ export function updateReview(reviewId) {
         .then(data => {
             console.log('Success:', data);
             bootstrap.Modal.getInstance(document.getElementById('design-review-modal')).hide();
-            showDesignReviews();  // Refresh the design reviews list
+            showDesignReviews();
         })
         .catch((error) => {
             console.error('Error:', error);
@@ -159,7 +159,6 @@ export function updateReview(reviewId) {
         });
     };
 }
-
 
 export function deleteReview(id) {
     if (confirm('Are you sure you want to delete this design review request?')) {
@@ -201,6 +200,7 @@ function uploadAndProcessTranscription(reviewId) {
         document.getElementById('what-we-heard').value = data.what_we_heard || '';
         document.getElementById('key-issues').value = data.key_issues || '';
         document.getElementById('what-we-advise').value = data.what_we_advise || '';
+        document.getElementById('references').value = data.references || '';
     })
     .catch(error => {
         console.error('Error uploading and processing transcription:', error);
@@ -212,7 +212,8 @@ function saveReview(reviewId) {
     const reviewData = {
         what_we_heard: document.getElementById('what-we-heard').value,
         key_issues: document.getElementById('key-issues').value,
-        what_we_advise: document.getElementById('what-we-advise').value
+        what_we_advise: document.getElementById('what-we-advise').value,
+        references: document.getElementById('references').value
     };
 
     console.log('Saving review data:', reviewData);
@@ -237,7 +238,7 @@ function saveReview(reviewId) {
         console.log('Review saved:', data);
         alert('Review saved successfully!');
         bootstrap.Modal.getInstance(document.getElementById('reviewModal')).hide();
-        showDesignReviews();  // Refresh the design reviews list
+        showDesignReviews();
     })
     .catch(error => {
         console.error('Error saving review:', error);
@@ -245,24 +246,7 @@ function saveReview(reviewId) {
     });
 }
 
-// In the showEditReviewModal function:
-const transcriptionUpload = document.getElementById('transcription-upload');
-const reviewDetailsTextarea = document.getElementById('review-details');
-
-if (transcriptionUpload && reviewDetailsTextarea) {
-    transcriptionUpload.addEventListener('change', (event) => {
-        const file = event.target.files[0];
-        const reviewDetails = reviewDetailsTextarea.value;
-        if (file) {
-            console.log("File selected:", file.name);
-            uploadAndProcessTranscription(review._id, file, reviewDetails);
-        }
-    });
-} else {
-    console.error('Transcription upload input or review details textarea not found');
-}
-
-function reviewDesign(id) {
+export function reviewDesign(id) {
     const reviewModal = new bootstrap.Modal(document.getElementById('reviewModal'));
     const reviewForm = document.getElementById('review-form');
     reviewForm.reset();
@@ -276,10 +260,8 @@ function reviewDesign(id) {
 
     reviewModal.show();
 }
-// Any oth/ Helper export function to create a visual score indicator
-export function createScoreIndicator(score) {
-    // Assuming score is out of 100
-    const percentage = Math.min(Math.max(score, 0), 100); // Ensure score is between 0 and 100
+function createScoreIndicator(score) {
+    const percentage = Math.min(Math.max(score, 0), 100);
     const color = percentage > 80 ? 'bg-success' :
         percentage > 60 ? 'bg-info' :
             percentage > 40 ? 'bg-warning' : 'bg-danger';
@@ -295,62 +277,6 @@ export function createScoreIndicator(score) {
     `;
 }
 
-export function generateReport(reviewId) {
-    fetch(`/api/design_reviews/${reviewId}`)
-        .then(response => response.json())
-        .then(review => {
-            if (!review) {
-                alert('Review not found');
-                return;
-            }
-
-            const reportContent = `
-# Design Review Report
-
-## Full Name
-${review.full_name}
-
-## Company Name
-${review.company_name}
-
-## Application Status
-${review.application_status}
-
-## Skill Level
-${review.skill_level}
-
-## What We Heard
-${review.what_we_heard}
-
-## Key Issues
-${review.key_issues}
-
-## What We Advise
-${review.what_we_advise}
-
-## Total Score
-${review.total_score}
-
-## Review Details
-${review.review_details}
-    `;
-
-            // Create a Blob with the report content
-            const blob = new Blob([reportContent], { type: 'text/plain' });
-            const url = URL.createObjectURL(blob);
-
-            // Create a temporary link and trigger download
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Design_Review_Report_${reviewId}.txt`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
-        })
-        .catch(error => console.error('Error generating report:', error));
-}
-
 export function showEditReviewModal(review) {
     const modal = document.getElementById('design-review-modal');
     if (!modal) {
@@ -358,73 +284,60 @@ export function showEditReviewModal(review) {
         return;
     }
 
-    const modalTitle = modal.querySelector('.modal-title');
-    const modalBody = modal.querySelector('.modal-body');
-    const modalFooter = modal.querySelector('.modal-footer');
+    console.log('Review data:', review);
 
-    if (!modalTitle || !modalBody || !modalFooter) {
-        console.error('Modal structure is incomplete');
-        return;
-    }
-
-    modalTitle.textContent = 'Edit Design Review';
-    
-    modalBody.innerHTML = `
-        <div class="mb-3">
-            <label for="full-name" class="form-label">Full Name</label>
-            <input type="text" class="form-control" id="full-name" value="${review.full_name || ''}">
-        </div>
-        <div class="mb-3">
-            <label for="company-name" class="form-label">Company Name</label>
-            <input type="text" class="form-control" id="company-name" value="${review.company_name || ''}">
-        </div>
-        <div class="mb-3">
-            <label for="application-status" class="form-label">Application Status</label>
-            <input type="text" class="form-control" id="application-status" value="${review.application_status || ''}">
-        </div>
-        <div class="mb-3">
-            <label for="skill-level" class="form-label">Skill Level</label>
-            <input type="text" class="form-control" id="skill-level" value="${review.skill_level || ''}">
-        </div>
-        <div class="mb-3">
-            <label for="total-score" class="form-label">Total Score</label>
-            <input type="number" class="form-control" id="total-score" value="${review.total_score || 0}">
-        </div>
-        <div class="mb-3">
-            <label for="transcription-upload" class="form-label">Upload Transcription</label>
-            <input type="file" class="form-control" id="transcription-upload" accept=".txt,.doc,.docx,.pdf">
-        </div>
-        <div class="mb-3">
-            <label for="what-we-heard" class="form-label">What We Heard</label>
-            <textarea class="form-control" id="what-we-heard" rows="3">${review.what_we_heard || ''}</textarea>
-        </div>
-        <div class="mb-3">
-            <label for="key-issues" class="form-label">Key Issues</label>
-            <textarea class="form-control" id="key-issues" rows="3">${review.key_issues || ''}</textarea>
-        </div>
-        <div class="mb-3">
-            <label for="what-we-advise" class="form-label">What We Advise</label>
-            <textarea class="form-control" id="what-we-advise" rows="3">${review.what_we_advise || ''}</textarea>
-        </div>
+    modal.querySelector('.modal-title').textContent = 'Edit Design Review';
+    modal.querySelector('.modal-body').innerHTML = `
+        <form id="edit-review-form">
+            <input type="hidden" id="review-id" value="${review._id}">
+            <div class="mb-3">
+                <label for="full-name" class="form-label">Full Name</label>
+                <input type="text" class="form-control" id="full-name" value="${review.full_name || ''}" required>
+            </div>
+            <div class="mb-3">
+                <label for="company-name" class="form-label">Company Name</label>
+                <input type="text" class="form-control" id="company-name" value="${review.company_name || ''}" required>
+            </div>
+            <div class="mb-3">
+                <label for="application-status" class="form-label">Application Status</label>
+                <select class="form-select" id="application-status" required>
+                    <option value="Not started" ${review.application_status === 'Not started' ? 'selected' : ''}>Not started</option>
+                    <option value="In design phase" ${review.application_status === 'In design phase' ? 'selected' : ''}>In design phase</option>
+                    <option value="In production" ${review.application_status === 'In production' ? 'selected' : ''}>In production</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="review-status" class="form-label">Design Review Request Status</label>
+                <select class="form-select" id="review-status" required>
+                    <option value="SUBMITTED" ${review.status === 'SUBMITTED' ? 'selected' : ''}>Submitted</option>
+                    <option value="IN_PROGRESS" ${review.status === 'IN_PROGRESS' ? 'selected' : ''}>In Progress</option>
+                    <option value="COMPLETED" ${review.status === 'COMPLETED' ? 'selected' : ''}>Completed</option>
+                    <option value="REJECTED" ${review.status === 'REJECTED' ? 'selected' : ''}>Rejected</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="skill-level" class="form-label">Skill Level</label>
+                <select class="form-select" id="skill-level" required>
+                    <option value="Beginner" ${review.skill_level === 'Beginner' ? 'selected' : ''}>Beginner</option>
+                    <option value="Intermediate" ${review.skill_level === 'Intermediate' ? 'selected' : ''}>Intermediate</option>
+                    <option value="Expert" ${review.skill_level === 'Expert' ? 'selected' : ''}>Expert</option>
+                </select>
+            </div>
+            <div class="mb-3">
+                <label for="total-score" class="form-label">Total Score</label>
+                <input type="number" class="form-control" id="total-score" value="${review.total_score || 0}" min="0" max="100" required>
+            </div>
+            <div class="mb-3">
+                <label for="review-details" class="form-label">Review Details</label>
+                <textarea class="form-control" id="review-details" rows="5">${review.review_details || ''}</textarea>
+            </div>
+        </form>
     `;
 
-    modalFooter.innerHTML = `
+    modal.querySelector('.modal-footer').innerHTML = `
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
         <button type="button" class="btn btn-primary" id="updateReviewButton">Save Changes</button>
     `;
-
-    const transcriptionUpload = document.getElementById('transcription-upload');
-    if (transcriptionUpload) {
-        transcriptionUpload.addEventListener('change', (event) => {
-            const file = event.target.files[0];
-            if (file) {
-                console.log("File selected:", file.name); // Add this line for debugging
-                uploadAndProcessTranscription(review._id, file);
-            }
-        });
-    } else {
-        console.error('Transcription upload input not found');
-    }
 
     const updateButton = modal.querySelector('#updateReviewButton');
     if (updateButton) {
@@ -437,9 +350,93 @@ export function showEditReviewModal(review) {
     modalInstance.show();
 }
 
-document.addEventListener('DOMContentLoaded', () => {
-    const designReviewModal = document.getElementById('design-review-modal');
-    if (designReviewModal) {
-        new bootstrap.Modal(designReviewModal);
-    }
-});
+// // Initialize the functionality when the DOM is fully loaded
+// document.addEventListener('DOMContentLoaded', () => {
+//     const designReviewModal = document.getElementById('design-review-modal');
+//     if (designReviewModal) {
+//         new bootstrap.Modal(designReviewModal);
+//     }
+//     showDesignReviews();
+// });
+
+export function generateReport(reviewId) {
+    fetch(`/api/design_reviews/${reviewId}`)
+        .then(response => response.json())
+        .then(review => {
+            if (!review) {
+                alert('Review not found');
+                return;
+            }
+
+            const reportContent = `
+# Design Review Report
+
+## Project Overview
+- **Full Name:** ${review.full_name}
+- **Company Name:** ${review.company_name}
+- **Application Status:** ${review.application_status}
+- **Skill Level:** ${review.skill_level}
+- **Total Score:** ${review.total_score}
+- **Opportunity Level:** ${review.opportunity_level}
+
+## What We Heard
+${review.what_we_heard || 'N/A'}
+
+## Key Issues
+${review.key_issues || 'N/A'}
+
+## What We Advise
+${review.what_we_advise || 'N/A'}
+
+## References
+${review.references || 'N/A'}
+            `;
+
+            showReportModal(reportContent);
+        })
+        .catch(error => console.error('Error generating report:', error));
+}
+
+function showReportModal(reportContent) {
+    const modal = document.createElement('div');
+    modal.className = 'modal fade';
+    modal.id = 'reportModal';
+    modal.innerHTML = `
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Design Review Report</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <pre>${reportContent}</pre>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                    <button type="button" class="btn btn-primary" onclick="copyReportToClipboard()">Copy to Clipboard</button>
+                </div>
+            </div>
+        </div>
+    `;
+
+    document.body.appendChild(modal);
+    const modalInstance = new bootstrap.Modal(modal);
+    modalInstance.show();
+
+    modal.addEventListener('hidden.bs.modal', function () {
+        document.body.removeChild(modal);
+    });
+}
+
+function copyReportToClipboard() {
+    const reportContent = document.querySelector('#reportModal .modal-body pre').textContent;
+    navigator.clipboard.writeText(reportContent).then(() => {
+        alert('Report copied to clipboard!');
+    }).catch(err => {
+        console.error('Failed to copy report: ', err);
+        alert('Failed to copy report to clipboard. Please try again.');
+    });
+}
+
+// Make sure to expose the copyReportToClipboard function globally
+window.copyReportToClipboard = copyReportToClipboard;
