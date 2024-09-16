@@ -939,22 +939,29 @@ async function checkConnectionString() {
 }
 
 function sanitizeConnectionString(connectionString) {
-    // This function will hide sensitive parts of the connection string
-    const urlObj = new URL(connectionString);
-    if (urlObj.password) {
-        urlObj.password = '****';
+    // Check if connection string starts with a protocol
+    if (!connectionString.startsWith('http://') && !connectionString.startsWith('https://')) {
+        // Default to http if no protocol is provided
+        connectionString = 'http://' + connectionString;
     }
-    return urlObj.toString();
+
+    try {
+        return new URL(connectionString);  // Create URL object
+    } catch (error) {
+        console.error('Invalid URL format:', error);
+        throw new Error('Invalid connection string format');
+    }
 }
 
-async function checkConnection() {
+
+function checkConnection(connectionString) {
     try {
 
         const profile_response = await fetch('/api/user_profile');
         const profileData = await profile_response.json();
         
         if (profileData.atlas_connection_string) {
-            const sanitizedConnectionString = sanitizeConnectionString(chatState.storedConnectionString); // Sanitize for display
+            const sanitizedURL = sanitizeConnectionString(connectionString);
             appendMessage('Assistant', `I found a connection string stored in your profile. The sanitized version is: ${sanitizedConnectionString}. `);
         } else {
             const profileLink = '<a href="/profile" target="_blank">profile settings</a>';

@@ -24,6 +24,9 @@
     width: 100%;
     max-width: 800px;
     margin: 0 auto;
+    height: calc(100vh - 150px); /* Adjust height to fit within the viewport minus space for the input */
+    padding-bottom: 20px; /* Extra padding to prevent overlap with the input field */
+
 }
 
 #chat-container::before {
@@ -41,18 +44,12 @@
     z-index: -1;
 }
 
-.input-container {
+#input-container {
     position: fixed;
     bottom: 0;
-    left: 0;
-    right: 0;
-    background-color: #fff;
-    padding: 10px;
-    border-top: 1px solid #d4d4d4;
-    z-index: 1000;
-    display: flex;
-    justify-content: center;
     width: 100%;
+    background-color: white; /* Make sure input stays visible */
+    padding: 10px;
 }
 
 .input-group {

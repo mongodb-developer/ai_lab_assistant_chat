@@ -24,6 +24,7 @@ import PyPDF2
 import io
 from dotenv import load_dotenv
 from requests.exceptions import RequestException, Timeout, ConnectionError
+from .data_utils import connect_to_mongodb, import_collection
 
 from app.utils import (
     generate_embedding,
@@ -77,16 +78,6 @@ class JSONEncoder(json.JSONEncoder):
 # Set up logging
 logging.basicConfig(level=logging.DEBUG, format='%(asctime)s - %(levelname=s - %(message)s')
 logger = logging.getLogger(__name__)
-
-# # MongoDB client and collections
-# client = MongoClient(Config.MONGODB_URI)
-# db = client[Config.MONGODB_DB]
-# conversation_collection = db['conversations']
-# documents_collection = db['documents']
-# unanswered_collection = db['unanswered_questions']
-# users_collection = db['users']
-# feedback_collection = db['feedback']
-# events_collection = db['events']
 
 # Default sessions
 DEFAULT_SESSIONS = [
@@ -143,15 +134,6 @@ def chat():
         current_app.logger.error(f"Error in chat route: {str(e)}")
         current_app.logger.error(traceback.format_exc())
         return "An error occurred", 500
-    
-    # user_data = get_users_collection().find_one({'_id': ObjectId(current_user.id)})
-    # logger.info("User:" + jsonify(user_data).get_json())
-    # try:
-    #     # Your existing chat route code here
-    #     return render_template('index.html', is_chat=True, user=user_data)
-    # except Exception as e:
-    #     logger.error(f"Error in chat route: {str(e)}", exc_info=True)
-    #     return "An error occurred", 500
 
 # Route: Index
 # Description: Renders the main page of the application
@@ -2048,47 +2030,6 @@ def get_documents(collection, last_id=None):
         cache[collection][last_id] = documents
         return documents
     
-def background_import_data(connection_string):
-    try:
-        current_app.logger.info("Starting background import process")
-        
-        if not connection_string:
-            current_app.logger.error("No connection string provided.")
-            socket_manager.emit('message', {'message': 'No connection string provided', 'error': True})
-            return
-         
-        target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
-
-        try:
-            target_client.admin.command('ping')
-            current_app.logger.info("Connected to target database")
-            socket_manager.emit('message', {'message': 'Connected to target database'})
-        except Exception as e:
-            current_app.logger.error(f"Error connecting to target database: {str(e)}")
-            socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
-            return
-
-        current_app.logger.info("Starting data import")
-        socket_manager.emit('message', {'message': 'Starting data import'})
-
-        for collection in SOURCE_COLLECTIONS:
-            if socket_manager.should_stop.is_set():
-                current_app.logger.info("Import process stopped")
-                break
-            import_collection(target_client, collection)
-
-        if not socket_manager.should_stop.is_set():
-            current_app.logger.info("Data import completed successfully")
-            socket_manager.emit('import-complete', {'message': 'Imported data successfully!'})
-
-    except Exception as e:
-        current_app.logger.error(f"Error in background import process: {str(e)}", exc_info=True)
-        socket_manager.emit('message', {'message': f'Error during import: {str(e)}', 'error': True})
-
-    finally:
-        current_app.logger.info("Ending import_data task")
-        socket_manager.end_task('import_data')
-
 @main.route('/api/check_codespace/<check_type>', methods=['GET'])
 @login_required
 def check_codespace(check_type):
@@ -2166,7 +2107,19 @@ def check_codespace(check_type):
             'error': f'Unexpected error occurred while checking {check_type} API',
             'details': str(e)
         }), 500
-    
+        
+def background_import_data(connection_string):
+    client = connect_to_mongodb(connection_string)
+    if not client:
+        return
+
+    socket_manager.emit('message', {'message': 'Starting data import'})
+    for collection in ["authors", "books", "issueDetails", "reviews", "users"]:
+        import_collection(client, collection)
+
+    socket_manager.emit('import-complete', {'message': 'Imported data successfully!'})
+    socket_manager.end_task('import_data')
+
 @socket_manager.on('import-data')
 def import_data(data):
     connection_string = current_user.atlas_connection_string
@@ -2189,22 +2142,6 @@ def import_data(data):
         import_collection(target_client, collection)
 
     socket_manager.emit('import-complete', {'message': 'Imported data successfully!'})
-
-def import_collection(target_client, collection):
-    target_collection = target_client[SOURCE_DATABASE][collection]
-    target_collection.drop()
-    socket_manager.emit('message', {'message': f'{collection}: Deleted existing documents'})
-
-    current_count = 0
-    next_docs = get_documents(collection)
-    while next_docs:
-        target_collection.insert_many(next_docs)
-        last_id = next_docs[-1]['_id']
-        current_count += len(next_docs)
-        next_docs = get_documents(collection, last_id)
-        socket_manager.emit('status', {'collection': collection, 'count': current_count, 'total': doc_counts[collection]})
-
-    socket_manager.emit('message', {'message': f'{collection}: Import complete for collection'})
 
 def add_vectors(data):
     try:

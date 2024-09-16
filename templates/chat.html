@@ -9,20 +9,36 @@
 
 {% endblock %}
 {% block content %}
-<div id="review-banner" class="review-banner">
-    <i class="fas fa-pencil-alt"></i>
-    <span>Book a Design Review - Have your app reviewed by MongoDB Experts</span>
-    <button id="book-review-btn" class="btn btn-sm btn-light ml-2">Book Now</button>
-    <div classname="flex items-center space-x-2">
-        <a id="request-review-btn" href="{{ url_for('main.request_design_review') }}"
-            class="btn btn-sm btn-primary ml-2">
-            Request Review
-        </a>
-        <span class="badge bg-warning text-dark"
-            style="font-size: 0.75rem; padding: 0.25em 0.5em; border-radius: 0.25rem;">
-            Beta
-        </span>
+<div id="bannerCarousel" class="carousel slide review-banner" data-bs-ride="carousel">
+    <div class="carousel-inner">
+        <!-- First message -->
+        <div class="carousel-item active">
+            <i class="fas fa-pencil-alt"></i>
+            <span>Book a Design Review - Have your app reviewed by MongoDB Experts</span>
+            <button id="book-review-btn" class="btn btn-sm btn-dark ml-2">Book Now</button>
+        </div>
+        <!-- Second message -->
+        <div class="carousel-item">
+            <i class="fas fa-lightbulb"></i>
+            <span>Explore our Labs - Deepen your MongoDB skills with hands-on labs</span>
+            <button class="btn btn-sm btn-dark ml-2">Explore Labs</button>
+        </div>
+        <!-- Third message -->
+        <div class="carousel-item">
+            <i class="fas fa-question-circle"></i>
+            <span>Have Questions? - Get instant help with our real-time chat</span>
+            <button class="btn btn-sm btn-dark ml-2">Start Chat</button>
+        </div>
     </div>
+    <!-- Carousel controls -->
+    <button class="carousel-control-prev" type="button" data-bs-target="#bannerCarousel" data-bs-slide="prev">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Previous</span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#bannerCarousel" data-bs-slide="next">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+        <span class="visually-hidden">Next</span>
+    </button>
 </div>
 <div id="error-container" class="alert alert-danger" style="display: none;" role="alert">
     <span id="error-message"></span>
@@ -319,11 +335,15 @@
 <script src="{{ url_for('static', filename='js/chat1.js') }}"></script>
 <script src="{{ url_for('static', filename='js/autocomplete.js') }}"></script>
 <script src="//cdnjs.cloudflare.com/ajax/libs/jqueryui/1.11.2/jquery-ui.js"></script>
+
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var bookReviewBtn = document.getElementById('book-review-btn');
         var calendlyModal = new bootstrap.Modal(document.getElementById('calendlyModal'));
-
+        var bannerCarousel = new bootstrap.Carousel(document.getElementById('bannerCarousel'), {
+            interval: 5000,  // Adjust interval time (in ms) for carousel rotation
+            ride: 'carousel'
+        });
         bookReviewBtn.addEventListener('click', function () {
             calendlyModal.show();
         });
