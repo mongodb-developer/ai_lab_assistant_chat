@@ -11,4 +11,5 @@ env_variables:
   MONGODB_URI: 'mongodb+srv://mike:Password123%21@labassistant.xvoen.mongodb.net/?retryWrites=true&w=majority&appName=labassistant'
   MONGODB_DB: 'lab'
   SIMILARITY_THRESHOLD: '0.8'  # or whatever value you prefer
+  SOURCE: 'mongodb+srv://mike:Password123%21@labassistant.xvoen.mongodb.net/library?retryWrites=true&w=majority&appName=labassistant'
 
