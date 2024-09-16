@@ -439,7 +439,7 @@
 
     function appendMessage(sender, message, data = null) {
         if (!chatContainer) {
-            console.error('Chat container not available. Message not appended.');
+            console.warn('Chat container not available. Message not appended.');
             return;
         }
         if (message.startsWith('mongodb://') || message.startsWith('mongodb+srv://')) {

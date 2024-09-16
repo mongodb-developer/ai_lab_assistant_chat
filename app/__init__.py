@@ -68,11 +68,11 @@ def create_app(config_class=Config):
         This allows loading styles from cdnjs.cloudflare.com while maintaining security.
         """
         csp = "default-src 'self'; " \
-              "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " \
-              "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com; " \
-              "font-src 'self' https://cdnjs.cloudflare.com; " \
-              "img-src 'self' data:; " \
-              "connect-src 'self'"
+          "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " \
+          "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " \
+          "font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " \
+          "img-src 'self' data: https://cdn-icons-png.flaticon.com; " \
+          "connect-src 'self'"
         
         response.headers['Content-Security-Policy'] = csp
         return response
