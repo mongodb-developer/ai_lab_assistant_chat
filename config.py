@@ -28,4 +28,5 @@ class Config:
     SIMILARITY_THRESHOLD = float(os.environ.get('SIMILARITY_THRESHOLD', '0.8'))
     GOOGLE_MAPS_API_KEY = os.environ.get('GOOGLE_MAPS_API_KEY')
     UPLOAD_FOLDER = os.path.join(basedir, 'uploads')
-    SOURCE = os.environ.get('SOURCE') or 'mongodb+srv://mike:Password123%21@labassistant.xvoen.mongodb.net/library?retryWrites=true&w=majority&appName=labassistant'
+    SOURCE=os.environ.get('SOURCE')
+    FLASK_SECRET_KEY=os.environ.get('FLASK_SECRET_KEY')
