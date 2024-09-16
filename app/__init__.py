@@ -1,14 +1,11 @@
-print("Starting to import in __init__.py")
 from flask import Flask, make_response
 from flask_login import login_required, current_user, user_logged_in
 from flask_cors import CORS
 from flask_wtf.csrf import CSRFProtect
+from flask_socketio import SocketIO  # Add this import
 from .config import Config
-print("About to import auth")
 from .auth import auth, oauth, login_manager, init_oauth
-print("About to import utils")
 from .utils import init_db, update_user_login_info
-print("About to import socket_manager")
 from .socket_manager import init_socket_manager
 
 import os
@@ -45,7 +42,7 @@ def create_app(config_class=Config):
 
     from .routes import main
 
-    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='eventlet')
+    socketio = SocketIO(app, cors_allowed_origins="*", async_mode='gevent')  # Change 'eventlet' to 'gevent'
     app.socketio = socketio
 
     socket_manager = init_socket_manager(app, socketio)

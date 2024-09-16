@@ -2,7 +2,6 @@ from flask_socketio import SocketIO
 import logging
 import threading
 from queue import Queue
-import gevent
 from gevent import monkey
 monkey.patch_all()
 
