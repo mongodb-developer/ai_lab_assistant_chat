@@ -49,9 +49,6 @@ if __name__ == '__main__':
     # Only run profiling and development server when executing run.py directly
     profiled_app = profile_app()
 
-    if __name__ == '__main__':
-    profiled_app = profile_app()
-
     if profiled_app:
         ssl_context = None
         if os.getenv('FLASK_ENV') == 'development':
