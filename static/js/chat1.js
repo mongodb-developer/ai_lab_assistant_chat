@@ -1264,10 +1264,16 @@
 
     let socket;
     if (typeof io !== 'undefined') {
-        socket = io({
+        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+        const host = window.location.hostname;
+        const port = window.location.port;
+        const socketUrl = `${protocol}//${host}:${port}`;
+    
+        socket = io(socketUrl, {
             transports: ['websocket'],
-            upgrade: false
-        });
+            upgrade: false,
+            rejectUnauthorized: false  // Only use this in development!
+          });
 
         socket.on('connect', function () {
             console.log('Connected to server');

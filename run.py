@@ -49,12 +49,15 @@ if __name__ == '__main__':
     # Only run profiling and development server when executing run.py directly
     profiled_app = profile_app()
 
+    if __name__ == '__main__':
+    profiled_app = profile_app()
+
     if profiled_app:
         ssl_context = None
         if os.getenv('FLASK_ENV') == 'development':
             ssl_context = (
-                '/Users/michael.lynn/code/mongodb/ai/ai_lab_assistant_chat/certs/lab-assistant.localhost.com.pem',
-                '/Users/michael.lynn/code/mongodb/ai/ai_lab_assistant_chat/certs/lab-assistant.localhost.com-key.pem'
+                '/path/to/your/cert.pem',
+                '/path/to/your/key.pem'
             )
 
         socket_manager.run(

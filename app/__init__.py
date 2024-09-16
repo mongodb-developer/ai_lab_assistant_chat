@@ -48,6 +48,7 @@ def create_app(config_class=Config):
     from .routes import main
 
     socket_manager = init_socket_manager(app)  # Initialize the SocketConnectionManager
+    app.socket_manager = socket_manager
 
     app.register_blueprint(main)
     app.register_blueprint(auth)

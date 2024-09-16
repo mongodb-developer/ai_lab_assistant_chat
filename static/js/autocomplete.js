@@ -32,21 +32,21 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function getSuggestions() {
         if (!userInput.value || userInput.value.startsWith('/')) {
-          clearAutocomplete();
-          return;
+            clearAutocomplete();
+            return;
         }
         try {
-          const response = await fetch(`/api/autocomplete?prefix=${encodeURIComponent(userInput.value)}`);
-          if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-          }
-          const suggestions = await response.json();
-          renderAutocomplete(suggestions);
+            const response = await fetch(`/api/autocomplete?prefix=${encodeURIComponent(userInput.value)}`);
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            const suggestions = await response.json();
+            renderAutocomplete(suggestions);
         } catch (error) {
-          console.error('Error fetching suggestions:', error);
-          clearAutocomplete();
+            console.error('Error fetching suggestions:', error);
+            clearAutocomplete();
         }
-      }
+    }
 
     function renderAutocomplete(suggestions) {
         clearAutocomplete();
