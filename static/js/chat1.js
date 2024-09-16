@@ -1269,11 +1269,13 @@
         const port = window.location.port;
         const socketUrl = `${protocol}//${host}:${port}`;
     
-        socket = io(socketUrl, {
+        socket = io({
             transports: ['websocket'],
             upgrade: false,
-            rejectUnauthorized: false  // Only use this in development!
-          });
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000,
+        });
 
         socket.on('connect', function () {
             console.log('Connected to server');

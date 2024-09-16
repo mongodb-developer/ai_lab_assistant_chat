@@ -23,18 +23,16 @@ def create_app(config_class=Config):
     app.config.from_object(config_class)
     print("Loaded config")
     
-    CORS(app, resources={r"/*": {"origins": ["https://lab-assistant.localhost.com", "https://lab-ai-assistant.ue.r.appspot.com"]}}, supports_credentials=True)
-    init_db(app)  # Add this line
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    init_db(app)
     csrf = CSRFProtect(app)
 
     app.config['WTF_CSRF_CHECK_DEFAULT'] = False
     app.config['WTF_CSRF_HEADERS'] = ['X-CSRFToken']
 
-    # Configure logging
     logging.basicConfig(level=logging.DEBUG)
     app.logger.setLevel(logging.DEBUG)
 
-    # Conditionally set SERVER_NAME based on environment
     if os.getenv('FLASK_ENV') == 'development':
         app.config['SERVER_NAME'] = 'lab-assistant.localhost.com'
     else:
@@ -47,36 +45,34 @@ def create_app(config_class=Config):
 
     from .routes import main
 
-    socket_manager = init_socket_manager(app)  # Initialize the SocketConnectionManager
+    socket_manager = init_socket_manager(app)
     app.socket_manager = socket_manager
 
     app.register_blueprint(main)
     app.register_blueprint(auth)
 
     app.config['UPLOAD_FOLDER'] = 'uploads'
-    # Ensure the upload directory exists
     if not os.path.exists(app.config['UPLOAD_FOLDER']):
         os.makedirs(app.config['UPLOAD_FOLDER'])
+
     @user_logged_in.connect_via(app)
     def _track_logins(sender, user, **extra):
         update_user_login_info(str(user.id))
+
     csrf.init_app(app)
     
     @app.after_request
     def add_csp_headers(response):
-        """
-        Add Content Security Policy headers to the response.
-        This allows loading styles from cdnjs.cloudflare.com while maintaining security.
-        """
-        csp = "default-src 'self'; " \
-          "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " \
-          "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " \
-          "font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; " \
-          "img-src 'self' data: https://cdn-icons-png.flaticon.com; " \
-          "connect-src 'self'"
-        
+        csp = (
+            "default-src 'self'; "
+            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com; "
+            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
+            "font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
+            "img-src 'self' data: https://cdn-icons-png.flaticon.com; "
+            "connect-src 'self' wss: ws:;"
+        )
         response.headers['Content-Security-Policy'] = csp
         return response
-    print("Finished create_app function")
 
+    print("Finished create_app function")
     return app
