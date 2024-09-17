@@ -187,23 +187,11 @@ def update_user_login_info(db, user_id):
 
     return update_data
 
+@lru_cache(maxsize=1000)
 def generate_embedding(text):
-    if not openai.api_key:
-        openai.api_key = current_app.config.get('OPENAI_API_KEY')
-    if not openai.api_key:
-        raise ValueError("OpenAI API key is not set")
     debug_info = {}
-    if isinstance(text, dict):
-        text = str(text)
-    elif isinstance(text, list):
-        text = ' '.join(map(str, text))
-    elif not isinstance(text, str):
-        text = str(text)
-    
-    logger.debug(f"Generating embedding for text: {text[:50]}...")
-
     try:
-        logger.debug(f"Generating embedding for text: {text if isinstance(text, str) else str(text)[:50]}...")
+        logger.debug(f"Generating embedding for text: {text[:50]}...")
         debug_info['openai_request'] = {
             'model': "text-embedding-ada-002",
             'input': text
@@ -259,23 +247,7 @@ from bson import ObjectId
 def search_similar_questions(db, question_embedding, user_question, module, similarity_threshold=SIMILARITY_THRESHOLD):
     user_question_lower = user_question.lower()
 
-    # Exact match stage (unchanged)
-    exact_match_query = {
-        "question": {"$regex": f"^{re.escape(user_question_lower)}$", "$options": "i"}
-    }
-    exact_matches = list(get_documents_collection().find(exact_match_query))
-
-    if exact_matches:
-        for match in exact_matches:
-            match['exact_match'] = True
-            match['combined_score'] = 1000
-        return exact_matches[:5], {
-            "exact_match_query": exact_match_query,
-            "exact_matches_count": len(exact_matches),
-            "search_type": "exact_match"
-        }
-
-    # Vector search stage with workshop content boosting
+    # Vector search stage
     vector_search_stage = [
         {
             '$vectorSearch': {
@@ -283,7 +255,7 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
                 'path': 'question_embedding',
                 'queryVector': question_embedding,
                 'numCandidates': 100,
-                'limit': 20  # Increased limit to get more potential matches
+                'limit': 10
             }
         },
         {
@@ -294,32 +266,20 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
                 'summary': 1,
                 'references': 1,
                 'module': 1,
-                'is_workshop_content': 1,  # New field to indicate workshop content
                 'vector_score': {'$meta': 'vectorSearchScore'},
             }
-        },
-        {
-            '$addFields': {
-                'boosted_score': {
-                    '$cond': [
-                        {'$eq': ['$is_workshop_content', True]},
-                        {'$multiply': ['$vector_score', 1.5]},  # Boost workshop content
-                        '$vector_score'
-                    ]
-                }
-            }
-        },
-        {'$sort': {'boosted_score': -1}}
+        }
     ]
 
-    # Text search stage with workshop content boosting
+    # Text search stage
     text_search_stage = [
         {
             '$search': {
                 'index': 'default',
                 'text': {
-                    'query': user_question,
-                    'path': ['question', 'answer', 'title']
+                    'query': user_question_lower,
+                    'path': ['question', 'answer', 'title'],
+                    'fuzzy': {'maxEdits': 2}
                 }
             }
         },
@@ -331,7 +291,7 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
                 'summary': 1,
                 'references': 1,
                 'module': 1,
-                'text_score': {'$meta': 'searchScore'}
+                'text_score': {'$meta': 'searchScore'},
             }
         }
     ]
@@ -345,8 +305,9 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
     vector_results = list(get_documents_collection().aggregate(vector_search_stage))
     text_results = list(get_documents_collection().aggregate(text_search_stage))
 
-    combined_results = vector_results + text_results
-    for result in combined_results:
+    # Combine and process results
+    all_results = vector_results + text_results
+    for result in all_results:
         result['combined_score'] = (result.get('vector_score', 0) * 0.7 + 
                                     result.get('text_score', 0) * 0.3)
 
@@ -359,24 +320,9 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
             unique_results.append(result)
 
     # Filter results
-    filtered_results = [r for r in sorted(combined_results, 
-                                          key=lambda x: x['combined_score'], 
-                                          reverse=True) 
-                        if r['combined_score'] >= similarity_threshold]
-    debug_info = {
-        "vector_results_count": len(vector_results),
-        "text_results_count": len(text_results),
-        "all_results_count": len(all_results),
-        "unique_results_count": len(unique_results),
-        "filtered_results_count": len(filtered_results),
-        "top_5_scores": [r['combined_score'] for r in filtered_results[:5]],
-        "search_type": "vector_and_text_with_boosting",
-        "module_filter_applied": bool(module and module.lower() != "select a module")
-    }
+    filtered_results = [r for r in unique_results if r['combined_score'] >= similarity_threshold]
 
-    return filtered_results[:5], debug_info
-
-
+    return filtered_results[:5]
 
 @with_db_connection
 def add_unanswered_question(db, user_id, user_name, question, potential, module):
