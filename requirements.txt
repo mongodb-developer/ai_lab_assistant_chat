@@ -24,6 +24,7 @@ Flask-OAuthlib==0.9.6
 Flask-WTF==1.2.1
 fonttools==4.53.1
 frozenlist==1.4.1
+gevent
 google-api-core==2.19.1
 google-auth==2.32.0
 google-cloud-core==2.4.1
