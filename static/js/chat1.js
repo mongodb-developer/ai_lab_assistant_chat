@@ -646,7 +646,8 @@ async function sendMessage(event, presetMessage = null) {
             }
         } else {
             const span = document.createElement('span');
-            span.textContent = escapeSpecialChars(message);
+            // span.textContent = escapeSpecialChars(message);
+            span.textContent = message;
             messageElement.appendChild(span);
         }
 
