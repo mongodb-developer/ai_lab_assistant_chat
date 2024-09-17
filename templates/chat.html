@@ -25,13 +25,13 @@
         <div class="carousel-item">
             <i class="fas fa-lightbulb"></i>
             <span>Explore our Labs - Deepen your MongoDB skills with hands-on labs</span>
-            <button class="btn btn-sm btn-dark ml-2">Explore Labs</button>
+            <button id="explore-labs-btn" class="btn btn-sm btn-dark ml-2">Explore Labs</button>
         </div>
         <!-- Third message -->
         <div class="carousel-item">
             <i class="fas fa-question-circle"></i>
             <span>Have Questions? - Get instant help with our real-time chat</span>
-            <button class="btn btn-sm btn-dark ml-2">Start Chat</button>
+            <button id="start-chat-btn" class="btn btn-sm btn-dark ml-2">Start Chat</button>
         </div>
     </div>
     <!-- Carousel controls -->
@@ -44,6 +44,7 @@
         <span class="visually-hidden">Next</span>
     </button>
 </div>
+
 <div id="error-container" class="alert alert-danger" style="display: none;" role="alert">
     <span id="error-message"></span>
     <button type="button" class="close" data-dismiss="alert" aria-label="Close">
@@ -356,6 +357,23 @@
         // var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
         //     return new bootstrap.Dropdown(dropdownToggleEl)
         // })
+
+        // Explore Labs Button
+        const exploreLabsBtn = document.getElementById('explore-labs-btn');
+        if (exploreLabsBtn) {
+            exploreLabsBtn.addEventListener('click', function() {
+                window.location.href = 'https://your-labs-page.com'; // Update with the correct URL
+            });
+        }
+
+        // Start Chat Button
+        const startChatBtn = document.getElementById('start-chat-btn');
+        if (startChatBtn) {
+            startChatBtn.addEventListener('click', function() {
+                // Redirect the user to the /chat route
+                window.location.href = '/chat'; // This will take the user to the /chat route
+            });
+        }
     });
 </script>
 <script defer src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>

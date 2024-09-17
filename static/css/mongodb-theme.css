@@ -237,12 +237,13 @@
     }
 }
 .loader-container {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    min-height: 80px;
-    background-color: transparent !important;
+  display: flex;
+  justify-content: center; /* Center horizontally */
+  align-items: center; /* Center vertically */
+  width: 100%; /* Full width */
+  padding: 10px; /* Adjust padding for aesthetics */
 }
+
 
 .question-form {
     width: 90%;

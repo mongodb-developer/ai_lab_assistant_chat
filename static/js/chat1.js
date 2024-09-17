@@ -3,13 +3,95 @@
     let currentConversationId = null;
     let currentFocus = -1;
     let chatState;
+    let isSending = false;
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            sendMessage(event);
+        }
+    }
+    function removePreviousEventListeners(element, eventType) {
+        const newElement = element.cloneNode(true);
+        element.parentNode.replaceChild(newElement, element);
+        return newElement;
+    }
+    function setupEventListeners() {
+        const sendButton = document.getElementById('send-button');
+        const userInput = document.getElementById('user-input');
+    
+        if (sendButton && userInput) {
+            sendButton.addEventListener('click', function(event) {
+                event.preventDefault();
+                sendMessage(event);
+            });
+    
+            userInput.addEventListener('keypress', function(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    sendMessage(event);
+                }
+            });
+        } else {
+            console.error('Send button or user input element not found');
+        }
+    }
+    
+    // Call this function when the DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', setupEventListeners);
+    const LoaderManager = (function () {
+        let loaderElement = null;
+        let isLoading = false;
+    
+        return {
+            showLoader: function (chatContainer) {
+                if (isLoading) {
+                    console.log("Loader is already being shown, skipping.");
+                    return;
+                }
+                isLoading = true;
+    
+                if (this.isLoaderActive()) {
+                    console.log("Loader already exists, skipping append.");
+                    return;
+                }
+    
+                loaderElement = document.createElement('div');
+                loaderElement.classList.add('chat-bubble', 'loader-container');
+    
+                const loader = document.createElement('div');
+                loader.classList.add('mongodb-loader');
+    
+                loaderElement.appendChild(loader);
+                chatContainer.appendChild(loaderElement);
+                chatContainer.scrollTop = chatContainer.scrollHeight;
+    
+                console.log("Loader appended", loaderElement);
+            },
+    
+            hideLoader: function () {
+                if (this.isLoaderActive()) {
+                    loaderElement.parentNode.removeChild(loaderElement);
+                    console.log("Loader removed");
+                    loaderElement = null;
+                } else {
+                    console.log("No active loader to remove.");
+                }
+                isLoading = false;
+            },
+    
+            isLoaderActive: function () {
+                return loaderElement !== null;
+            }
+        };
+    })();
+
 
     document.addEventListener('DOMContentLoaded', function () {
+
         console.log("DOM fully loaded");
         chatState = loadChatState();
         console.log("Initial chat state:", chatState);
 
-            // Clear existing listeners before adding new ones
+        // Clear existing listeners before adding new ones
         if (typeof bootstrap === 'undefined') {
             console.error('Bootstrap is not loaded. Please check your script loading order.');
             appendMessage('Assistant', 'An internal error occurred. Please refresh the page.');
@@ -17,20 +99,6 @@
         } else {
             console.log('Bootstrap is loaded successfully.');
         }
-        // document.getElementById('user-input').addEventListener('keypress', function (e) {
-        //     if (e.key === 'Enter') {
-        //         e.preventDefault();
-        //         sendMessage();
-        //     }
-        // });
-        // Reset any lingering connection string waiting states
-        chatState.waitingForConnectionString = false;
-        chatState.waitingForConnectionStringConfirmation = false;
-        chatState.loadDataPending = false;
-        chatState.addVectorsPending = false;
-        saveChatState();
-
-        console.log("Reset chat state:", chatState);
 
         // Initialize chatContainer
         chatContainer = document.getElementById('chat-container');
@@ -66,8 +134,6 @@
                 autocompleteDropdown.style.display = 'none';
             }
         }
-
-
         const userInput = document.getElementById('user-input');
         if (autocompleteDropdown && !autocompleteDropdown.contains(event.target) && event.target !== userInput) {
             hideAutocompleteDropdown();
@@ -80,14 +146,6 @@
                     hideAutocompleteDropdown();
                 }
             });
-
-            // // Add keydown event listener to the document
-            // document.addEventListener('keydown', function (event) {
-            //     if (event.key === 'Escape') {
-            //         hideAutocompleteDropdown();
-            //     }
-            // });
-
             // Existing click event listener
             document.addEventListener('click', function (event) {
                 if (!autocompleteDropdown.contains(event.target) && event.target !== userInput) {
@@ -139,23 +197,24 @@
                 }
             });
         }
-        if (userInput && sendButton) {
-            // Use ontouchstart for touch devices, and onclick for non-touch devices
-            if ('ontouchstart' in window) {
-                // Touch device
-                sendButton.removeEventListener('touchstart', sendMessage);
-                sendButton.addEventListener('touchstart', function (event) {
-                    event.preventDefault(); // Prevent default behavior to avoid double event trigger
-                    sendMessage(event);
-                    hideAutocompleteDropdown(); // Hide any autocomplete suggestions
-                });
-            } else {
-                // Non-touch device
-                sendButton.removeEventListener('click', sendMessage);
-                sendButton.addEventListener('click', sendMessage);
+        if (sendButton && userInput) {
+            // Define the handleKeyDown function for the Enter key
+            function handleKeyDown(event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();  // Prevent form submission or default behavior
+                    sendMessage(event);  // Call the sendMessage function when Enter is pressed
+                }
             }
+    
+            // Add click listener to the send button
+            sendButton.addEventListener('click', function (event) {
+                sendMessage(event);
+            });
+    
+            // Add keydown listener to the input field to capture the Enter key
+            userInput.addEventListener('keydown', handleKeyDown);
         } else {
-            console.error('User input or send button not found');
+            console.error('Send button or user input element not found');
         }
 
         var calendlyModalElement = document.getElementById('calendlyModal');
@@ -218,34 +277,6 @@
         }
     }
 
-    function appendLoader() {
-        // Check if there's already a loader present
-        if (chatContainer.querySelector('.loader-container')) {
-            console.log("Loader already exists, skipping append.");
-            return null; // Return null to indicate that no new loader was added
-        }
-    
-        // Proceed to create and append the loader if not present
-        const loaderElement = document.createElement('div');
-        console.log("Appending loader");
-        loaderElement.classList.add('chat-bubble', 'assistant', 'loader-container');
-    
-        const loader = document.createElement('div');
-        loader.classList.add('mongodb-loader');
-    
-        loaderElement.appendChild(loader);
-        chatContainer.appendChild(loaderElement);
-        chatContainer.scrollTop = chatContainer.scrollHeight;
-    
-        return loaderElement; // Return the loader element
-    }
-
-    function removeLoader(loaderElement) {
-        if (loaderElement && loaderElement.parentNode) {
-            loaderElement.parentNode.removeChild(loaderElement);
-        }
-    }
-
     function escapeSpecialChars(str) {
         return str.replace(/[&<>'"]/g, function (char) {
             return {
@@ -295,7 +326,7 @@
         messageElement.appendChild(feedbackContainer);
     }
     function generateUniqueId() {
-        return 'msg-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+        return 'msg-' + Date.now() + '-' + Math.random().toString(36).slice(2, 11);
     }
     function provideFeedback(questionId, isPositive) {
         const csrfToken = getCsrfToken();
@@ -353,86 +384,113 @@
         }
     }
 
+/**
+ * Sends a message to the chat API and handles the response.
+ * This function manages the chat state, displays loaders, and updates the UI with the response.
+ * It prevents concurrent sendings and ensures proper error handling.
+ *
+ * @param {Event} event - The event that triggered the function (optional)
+ * @param {string} presetMessage - A preset message to send instead of the user input (optional)
+ * @returns {Promise<void>}
+ */
+    /**
+ * Sends a message to the chat API and handles the response.
+ * This function manages the chat state, displays loaders, and updates the UI with the response.
+ * It prevents concurrent sendings and ensures proper error handling.
+ *
+ * @param {Event} event - The event that triggered the function (optional)
+ * @param {string} presetMessage - A preset message to send instead of the user input (optional)
+ * @returns {Promise<void>}
+ */
+async function sendMessage(event, presetMessage = null) {
+    if (isSending) {
+        console.log("sendMessage is already in progress, skipping");
+        return;
+    }
+    isSending = true;
 
-    async function sendMessage(event, presetMessage = null) {
-        const userInput = document.getElementById('user-input');
+    const userInput = document.getElementById('user-input');
+    const moduleSelect = document.getElementById('moduleDropdown');
 
-        const moduleSelect = document.getElementById('moduleDropdown');
-        const message = presetMessage || userInput.value.trim();
-        let selectedModule = moduleSelect.textContent.trim();
-        const loader = appendLoader();
+    if (!userInput || !moduleSelect) {
+        console.error('Required elements not found in the DOM');
+        isSending = false;
+        return;
+    }
 
-        if (selectedModule.toLowerCase() === "select a module") {
-            selectedModule = "";
-        }
+    const message = presetMessage || userInput.value.trim();
+    let selectedModule = moduleSelect.textContent.trim();
 
-        if ((message.startsWith('/') || chatState.waitingForConnectionString)) {
+    if (selectedModule.toLowerCase() === "select a module") {
+        selectedModule = "";
+    }
+
+    try {
+        if (message.startsWith('/') || chatState.waitingForConnectionString) {
             userInput.value = '';
-            removeLoader(loader);
             hideAutocompleteDropdown();
-            handleCommand(message);
+            await handleCommand(message);
             return;
         }
-        if (message) {
-            hideAutocompleteDropdown();  // Hide autocomplete dropdown
-            appendMessage('User', message);
-            userInput.value = '';
-            var bsDropdown = bootstrap.Dropdown.getInstance(bsDropdown);
-            console.log("dropdown: ", bsDropdown)
-            if (bsDropdown) {
-                bsDropdown.hide();
-            }
 
-            try {
-                const userId = await getCurrentUserId();
-                if (!userId) {
-                    // If getUserId returned null, the redirect to login should have already happened
-                    return;
-                }
-                const response = await fetch('/api/chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    credentials: 'include', // This ensures cookies are sent with the request
-                    body: JSON.stringify({
-                        question: message,
-                        conversation_id: currentConversationId,
-                        module: selectedModule
-                    })
-                });
-                if (!response.ok) {
-                    const errorMessage = await response.text();
-                    throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
-                }
-
-                const data = await response.json();
-
-                if (data.conversation_id) {
-                    currentConversationId = data.conversation_id;
-                }
-
-                if (data.answer) {
-                    appendMessage('Assistant', data.answer, {
-                        ...data,
-                        question_id: data.question_id || '',
-                        original_question: message,
-                        related_concepts: data.related_concepts || [] // Add this line
-                    });
-                    
-                } else {
-                    appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
-                }
-                removeLoader(loader);
-
-            } catch (error) {
-                console.error('Error in sendMessage:', error);
-                appendMessage('Assistant', `Error: ${error.message}`);
-            } finally {
-                removeLoader(loader);
-            }
+        if (!message) {
+            console.log("No message to send");
+            return;
         }
+
+        hideAutocompleteDropdown();
+        appendMessage('User', message);
+        userInput.value = '';
+        LoaderManager.showLoader(chatContainer);
+
+        const userId = await getCurrentUserId();
+        if (!userId) {
+            console.log("User ID not available, possibly not logged in");
+            return;
+        }
+
+        const response = await fetch('/api/chat', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({
+                question: message,
+                conversation_id: currentConversationId,
+                module: selectedModule
+            })
+        });
+
+        if (!response.ok) {
+            const errorMessage = await response.text();
+            throw new Error(`HTTP error! status: ${response.status}, message: ${errorMessage}`);
+        }
+
+        const data = await response.json();
+
+        if (data.conversation_id) {
+            currentConversationId = data.conversation_id;
+        }
+
+        if (data.answer) {
+            appendMessage('Assistant', data.answer, {
+                ...data,
+                question_id: data.question_id || '',
+                original_question: message,
+                related_concepts: data.related_concepts || []
+            });
+        } else {
+            appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
+        }
+
+    } catch (error) {
+        console.error('Error in sendMessage:', error);
+        appendMessage('Assistant', `Error: ${error.message}`);
+    } finally {
+        isSending = false;
+        LoaderManager.hideLoader();
     }
+}
+
     function generateQuestionId(data) {
         // Use a combination of properties to create a unique ID
         return btoa(data.question).slice(0, 10);  // Base64 encode the question and take first 10 characters
@@ -443,15 +501,7 @@
             console.warn('Chat container not available. Message not appended.');
             return;
         }
-        if (message.startsWith('mongodb://') || message.startsWith('mongodb+srv://')) {
-            chatState.waitingForConnectionString = false;
-            saveChatState();
-            hideAutocompleteDropdown();
-            checkConnection(message);
-            removeLoader(loader);
-            hideWorkflowIndicator();
-            return;
-        }
+    
         console.log(`Appending message from ${sender}:`, message);
 
         const messageId = generateUniqueId();
@@ -467,25 +517,6 @@
                 bubbleContent.classList.add('bubble-content');
                 bubbleContent.innerHTML = marked.parse(escapeSpecialChars(message));
                 messageElement.appendChild(bubbleContent);
-            }
-            // Check if we are waiting for a connection string confirmation
-            if (chatState.waitingForConnectionStringConfirmation) {
-                const buttonContainer = document.createElement('div');
-                buttonContainer.classList.add('confirmation-buttons');
-
-                const yesButton = document.createElement('button');
-                yesButton.textContent = 'Yes';
-                yesButton.classList.add('btn', 'btn-success', 'mr-2');
-                yesButton.onclick = () => handleConnectionStringConfirmation('yes');
-
-                const noButton = document.createElement('button');
-                noButton.textContent = 'No';
-                noButton.classList.add('btn', 'btn-danger');
-                noButton.onclick = () => handleConnectionStringConfirmation('no');
-
-                buttonContainer.appendChild(yesButton);
-                buttonContainer.appendChild(noButton);
-                messageElement.appendChild(buttonContainer);
             }
             // Create and append the source element
             const sourceElement = document.createElement('div');
@@ -539,18 +570,7 @@
                 `;
                 messageElement.appendChild(relatedConceptsElement);
 
-                // Ensure the graph container is in the DOM before creating the graph
-                setTimeout(() => {
-                    const collapseElement = relatedConceptsElement.querySelector(`#${collapseId}`);
-                    collapseElement.addEventListener('shown.bs.collapse', function () {
-                        const graphContainerId = `graph-${messageId}`;
-                        const graphContainer = document.getElementById(graphContainerId);
-                        if (graphContainer && !graphContainer.hasChildNodes()) {
-                            createKnowledgeGraph(graphContainerId, data.related_concepts, data.original_question);
-                        }
-                    });
-                }, 100);
-                // Add click event listeners to related concept links and toggle buttons
+                                // Add click event listeners to related concept links and toggle buttons
                 relatedConceptsElement.querySelectorAll('.related-concept-link').forEach(link => {
                     link.addEventListener('click', (e) => {
                         e.preventDefault();
@@ -641,6 +661,7 @@
                 }
             }, 0); // You can tweak this delay as needed
         }
+
     }
 
     function submitAppFeedback(rating) {
@@ -771,12 +792,14 @@
 
         const message = `Here are the links to our MongoDB workshops:<br><br>${tableHTML}`;
         appendMessage('Assistant', message);
+        LoaderManager.hideLoader();
     }
 
     function handleCommand(command) {
         const [baseCommand, ...args] = command.split(' ');
         const action = args.join(' ').toLowerCase();
         appendMessage('User', baseCommand);
+        LoaderManager.hideLoader();
 
         switch (baseCommand.toLowerCase()) {
             case '/help':
@@ -787,58 +810,38 @@
             case '/w':
                 showWorkshopLinks();
                 break;
-            case '/check':
-            case '/c':
-                if (action.toLowerCase() === 'connection') {
-                    checkConnection();
-                } else if (action.toLowerCase() === 'backend') {
-                    checkCodeSpace(action.toLowerCase());
-                } else if (action.toLowerCase() === 'frontend') {
-                    appendMessage('Assistant', 'front-end checking is not supported at this time.')
-                    return;
-                }
-                break;
-            case '/load':
-            case '/l':
-                if (action.toLowerCase() === 'data') {
-                    loadData();
-                }
-                break;
-            case '/add':
-            case '/a':
-                if (action.toLowerCase() === 'vectors') {
-                    addVectors();
-                }
-                break;
-            case '/mongo':
-            case '/m':
-                executeMongoShellCommand(command);
-                break;
+            // case '/check':
+            // case '/c':
+            //     if (action.toLowerCase() === 'connection') {
+            //         checkConnection();
+            //     } else if (action.toLowerCase() === 'backend') {
+            //         checkCodeSpace(action.toLowerCase());
+            //     } else if (action.toLowerCase() === 'frontend') {
+            //         appendMessage('Assistant', 'front-end checking is not supported at this time.')
+            //         return;
+            //     }
+            //     break;
+            // case '/load':
+            // case '/l':
+            //     if (action.toLowerCase() === 'data') {
+            //         loadData();
+            //     }
+            //     break;
+            // case '/add':
+            // case '/a':
+            //     if (action.toLowerCase() === 'vectors') {
+            //         addVectors();
+            //     }
+            //     break;
+            // case '/mongo':
+            // case '/m':
+            //     executeMongoShellCommand(command);
+            //     break;
             default:
                 appendMessage('Assistant', 'Invalid command. Please check the available commands.');
+                LoaderManager.hideLoader();
         }
-    }
 
-    async function executeMongoShellCommand(command) {
-        try {
-            const response = await fetch('/api/mongodb_shell', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ command })
-            });
-
-            const data = await response.json();
-            if (data.success) {
-                appendMessage('Assistant', `<pre>${data.result}</pre>`);
-            } else {
-                appendMessage('Assistant', `<pre style="color: red;">${data.message}</pre>`);
-            }
-        } catch (error) {
-            appendMessage('Assistant', 'There was an error processing your MongoDB command.');
-            console.error('Error in executeMongoShellCommand:', error);
-        }
     }
 
     function handleConnectionStringConfirmation(response) {
@@ -869,43 +872,6 @@
         }
 
         saveChatState();
-    }
-
-    function handleProviderInput(command) {
-        const provider = command.trim().toLowerCase();
-        if (['serverless', 'vertex', 'openai', 'sagemaker'].includes(provider)) {
-            addVectors(chatState.storedConnectionString, provider);
-            chatState.waitingForProviderInput = false;
-            chatState.addVectorsPending = false;
-            chatState.storedConnectionString = null;
-            saveChatState();
-        } else {
-            appendMessage('Assistant', "Invalid provider. Please specify either serverless, vertex, openai, or sagemaker.");
-        }
-    }
-
-    function handleConnectionStringInput(command) {
-        if (command.startsWith('mongodb://') || command.startsWith('mongodb+srv://')) {
-            if (chatState.loadDataPending) {
-                loadData(command);
-                chatState.loadDataPending = false;
-            } else if (chatState.addVectorsPending) {
-                appendMessage('Assistant', "Connection string received. Now, please specify the provider (serverless, vertex, openai, or sagemaker).");
-                chatState.waitingForProviderInput = true;
-                chatState.storedConnectionString = command;
-            } else {
-                checkConnection(command);
-            }
-            chatState.waitingForConnectionString = false;
-            saveChatState();
-            hideWorkflowIndicator();
-        } else if (command.toLowerCase() === '/cancel') {
-            resetConnectionStringWaiting();
-            hideWorkflowIndicator();
-            appendMessage('Assistant', "Operation cancelled. How else can I assist you?");
-        } else {
-            appendMessage('Assistant', "That doesn't look like a valid MongoDB connection string. Please make sure it starts with 'mongodb://' or 'mongodb+srv://'. Try again or type '/cancel' to cancel the operation.");
-        }
     }
 
     function showHelpInformation() {
@@ -950,8 +916,9 @@
         </table>
         <p>Feel free to ask if you need any clarification or have more questions!</p>
     `;
-
+        LoaderManager.hideLoader();
         appendMessage('Assistant', helpMessage);
+
     }
 
     // Function to load chat state from localStorage
@@ -1248,9 +1215,9 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ 
-                    connectionString: connectionString, 
-                    provider: provider 
+                body: JSON.stringify({
+                    connectionString: connectionString,
+                    provider: provider
                 })
             });
             const data = await response.json();

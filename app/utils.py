@@ -708,7 +708,7 @@ def generate_potential_answer_v2(question, last_assistant_message=""):
     answer = response['choices'][0]['message']['content'].strip()
     logger.debug(f"Generated answer: {answer}")
 
-    related_concepts = get_related_concepts(db, question, answer)
+    related_concepts = [];
 
     title = generate_title(answer)
     summary = generate_summary(answer)
@@ -721,86 +721,6 @@ def generate_potential_answer_v2(question, last_assistant_message=""):
         'references': references,
         'related_concepts': related_concepts
     }
-
-@with_db_connection
-def extract_main_concepts(db, text, limit=5):
-    """
-    Extract main concepts from the given text using Atlas Search.
-    
-    :param db: MongoDB database connection
-    :param text: The text to extract concepts from
-    :param limit: Maximum number of concepts to extract
-    :return: List of main concepts
-    """
-    knowledge_graph = db.knowledge_graph
-    
-    results = knowledge_graph.aggregate([
-        {
-            '$search': {
-                'index': 'default',
-                'text': {
-                    'query': text,
-                    'path': 'concept'
-                }
-            }
-        },
-        {
-            '$project': {
-                'concept': 1,
-                'score': {'$meta': 'searchScore'}
-            }
-        },
-        {
-            '$sort': {'score': -1}
-        },
-        {
-            '$limit': limit
-        }
-    ])
-    
-    return [doc['concept'] for doc in results]
-
-def get_related_concepts(db, question, answer, limit=10):
-    """
-    Fetch related concepts from the knowledge_graph collection based on the question and answer.
-    
-    :param db: MongoDB database connection
-    :param question: The user's question
-    :param answer: The assistant's answer
-    :param limit: Maximum number of related concepts to return
-    :return: List of related concepts
-    """
-    knowledge_graph_collection = db.knowledge_graph
-
-    # Combine question and answer to create a context for searching related concepts
-    context = f"{question} {answer}"
-
-    # Generate embedding for the context
-    context_embedding, _ = generate_embedding(context)
-
-    # Perform a vector search in the knowledge_graph collection
-    pipeline = [
-        {
-            "$vectorSearch": {
-                "index": "concept_index",
-                "path": "embedding",
-                "queryVector": context_embedding,
-                "numCandidates": 20,
-                "limit": limit
-            }
-        },
-        {
-            "$project": {
-                "concept": 1,
-                "description": 1,
-                "_id": 0,
-                "score": {"$meta": "vectorSearchScore"}
-            }
-        }
-    ]
-
-    related_concepts = list(knowledge_graph_collection.aggregate(pipeline))
-    return related_concepts
 
 def is_event_related_question(question):
     prompt = f"""
@@ -1046,7 +966,7 @@ def analyze_transcript(filepath, user_context):
                 transcript = file.read()
 
         # Truncate the transcript if it's too long
-        max_tokens = 3000  # Adjust this value based on your needs
+        max_tokens = 500  # Adjust this value based on your needs
         if len(transcript) > max_tokens:
             transcript = transcript[:max_tokens] + "..."
 
