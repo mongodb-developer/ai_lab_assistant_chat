@@ -59,7 +59,7 @@ def get_db_connection() -> Optional[Database]:
             client.server_info()
             current_app.config['mongo_client'] = client
             current_app.logger.info("Successfully connected to MongoDB")
-        except pymongo.errors.ServerSelectionTimeoutError as e:
+        except ServerSelectionTimeoutError as e:
             current_app.logger.error(f"Failed to connect to MongoDB (timeout): {str(e)}")
             return None
         except Exception as e:
@@ -708,7 +708,7 @@ def generate_potential_answer_v2(question, last_assistant_message=""):
     answer = response['choices'][0]['message']['content'].strip()
     logger.debug(f"Generated answer: {answer}")
 
-    related_concepts = get_related_concepts(question, answer)
+    related_concepts = get_related_concepts(db, question, answer)
 
     title = generate_title(answer)
     summary = generate_summary(answer)

@@ -9,6 +9,7 @@
         chatState = loadChatState();
         console.log("Initial chat state:", chatState);
 
+            // Clear existing listeners before adding new ones
         if (typeof bootstrap === 'undefined') {
             console.error('Bootstrap is not loaded. Please check your script loading order.');
             appendMessage('Assistant', 'An internal error occurred. Please refresh the page.');
@@ -16,12 +17,12 @@
         } else {
             console.log('Bootstrap is loaded successfully.');
         }
-        document.getElementById('user-input').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') {
-                e.preventDefault();
-                sendMessage();
-            }
-        });
+        // document.getElementById('user-input').addEventListener('keypress', function (e) {
+        //     if (e.key === 'Enter') {
+        //         e.preventDefault();
+        //         sendMessage();
+        //     }
+        // });
         // Reset any lingering connection string waiting states
         chatState.waitingForConnectionString = false;
         chatState.waitingForConnectionStringConfirmation = false;
@@ -72,16 +73,6 @@
             hideAutocompleteDropdown();
         }
 
-        document.querySelectorAll('.ask-question').forEach(button => {
-            button.addEventListener('click', function (event) {
-                event.preventDefault();
-                const question = this.getAttribute('data-question');
-                document.getElementById('user-input').value = question;
-                sendMessage(null, question);
-            });
-        });
-
-
         if (userInput && autocompleteDropdown) {
             // Add keydown event listener to the user input
             userInput.addEventListener('keydown', function (event) {
@@ -90,12 +81,12 @@
                 }
             });
 
-            // Add keydown event listener to the document
-            document.addEventListener('keydown', function (event) {
-                if (event.key === 'Escape') {
-                    hideAutocompleteDropdown();
-                }
-            });
+            // // Add keydown event listener to the document
+            // document.addEventListener('keydown', function (event) {
+            //     if (event.key === 'Escape') {
+            //         hideAutocompleteDropdown();
+            //     }
+            // });
 
             // Existing click event listener
             document.addEventListener('click', function (event) {
@@ -149,21 +140,20 @@
             });
         }
         if (userInput && sendButton) {
-            userInput.addEventListener('keypress', function (event) {
-                if (event.key === 'Enter') {
-                    event.preventDefault();
+            // Use ontouchstart for touch devices, and onclick for non-touch devices
+            if ('ontouchstart' in window) {
+                // Touch device
+                sendButton.removeEventListener('touchstart', sendMessage);
+                sendButton.addEventListener('touchstart', function (event) {
+                    event.preventDefault(); // Prevent default behavior to avoid double event trigger
                     sendMessage(event);
-                    hideAutocompleteDropdown();
-                }
-            });
-
-            sendButton.addEventListener('click', sendMessage);
-            sendButton.addEventListener('touchstart', function (event) {
-                event.preventDefault();
-                sendMessage(event);
-                hideAutocompleteDropdown();
-
-            });
+                    hideAutocompleteDropdown(); // Hide any autocomplete suggestions
+                });
+            } else {
+                // Non-touch device
+                sendButton.removeEventListener('click', sendMessage);
+                sendButton.addEventListener('click', sendMessage);
+            }
         } else {
             console.error('User input or send button not found');
         }
@@ -229,17 +219,25 @@
     }
 
     function appendLoader() {
+        // Check if there's already a loader present
+        if (chatContainer.querySelector('.loader-container')) {
+            console.log("Loader already exists, skipping append.");
+            return null; // Return null to indicate that no new loader was added
+        }
+    
+        // Proceed to create and append the loader if not present
         const loaderElement = document.createElement('div');
+        console.log("Appending loader");
         loaderElement.classList.add('chat-bubble', 'assistant', 'loader-container');
-
+    
         const loader = document.createElement('div');
         loader.classList.add('mongodb-loader');
-
+    
         loaderElement.appendChild(loader);
         chatContainer.appendChild(loaderElement);
         chatContainer.scrollTop = chatContainer.scrollHeight;
-
-        return loaderElement;
+    
+        return loaderElement; // Return the loader element
     }
 
     function removeLoader(loaderElement) {
@@ -421,9 +419,12 @@
                         original_question: message,
                         related_concepts: data.related_concepts || [] // Add this line
                     });
+                    
                 } else {
                     appendMessage('Assistant', 'I couldn\'t find an answer to your question.');
                 }
+                removeLoader(loader);
+
             } catch (error) {
                 console.error('Error in sendMessage:', error);
                 appendMessage('Assistant', `Error: ${error.message}`);
@@ -1225,16 +1226,18 @@
             });
             const data = await response.json();
             if (data.success) {
-                appendMessage('Assistant', "Data import process has been initiated. You'll see updates here as the process progresses.");
+                appendMessage('Assistant', "Data import process completed successfully.");
+                appendMessage('Assistant', data.message);
             } else {
-                appendMessage('Assistant', `Error starting data import: ${data.message}`);
+                appendMessage('Assistant', `Error during data import: ${data.message}`);
             }
         } catch (error) {
             console.error('Error:', error);
-            appendMessage('Assistant', "Sorry, there was an error starting the data import process. Please try again later.");
+            appendMessage('Assistant', "Sorry, there was an error during the data import process. Please try again later.");
         }
         chatState.loadDataPending = false;
         saveChatState();
+        hideWorkflowIndicator();
     }
 
     async function addVectors(connectionString, provider) {
@@ -1245,63 +1248,25 @@
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ connectionString: connectionString, provider: provider })
+                body: JSON.stringify({ 
+                    connectionString: connectionString, 
+                    provider: provider 
+                })
             });
             const data = await response.json();
             if (data.success) {
-                appendMessage('Assistant', "Vector addition process has been initiated. You'll see updates here as the process progresses.");
+                appendMessage('Assistant', "Vector addition process completed successfully.");
+                appendMessage('Assistant', data.message);
             } else {
                 appendMessage('Assistant', `Error starting vector addition: ${data.message}`);
             }
         } catch (error) {
             console.error('Error:', error);
-            appendMessage('Assistant', "Sorry, there was an error starting the vector addition process. Please try again later.");
+            appendMessage('Assistant', "Sorry, there was an error during the vector addition process. Please try again later.");
         }
         chatState.addVectorsPending = false;
         saveChatState();
         hideWorkflowIndicator();
-    }
-
-    let socket;
-    if (typeof io !== 'undefined') {
-        const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-        const host = window.location.hostname;
-        const port = window.location.port;
-        const socketUrl = `${protocol}//${host}:${port}`;
-    
-        socket = io({
-            transports: ['websocket'],
-            upgrade: false,
-            reconnection: true,
-            reconnectionAttempts: 5,
-            reconnectionDelay: 1000,
-        });
-
-        socket.on('connect', function () {
-            console.log('Connected to server');
-        });
-
-        socket.on('message', (data) => {
-            appendMessage('Assistant', data.message);
-        });
-
-        socket.on('status', (data) => {
-            appendMessage('Assistant', `${data.collection}: ${data.count}/${data.total} documents imported`);
-        });
-
-        socket.on('import-complete', (data) => {
-            appendMessage('Assistant', data.message);
-            hideWorkflowIndicator();
-
-        });
-
-        socket.on('vector-data-complete', (data) => {
-            appendMessage('Assistant', data.message);
-            hideWorkflowIndicator();
-        });
-
-    } else {
-        console.error('Socket.IO not loaded. Chat functionality may be limited.');
     }
 
     function showWorkflowIndicator(message) {

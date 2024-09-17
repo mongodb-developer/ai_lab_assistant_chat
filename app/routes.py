@@ -4,7 +4,6 @@ import traceback
 import logging
 from flask import Blueprint, flash, redirect, request, jsonify, render_template, current_app, session, send_from_directory, url_for
 from flask_login import login_required, current_user
-from .socket_manager import socket_manager
 from bson import ObjectId
 from pymongo import MongoClient
 from config import Config
@@ -28,7 +27,6 @@ from .data_utils import connect_to_mongodb, import_collection
 
 from app.utils import (
     generate_embedding,
-    get_related_concepts,
     search_similar_questions,
     add_question_answer,
     check_database_connection,
@@ -213,6 +211,8 @@ def get_user_profile():
 @login_required
 def chat_api():
     debug_info = {}
+    db = get_db_connection()
+
     try:
         debug_info['request'] = {
             'method': request.method,
@@ -250,8 +250,15 @@ def chat_api():
         debug_info['embedding'] = embed_debug
 
         # Search for similar questions with module consideration
-        # similar_questions = search_similar_questions(question_embedding, user_question, selected_module)
-        similar_questions, debug_info = search_similar_questions(question_embedding, user_question, selected_module)
+        search_result = search_similar_questions(question_embedding, user_question, selected_module)
+        if isinstance(search_result, tuple) and len(search_result) == 2:
+            similar_questions, search_debug_info = search_result
+        else:
+            # If not, assume it's just the similar questions
+            similar_questions = search_result
+            search_debug_info = {}
+        
+        debug_info['search'] = search_debug_info
 
         logging.info(f"Found {len(similar_questions)} similar questions")
 
@@ -262,18 +269,6 @@ def chat_api():
             # Check if the best match is actually relevant
             if best_match['combined_score'] > SIMILARITY_THRESHOLD and verify_question_similarity(user_question, best_match['question']) >= 0.8:
                 response_message = best_match['answer']
-                related_concepts = get_related_concepts(user_question, response_message)
-                expanded_concepts = []
-                for concept in related_concepts:
-                    expanded_concepts.append(concept)
-                    secondary_concepts = get_related_concepts(user_question, concept['concept'], limit=3)  # Fetch up to 3 related concepts for each primary concept
-                    expanded_concepts.extend(secondary_concepts)
-                seen = set()
-                unique_concepts = []
-                for concept in expanded_concepts:
-                    if concept['concept'] not in seen:
-                        seen.add(concept['concept'])
-                        unique_concepts.append(concept)
                 
                 response_data = {
                     'question': best_match['question'],
@@ -284,54 +279,44 @@ def chat_api():
                     'references': best_match.get('references', ''),
                     'source': 'database',
                     'match_score': round(best_match['combined_score'], 4),
-                    'related_concepts': unique_concepts,
-                    "debug_info": debug_info
-
                 }
             else:
                 logging.info("Best match didn't pass relevance check. Generating new answer.")
                 response_message = generate_potential_answer_v2(user_question)
-                response_data = {
-                    'question': user_question,
-                    'answer': response_message.get('answer', ''),
-                    'title': response_message.get('title', ''),
-                    'summary': response_message.get('summary', ''),
-                    'references': response_message.get('references', ''),
-                    'source': 'LLM',
-                    "debug_info": debug_info,
-                    'related_concepts': response_message.get('related_concepts', [])
-
-                }
+                response_data = create_response_data(user_question, response_message, 'LLM')
                 add_unanswered_question(user_id, user_name, user_question, response_data, selected_module)
         else:
             logging.info("No similar questions found. Generating new answer.")
             response_message = generate_potential_answer_v2(user_question)
-            response_data = {
-                'question': user_question,
-                'answer': response_message['answer'],
-                'title': response_message.get('title', ''),
-                'summary': response_message.get('summary', ''),
-                'references': response_message.get('references', ''),
-                'source': 'LLM',
-                'related_concepts': response_message.get('related_concepts', []),
-                "debug_info": debug_info
-
-            }
+            response_data = create_response_data(user_question, response_message, 'LLM')
             add_unanswered_question(user_id, user_name, user_question, response_data, selected_module)
 
         store_message(user_id, response_message, 'Assistant', conversation_id)
         
         response_data['conversation_id'] = conversation_id
+        response_data['debug_info'] = debug_info
         return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
     except ValueError as e:
-        logger.error(f"Value error in chat route: {str(e)}")
-        debug_info['error'] = str(e)
-        return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 400, {'Content-Type': 'application/json'}
+        return handle_error(e, debug_info, 400)
     except Exception as e:
-        logger.error(f"Error in chat route: {str(e)}")
-        debug_info['error'] = str(e)
+        return handle_error(e, debug_info, 500)
+
+def create_response_data(user_question, response_message, source):
+    return {
+        'question': user_question,
+        'answer': response_message.get('answer', ''),
+        'title': response_message.get('title', ''),
+        'summary': response_message.get('summary', ''),
+        'references': response_message.get('references', ''),
+        'source': source,
+    }
+
+def handle_error(e, debug_info, status_code):
+    logger.error(f"Error in chat route: {str(e)}")
+    debug_info['error'] = str(e)
+    if status_code == 500:
         debug_info['traceback'] = traceback.format_exc()
-        return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), 500, {'Content-Type': 'application/json'}
+    return json.dumps({'error': str(e), 'debug_info': debug_info}, default=json_serialize), status_code, {'Content-Type': 'application/json'}
 
 def handle_connection_check(user_id):
     try:
@@ -440,10 +425,15 @@ def favicon():
 # Add a general error handler for the blueprint
 @main.errorhandler(Exception)
 def handle_exception(e):
+    # Log the full stack trace of the exception
+    current_app.logger.error(f"An unexpected error occurred: {str(e)}", exc_info=True)
+    
+    # If it's an HTTPException, return the specific error
     if isinstance(e, HTTPException):
         return jsonify(error=str(e)), e.code
-    # Handle non-HTTP exceptions here
-    return jsonify(error="An unexpected error occurred"), 500
+    
+    # For non-HTTP exceptions, return a generic error message
+    return jsonify(error="An unexpected error occurred."), 500
 
 @main.route('/api/questions/<string:question_id>', methods=['GET'])
 @login_required
@@ -1526,12 +1516,16 @@ def search_questions():
 def autocomplete():
     prefix = request.args.get('prefix', '')
     if not prefix:
+        current_app.logger.info("Empty prefix received. Returning empty suggestions.")
         return jsonify([]), 200
 
     collection = get_documents_collection()
-    if not collection:
+    current_app.logger.info(f"Collection retrieved: {collection}")
+    current_app.logger.info(f"Prefix received: {prefix}")
+
+    if collection is None:
         current_app.logger.error("Documents collection is not available.")
-        return jsonify({"error": "Internal Server Error"}), 500
+        return jsonify({"error": "Internal Server Error: collection not found"}), 500
 
     try:
         pipeline = [
@@ -1554,13 +1548,18 @@ def autocomplete():
             },
             {"$limit": 5}
         ]
-
+        
+        current_app.logger.info(f"Executing aggregation pipeline with prefix: {prefix}")
         results = list(collection.aggregate(pipeline))
+        current_app.logger.info(f"Aggregation results: {results}")
+        
         suggestions = [result['question'] for result in results]
         return jsonify(suggestions), 200
+
     except Exception as e:
-        current_app.logger.error(f"Error in autocomplete: {str(e)}")
-        return jsonify({"error": "An error occurred during autocomplete"}), 500
+        current_app.logger.error(f"Error in autocomplete: {str(e)}", exc_info=True)
+        return jsonify({"error": f"An error occurred during autocomplete: {str(e)}"}), 500
+
 
     
 @main.route('/api/design_review', methods=['POST'])
@@ -2130,115 +2129,79 @@ def check_codespace(check_type):
             'error': f'Unexpected error occurred while checking {check_type} API',
             'details': str(e)
         }), 500
-        
-def background_import_data(connection_string):
-    client = connect_to_mongodb(connection_string)
-    if not client:
-        return
-
-    socket_manager.emit('message', {'message': 'Starting data import'})
-    for collection in ["authors", "books", "issueDetails", "reviews", "users"]:
-        import_collection(client, collection)
-
-    socket_manager.emit('import-complete', {'message': 'Imported data successfully!'})
-    socket_manager.end_task('import_data')
-
-@socket_manager.on('import-data')
-def import_data(data):
-    connection_string = current_user.atlas_connection_string
-    
-    if not connection_string:
-        return jsonify({"success": False, "message": "Please add a MongoDB connection string to your profile."}), 400
-    
-    target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
-
-    try:
-        target_client.admin.command('ping')
-        socket_manager.emit('message', {'message': 'Connected to target database'})
-    except Exception as e:
-        socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
-        return
-
-    socket_manager.emit('message', {'message': 'Starting data import'})
-
-    for collection in SOURCE_COLLECTIONS:
-        import_collection(target_client, collection)
-
-    socket_manager.emit('import-complete', {'message': 'Imported data successfully!'})
 
 def add_vectors(data):
-    try:
-        connection_string = data['connectionString']
-        provider = data['provider']
-        target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
+    connection_string = data['connectionString']
+    provider = data['provider']
+    target_client = MongoClient(connection_string, appName=APP_NAME_DEV_DAY)
 
-        try:
-            target_client.admin.command('ping')
-            socket_manager.emit('message', {'message': 'Connected to target database'})
-        except Exception as e:
-            socket_manager.emit('message', {'message': f'Error connecting to target database: {str(e)}', 'error': True})
-            return
+    vector_collection = {
+        'openai': 'openaiBooks',
+        'vertex': 'vertexBooks',
+        'sagemaker': 'sagemakerBooks'
+    }.get(provider, 'vertexBooks')
 
-        socket_manager.emit('message', {'message': 'Starting to add vectors'})
-
-        vector_collection = {
-            'openai': 'openaiBooks',
-            'vertex': 'vertexBooks',
-            'sagemaker': 'sagemakerBooks'
-        }.get(provider, 'vertexBooks')
-
-        import_collection(target_client, vector_collection)
-
-        socket_manager.emit('vector-data-complete', {'message': 'Imported vector data successfully!'})
-    finally:
-        socket_manager.end_task('add_vectors')  # Always end the task, even if an error occurs
-
-
+    import_collection(target_client, vector_collection)
 
 @main.route('/api/load_data', methods=['POST'])
 @login_required
-def load_data():
+def load_data_route():
     try:
-        data = request.json
         connection_string = current_user.atlas_connection_string
-        
         if not connection_string:
-            current_app.logger.error("No connection string provided in user profile")
             return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
 
-        current_app.logger.info("Initiating socket connection")
-        socket_manager.connect()  # Establish connection
-        
-        current_app.logger.info("Starting import_data task")
-        socket_manager.start_task('import_data')
-        
-        current_app.logger.info("Launching background import task")
-        socket_manager.start_background_task(background_import_data_wrapper, current_app._get_current_object(), connection_string)
-        
-        current_app.logger.info("Data loading initiated successfully")
-        return jsonify({'success': True, 'message': 'Data loading started'}), 200
+        result = load_data(connection_string)
+        return jsonify(result), 200 if result['success'] else 500
 
     except Exception as e:
         current_app.logger.error(f"Error in load_data route: {str(e)}", exc_info=True)
         return jsonify({'success': False, 'message': f'An error occurred: {str(e)}'}), 500
 
-def background_import_data_wrapper(app, connection_string):
-    with app.app_context():
-        background_import_data(connection_string)
+def load_data(connection_string):
+    client = connect_to_mongodb(connection_string)
+    if not client:
+        return {"success": False, "message": "Failed to connect to MongoDB"}
+
+    result = {"success": True, "message": "Data import completed", "details": []}
+    for collection in ["authors", "books", "issueDetails", "reviews", "users"]:
+        collection_result = import_collection(client, collection)
+        result["details"].append(collection_result)
+
+    return result
 
 @main.route('/api/add_vectors', methods=['POST'])
 @login_required
 def add_vectors_route():
-    data = request.json
     connection_string = current_user.atlas_connection_string
     if not connection_string:
         return jsonify({'success': False, 'message': 'No connection string provided - please update your profile.'}), 400
 
-    provider = 'serverless'
-    socket_manager.connect()  # Establish connection
-    socket_manager.start_task('add_vectors')
-    socket_manager.start_background_task(add_vectors, {'connectionString': connection_string, 'provider': provider})
-    return jsonify({'success': True, 'message': 'Vector addition started'})
+    provider = 'serverless'  # You might want to make this configurable
+
+    try:
+        # Call the add_vectors function directly
+        result = add_vectors({'connectionString': connection_string, 'provider': provider})
+        
+        if result['success']:
+            return jsonify({
+                'success': True, 
+                'message': 'Vector addition completed successfully',
+                'details': result.get('details', '')
+            })
+        else:
+            return jsonify({
+                'success': False, 
+                'message': 'Vector addition failed',
+                'error': result.get('error', 'Unknown error occurred')
+            }), 500
+
+    except Exception as e:
+        return jsonify({
+            'success': False, 
+            'message': 'An error occurred during vector addition',
+            'error': str(e)
+        }), 500
 
 @main.route('/api/mongodb_shell', methods=['POST'])
 @login_required
@@ -2261,4 +2224,4 @@ def mongodb_shell():
         result_json = json_util.dumps(result)
         return jsonify({'success': True, 'result': result_json})
     except Exception as e:
-        return jsonify({'success': False, 'message': str(e)}), 500
+        return jsonify({'success': False, 'message': str(e)}), 500 

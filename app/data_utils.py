@@ -2,7 +2,6 @@
 
 from pymongo import MongoClient
 from flask import current_app
-from .socket_manager import socket_manager
 
 # Configuration constants
 APP_NAME_DEV_DAY = "devrel.workshop.devday"
@@ -17,7 +16,6 @@ def connect_to_mongodb(connection_string):
         return client
     except Exception as e:
         current_app.logger.error(f"Error connecting to MongoDB: {str(e)}")
-        socket_manager.emit('message', {'message': f"Error connecting to MongoDB: {str(e)}", 'error': True})
         return None
 
 def import_collection(client, collection_name):
@@ -25,7 +23,6 @@ def import_collection(client, collection_name):
     try:
         target_collection = client["library"][collection_name]
         target_collection.drop()
-        socket_manager.emit('message', {'message': f'{collection_name}: Deleted existing documents'})
 
         # Fetch documents and import
         current_count = 0
@@ -33,10 +30,8 @@ def import_collection(client, collection_name):
         while next_docs:
             target_collection.insert_many(next_docs)
             current_count += len(next_docs)
-            socket_manager.emit('status', {'collection': collection_name, 'count': current_count})
             next_docs = get_documents(collection_name, next_docs[-1]['_id'])
 
-        socket_manager.emit('message', {'message': f'{collection_name}: Import complete'})
     except Exception as e:
         current_app.logger.error(f"Error importing collection {collection_name}: {str(e)}")
 
