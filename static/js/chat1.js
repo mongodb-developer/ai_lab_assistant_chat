@@ -1323,11 +1323,5 @@
             indicator.style.display = 'none';
         }, 300);
     }
-    document.getElementById('user-input').addEventListener('keypress', function (e) {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            sendMessage();
-        }
-    });
 
 })();

@@ -4,8 +4,11 @@ from app.socket_manager import socket_manager
 import cProfile
 import pstats
 import io
-from gevent import pywsgi
+import gevent.monkey
+from gevent import pywsgi, monkey
+gevent.monkey.patch_all()
 from geventwebsocket.handler import WebSocketHandler
+from app.socket_manager import socket_manager
 
 from app import create_app
 
