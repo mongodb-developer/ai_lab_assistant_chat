@@ -187,6 +187,10 @@ def update_user_login_info(db, user_id):
     return update_data
 
 def generate_embedding(text):
+    if not openai.api_key:
+        openai.api_key = current_app.config.get('OPENAI_API_KEY')
+    if not openai.api_key:
+        raise ValueError("OpenAI API key is not set")
     debug_info = {}
     if isinstance(text, dict):
         text = str(text)
