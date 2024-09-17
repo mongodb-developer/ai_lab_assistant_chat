@@ -296,10 +296,10 @@ def chat_api():
         response_data['conversation_id'] = conversation_id
         response_data['debug_info'] = debug_info
         return json.dumps(response_data, default=json_serialize), 200, {'Content-Type': 'application/json'}
-    except ValueError as e:
-        return handle_error(e, debug_info, 400)
     except Exception as e:
-        return handle_error(e, debug_info, 500)
+        current_app.logger.error(f"Error in chat_api: {str(e)}")
+        current_app.logger.error(traceback.format_exc())
+        return jsonify({"error": "An internal server error occurred"}), 500
 
 def create_response_data(user_question, response_message, source):
     return {
