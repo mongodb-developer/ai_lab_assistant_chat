@@ -14,6 +14,7 @@ from bson import ObjectId, json_util
 from flask_login import login_required, current_user
 from flask import request, current_app
 import PyPDF2
+from functools import lru_cache
 
 import traceback
 import requests
@@ -316,21 +317,9 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
         {
             '$search': {
                 'index': 'default',
-                'compound': {
-                    'must': [{
-                        'text': {
-                            'query': user_question_lower,
-                            'path': 'question',
-                            'fuzzy': {'maxEdits': 2}
-                        }
-                    }],
-                    'should': [{
-                        'text': {
-                            'query': user_question_lower,
-                            'path': 'workshop_keywords',  # New field for workshop-specific keywords
-                            'score': {'boost': {'value': 2}}  # Boost matches in workshop keywords
-                        }
-                    }]
+                'text': {
+                    'query': user_question,
+                    'path': ['question', 'answer', 'title']
                 }
             }
         },
@@ -342,22 +331,9 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
                 'summary': 1,
                 'references': 1,
                 'module': 1,
-                'is_workshop_content': 1,
-                'text_score': {'$meta': 'searchScore'},
+                'text_score': {'$meta': 'searchScore'}
             }
-        },
-        {
-            '$addFields': {
-                'boosted_score': {
-                    '$cond': [
-                        {'$eq': ['$is_workshop_content', True]},
-                        {'$multiply': ['$text_score', 1.5]},  # Boost workshop content
-                        '$text_score'
-                    ]
-                }
-            }
-        },
-        {'$sort': {'boosted_score': -1}}
+        }
     ]
 
     # Apply module filter if specified
@@ -369,11 +345,9 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
     vector_results = list(get_documents_collection().aggregate(vector_search_stage))
     text_results = list(get_documents_collection().aggregate(text_search_stage))
 
-    # Combine and process results
-    all_results = vector_results + text_results
-    for result in all_results:
-        result['combined_score'] = (result.get('boosted_score', 0) * 2 + 
-                                    result.get('vector_score', 0) * 0.7 + 
+    combined_results = vector_results + text_results
+    for result in combined_results:
+        result['combined_score'] = (result.get('vector_score', 0) * 0.7 + 
                                     result.get('text_score', 0) * 0.3)
 
     # Remove duplicates and sort
@@ -385,8 +359,10 @@ def search_similar_questions(db, question_embedding, user_question, module, simi
             unique_results.append(result)
 
     # Filter results
-    filtered_results = [r for r in unique_results if r['combined_score'] >= similarity_threshold]
-
+    filtered_results = [r for r in sorted(combined_results, 
+                                          key=lambda x: x['combined_score'], 
+                                          reverse=True) 
+                        if r['combined_score'] >= similarity_threshold]
     debug_info = {
         "vector_results_count": len(vector_results),
         "text_results_count": len(text_results),
@@ -1258,3 +1234,14 @@ def obfuscate_connection_string(connection_string):
     obfuscated_password = password[:3] + '*' * max(0, len(password) - 3)
     
     return f"{protocol}:{username}:{obfuscated_password}@{parts[1]}"
+
+@lru_cache(maxsize=1000)
+def get_cached_embedding(text):
+    """
+    Generates and caches embeddings for given text.
+    
+    :param text: The text to generate an embedding for
+    :return: The generated embedding
+    """
+    embedding, _ = generate_embedding(text)
+    return embedding

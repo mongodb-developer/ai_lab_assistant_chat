@@ -25,6 +25,10 @@ import io
 from dotenv import load_dotenv
 from requests.exceptions import RequestException, Timeout, ConnectionError
 from .data_utils import connect_to_mongodb, import_collection
+from celery import Celery
+
+celery = Celery(__name__, broker=current_app.config['CELERY_BROKER_URL'])
+
 
 from app.utils import (
     generate_embedding,
@@ -62,6 +66,23 @@ APP_NAME_DEV_DAY = "devrel.workshop.devday"
 SOURCE_DATABASE = "library"
 SOURCE_COLLECTIONS = ["authors", "books", "issueDetails", "reviews", "users"]
 LIMIT = 2000
+
+@celery.task
+def update_embeddings_task(question_id):
+    """
+    Background task to update embeddings for a given question.
+    
+    :param question_id: The ID of the question to update
+    """
+    documents_collection = get_documents_collection()
+    question = documents_collection.find_one({'_id': ObjectId(question_id)})
+    
+    if question:
+        new_embedding = get_cached_embedding(question['question'])
+        documents_collection.update_one(
+            {'_id': ObjectId(question_id)},
+            {'$set': {'question_embedding': new_embedding}}
+        )
 
 def custom_json_encoder(obj):
     if isinstance(obj, ObjectId):
