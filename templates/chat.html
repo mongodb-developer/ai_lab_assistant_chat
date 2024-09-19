@@ -304,6 +304,7 @@
                     Loading…
                 </iframe>
             </div>
+
         </div>
     </div>
 </div>
@@ -332,6 +333,19 @@
         });
         bookReviewBtn.addEventListener('click', function () {
             formModal.show();
+        });
+        // Listen for when the modal is hidden and manually remove the backdrop
+        formModalElement.addEventListener('hidden.bs.modal', function () {
+            // Manually remove any lingering modal backdrop
+            var modalBackdrop = document.querySelector('.modal-backdrop');
+            if (modalBackdrop) {
+                modalBackdrop.parentNode.removeChild(modalBackdrop);
+            }
+        });
+
+        formModalElement.addEventListener('hidden.bs.modal', function () {
+            var modalBackdrops = document.querySelectorAll('.modal-backdrop');
+            modalBackdrops.forEach(backdrop => backdrop.parentNode.removeChild(backdrop));
         });
         // var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
         // var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
