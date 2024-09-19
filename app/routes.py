@@ -7,7 +7,7 @@ from flask_login import login_required, current_user
 from bson import ObjectId
 from pymongo import MongoClient
 from config import Config
-from datetime import datetime
+from datetime import datetime, timezone
 import markdown2
 from bs4 import BeautifulSoup
 from .question_generator import process_content, save_to_mongodb, fetch_content_from_url, extract_text_from_file
@@ -2225,3 +2225,33 @@ def mongodb_shell():
         return jsonify({'success': True, 'result': result_json})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500 
+    
+@main.route('/api/logMetrics', methods=['POST'])
+def log_metrics():
+    # Get the data from the request body
+    data = request.get_json()
+    metrics_collection = get_collection('metrics');
+    user_id = current_user.get_id()
+    user_name = current_user.name
+    if not data:
+        return jsonify({'success': False, 'message': 'No data provided'}), 400
+
+    search_type = data.get('searchType')
+
+    # Create the document for metrics
+    metric = {
+        'userId': {
+            'id': user_id,
+            'name': user_name
+        },
+        'searchType': search_type,
+        'timestamp': datetime.now(timezone.utc)
+    }
+
+    try:
+        # Insert the metric into the MongoDB collection
+        metrics_collection.insert_one(metric)
+        return jsonify({'success': True, 'message': 'Metrics logged successfully'})
+    except Exception as e:
+        print(f"Error logging metrics: {e}")
+        return jsonify({'success': False, 'message': 'Error logging metrics'}), 500

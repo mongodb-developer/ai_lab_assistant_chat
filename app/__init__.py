@@ -54,16 +54,15 @@ def create_app(config_class=Config):
     csrf.init_app(app)
     
     @app.after_request
-    def add_csp_headers(response):
-        csp = (
+    def apply_csp(response):
+        response.headers['Content-Security-Policy'] = (
             "default-src 'self'; "
-            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://code.jquery.com; "
-            "style-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
-            "font-src 'self' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net; "
-            "img-src 'self' data: https://cdn-icons-png.flaticon.com; "
-            "connect-src 'self';"
+            "script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://cdn.jsdelivr.net https://unpkg.com https://assets.calendly.com https://code.jquery.com; "
+            "style-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com https://unpkg.com; "
+            "font-src 'self' https://cdnjs.cloudflare.com; "
+            "img-src 'self' data:; "
+            "frame-src 'self' https://docs.google.com;"
         )
-        response.headers['Content-Security-Policy'] = csp
         return response
 
     print("Finished create_app function")

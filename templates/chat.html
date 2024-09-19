@@ -119,30 +119,7 @@
                                 </div>
                             </div>
                         </div>
-                        <div class="col">
-                            <div class="card h-100 sample-question-card">
-                                <div class="card-body">
-                                    <h6 class="card-title"><i class="fas fa-plug"></i> Workshop Tools</h6>
-                                    <p class="card-text">Get help with your workshop progress.  Check your setup progress... <pre>/check connection<p>/check backend</p></pre></p>
-                                    <div class="mb-3">
-                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection"><i class="fas fa-plug">&nbsp;</i>Connect</button>
-                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check backend"><i class="fas fa-wrench">&nbsp;</i>Backend</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col">
-                            <div class="card h-100 sample-question-card">
-                                <div class="card-body">
-                                    <h6 class="card-title"><i class="fas fa-plug"></i> Load Data</h6>
-                                    <p class="card-text">Load data into your Atlas database. Try <pre>/load data</pre> or <pre>/add vectors</pre></p>
-                                    <div class="mb-3">
-                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/check connection">Load Data</button>
-                                        <button class="btn btn-sm btn-outline-primary ask-question" data-question="/add vectors">Add Vectors</button>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
+                        
                     </div>
                     <div id="workflow-animation"></div>
 
@@ -161,37 +138,37 @@
                         const workflowAnimation = document.getElementById('workflow-animation');
 
                         workflowButton.addEventListener('click', function() {
-    workflowAnimation.style.display = 'block';
-    workflowAnimation.innerHTML = `
-      <div class="mermaid">
-        sequenceDiagram
-          participant U as User
-          participant C as Chat System
-          participant S as Server
-          participant V as Vector Search
-          participant D as Database
-          participant L as LLM
+                        workflowAnimation.style.display = 'block';
+                        workflowAnimation.innerHTML = `
+                        <div class="mermaid">
+                            sequenceDiagram
+                            participant U as User
+                            participant C as Chat System
+                            participant S as Server
+                            participant V as Vector Search
+                            participant D as Database
+                            participant L as LLM
 
-          U->>+C: Input question
-          C->>+S: Forward question
-          S->>+V: Perform vector search
-          V-->>-S: Return similarity results
-          
-          alt Similar questions found
-              S->>+D: Retrieve answer
-              D-->>-S: Return stored answer
-          else No similar questions
-              S->>+L: Generate new answer
-              L-->>-S: Return generated answer
-          end
-          
-          S-->>-C: Send response
-          C-->>-U: Display answer
-      </div>
-    `;
-    mermaid.init(undefined, document.querySelector(".mermaid"));
-    setTimeout(animateDiagram, 500);
-});
+                            U->>+C: Input question
+                            C->>+S: Forward question
+                            S->>+V: Perform vector search
+                            V-->>-S: Return similarity results
+                            
+                            alt Similar questions found
+                                S->>+D: Retrieve answer
+                                D-->>-S: Return stored answer
+                            else No similar questions
+                                S->>+L: Generate new answer
+                                L-->>-S: Return generated answer
+                            end
+                            
+                            S-->>-C: Send response
+                            C-->>-U: Display answer
+                        </div>
+                        `;
+                        mermaid.init(undefined, document.querySelector(".mermaid"));
+                        setTimeout(animateDiagram, 500);
+                    });
 
     function animateDiagram() {
     const elements = document.querySelectorAll('.mermaid .actor, .mermaid .messageLine, .mermaid .messageText');
@@ -307,26 +284,30 @@
         </div>
     </div>
 </div>
-<!-- Modal for Calendly Widget -->
-<div class="modal fade" id="calendlyModal" tabindex="-1" aria-labelledby="calendlyModalLabel" aria-hidden="true">
+<!-- Modal for Google Form -->
+<div class="modal fade" id="formModal" tabindex="-1" aria-labelledby="formModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="calendlyModalLabel">Book a Developer Design Review</h5>
+                <h5 class="modal-title" id="formModalLabel">Book a Developer Design Review</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <div class="modal-body">
-                <!-- Calendly inline widget begin -->
-                <div class="calendly-inline-widget"
-                    data-url="https://docs.google.com/forms/d/1ZtBnW2BE5DTQDJ7hpirikPe4yqTD_ELTuTOhPy134-U/viewform?edit_requested=true"
-                    style="min-width:320px;height:700px;"></div>
-                <script type="text/javascript" src="https://assets.calendly.com/assets/external/widget.js"
-                    async></script>
-                <!-- Calendly inline widget end -->
+                <!-- Embed Google Form in an iframe -->
+                <iframe 
+                    src="https://docs.google.com/forms/d/1ZtBnW2BE5DTQDJ7hpirikPe4yqTD_ELTuTOhPy134-U/viewform?embedded=true" 
+                    width="100%" 
+                    height="700" 
+                    frameborder="0" 
+                    marginheight="0" 
+                    marginwidth="0">
+                    Loading…
+                </iframe>
             </div>
         </div>
     </div>
 </div>
+
 <div id="workflow-indicator" class="workflow-indicator" style="display: none;">
     <span id="workflow-message"></span>
     <button id="cancel-workflow" class="btn btn-sm btn-secondary">Cancel</button>
@@ -342,13 +323,15 @@
 <script>
     document.addEventListener('DOMContentLoaded', function () {
         var bookReviewBtn = document.getElementById('book-review-btn');
-        var calendlyModal = new bootstrap.Modal(document.getElementById('calendlyModal'));
+        var formModalElement = document.getElementById('formModal');
+        var formModal = new bootstrap.Modal(formModalElement);
+
         var bannerCarousel = new bootstrap.Carousel(document.getElementById('bannerCarousel'), {
             interval: 5000,  // Adjust interval time (in ms) for carousel rotation
             ride: 'carousel'
         });
         bookReviewBtn.addEventListener('click', function () {
-            calendlyModal.show();
+            formModal.show();
         });
         // var dropdownElementList = [].slice.call(document.querySelectorAll('.dropdown-toggle'))
         // var dropdownList = dropdownElementList.map(function (dropdownToggleEl) {
